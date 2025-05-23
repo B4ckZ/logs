@@ -12,7 +12,7 @@
 # ===============================================================================
 
 # Version et informations de l'interface
-MAXLINK_VERSION="2.0"
+MAXLINK_VERSION="2.4"
 MAXLINK_COPYRIGHT="© 2025 WERIT. Tous droits réservés."
 MAXLINK_WINDOW_TITLE="MaxLink™ Admin Panel V${MAXLINK_VERSION} - ${MAXLINK_COPYRIGHT} - Usage non autorisé strictement interdit."
 

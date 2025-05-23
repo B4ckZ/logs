@@ -291,6 +291,31 @@ echo "  ↦ Cache APT nettoyé ✓"
 log_info "Nettoyage du système terminé"
 
 echo ""
+sleep 1
+echo "◦ Installation d'ImageMagick..."
+log_info "Installation ImageMagick pour overlay version"
+
+if ! command -v convert >/dev/null 2>&1; then
+    echo "  ↦ Installation d'ImageMagick pour overlay version..."
+    
+    if apt-get install -y imagemagick >/dev/null 2>&1; then
+        if command -v convert >/dev/null 2>&1; then
+            echo "  ↦ ImageMagick installé avec succès ✓"
+            log_info "ImageMagick installé avec succès"
+        else
+            echo "  ↦ Échec installation ImageMagick ⚠"
+            log_warn "Échec installation ImageMagick"
+        fi
+    else
+        echo "  ↦ Échec installation ImageMagick (erreur APT) ⚠"
+        log_warn "Échec installation ImageMagick - erreur APT"
+    fi
+else
+    echo "  ↦ ImageMagick déjà installé ✓"
+    log_info "ImageMagick déjà disponible"
+fi
+
+echo ""
 sleep 3
 
 
@@ -389,11 +414,11 @@ if [ -f "$BG_IMAGE_SOURCE" ]; then
         # Créer le fond d'écran avec version overlay
         convert "$BG_IMAGE_SOURCE" \
             -gravity SouthEast \
-            -pointsize 48 \
-            -fill "#88C0D0" \
-            -stroke "#2E3440" \
+            -pointsize 60 \
+            -fill "#000000" \
+            -stroke "#000000" \
             -strokewidth 2 \
-            -annotate +30+30 "$VERSION_TEXT" \
+            -annotate +50+50 "$VERSION_TEXT" \
             "$BG_IMAGE_DEST/bg.jpg"
         
         echo "  ↦ Version ajoutée avec succès ✓"
