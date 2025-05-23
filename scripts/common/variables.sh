@@ -13,13 +13,8 @@
 
 # Version et informations de l'interface
 MAXLINK_VERSION="2.0"
-MAXLINK_BUILD="Build 2025.01"
 MAXLINK_COPYRIGHT="© 2025 WERIT. Tous droits réservés."
 MAXLINK_WINDOW_TITLE="MaxLink™ Admin Panel V${MAXLINK_VERSION} - ${MAXLINK_COPYRIGHT} - Usage non autorisé strictement interdit."
-
-# Informations de l'organisation
-MAXLINK_COMPANY="WERIT"
-MAXLINK_PROJECT_NAME="MaxLink"
 
 # ===============================================================================
 # CONFIGURATION UTILISATEUR SYSTÈME
@@ -218,8 +213,7 @@ BG_IMAGE_DEST=$(get_bg_image_dest)
 # ===============================================================================
 
 # Exporter toutes les variables pour qu'elles soient disponibles dans tous les scripts
-export MAXLINK_VERSION MAXLINK_BUILD MAXLINK_COPYRIGHT MAXLINK_WINDOW_TITLE
-export MAXLINK_COMPANY MAXLINK_PROJECT_NAME
+export MAXLINK_VERSION MAXLINK_COPYRIGHT MAXLINK_WINDOW_TITLE
 export SYSTEM_USER SYSTEM_USER_HOME FALLBACK_USER
 export EFFECTIVE_USER EFFECTIVE_USER_HOME
 export WIFI_SSID WIFI_PASSWORD

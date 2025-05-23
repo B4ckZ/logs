@@ -4,6 +4,7 @@ import subprocess
 import os
 import threading
 from datetime import datetime
+import re
 
 # Couleurs du thème Nord - Interface principale
 COLORS = {
@@ -19,27 +20,147 @@ COLORS = {
     "nord15": "#B48EAD", # Violet / Tester
 }
 
+class VariablesManager:
+    """Gestionnaire pour charger et utiliser les variables de variables.sh"""
+    
+    def __init__(self, base_path):
+        self.base_path = base_path
+        self.variables = {}
+        self.load_variables()
+    
+    def load_variables(self):
+        """Charge les variables depuis le fichier variables.sh"""
+        variables_file = os.path.join(self.base_path, "scripts", "common", "variables.sh")
+        
+        if not os.path.exists(variables_file):
+            print(f"ATTENTION: Fichier variables.sh non trouvé: {variables_file}")
+            self._load_default_variables()
+            return
+        
+        try:
+            with open(variables_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Parser les variables bash (format VARIABLE="valeur" ou VARIABLE=valeur)
+            pattern = r'^([A-Z_][A-Z0-9_]*)=(["\']?)([^"\']*)\2'
+            
+            for line in content.split('\n'):
+                line = line.strip()
+                # Ignorer les commentaires et lignes vides
+                if line.startswith('#') or not line:
+                    continue
+                
+                match = re.match(pattern, line)
+                if match:
+                    var_name = match.group(1)
+                    var_value = match.group(3)
+                    self.variables[var_name] = var_value
+            
+            # Parser les arrays (format ARRAY=("val1" "val2" "val3"))
+            array_pattern = r'^([A-Z_][A-Z0-9_]*)\s*=\s*\((.*?)\)'
+            for match in re.finditer(array_pattern, content, re.MULTILINE | re.DOTALL):
+                var_name = match.group(1)
+                array_content = match.group(2)
+                # Extraire les valeurs entre guillemets
+                values = re.findall(r'"([^"]*)"', array_content)
+                self.variables[var_name] = values
+            
+            print(f"Variables chargées: {len(self.variables)} éléments")
+            
+        except Exception as e:
+            print(f"Erreur lors du chargement de variables.sh: {e}")
+            self._load_default_variables()
+    
+    def _load_default_variables(self):
+        """Charge des variables par défaut si le fichier n'existe pas"""
+        self.variables = {
+            'MAXLINK_VERSION': '2.0',
+            'MAXLINK_BUILD': 'Build 2025.01',
+            'MAXLINK_COPYRIGHT': '© 2025 WERIT. Tous droits réservés.',
+            'MAXLINK_COMPANY': 'WERIT',
+            'MAXLINK_PROJECT_NAME': 'MaxLink',
+            'SYSTEM_USER': 'max',
+            'WIFI_SSID': 'Max',
+            'AP_SSID': 'MaxLink-NETWORK',
+            'SERVICES_LIST': [
+                "update:Update RPI:active",
+                "ap:Network AP:active", 
+                "nginx:NginX Web:inactive",
+                "mqtt:MQTT BKR:inactive"
+            ]
+        }
+        print("Variables par défaut chargées")
+    
+    def get(self, key, default=None):
+        """Récupère une variable avec valeur par défaut"""
+        return self.variables.get(key, default)
+    
+    def get_window_title(self):
+        """Construit le titre de la fenêtre depuis les variables"""
+        version = self.get('MAXLINK_VERSION', '2.0')
+        copyright_text = self.get('MAXLINK_COPYRIGHT', '© 2025 WERIT. Tous droits réservés.')
+        return f"MaxLink™ Admin Panel V{version} - {copyright_text} - Usage non autorisé strictement interdit."
+    
+    def get_services_list(self):
+        """Parse la liste des services depuis SERVICES_LIST"""
+        services_raw = self.get('SERVICES_LIST', [])
+        services = []
+        
+        for service_def in services_raw:
+            # Format: "id:nom:statut_initial"
+            parts = service_def.split(':')
+            if len(parts) == 3:
+                services.append({
+                    "id": parts[0],
+                    "name": parts[1], 
+                    "status": parts[2]
+                })
+        
+        # Fallback si aucun service défini
+        if not services:
+            services = [
+                {"id": "update", "name": "Update RPI", "status": "active"},
+                {"id": "ap", "name": "Network AP", "status": "active"},
+                {"id": "nginx", "name": "NginX Web", "status": "inactive"},
+                {"id": "mqtt", "name": "MQTT BKR", "status": "inactive"}
+            ]
+        
+        return services
+    
+    def print_loaded_variables(self):
+        """Affiche les variables chargées pour debug"""
+        print("\n=== VARIABLES CHARGÉES ===")
+        for key, value in sorted(self.variables.items()):
+            if isinstance(value, list):
+                print(f"{key}: {value}")
+            else:
+                print(f"{key}: {value}")
+        print("========================\n")
+
 class MaxLinkApp:
     def __init__(self, root):
         self.root = root
         
-        # Titre standard dans la barre de titre de la fenêtre
-        self.root.title("MaxLink™ Admin Panel V2.0 - © 2025 WERIT. Tous droits réservés. - Usage non autorisé strictement interdit.")
+        # Chemins et initialisation
+        self.base_path = os.path.dirname(os.path.abspath(__file__))
+        
+        # NOUVEAU: Charger les variables centralisées
+        self.variables = VariablesManager(self.base_path)
+        
+        # Debug: afficher les variables chargées
+        self.variables.print_loaded_variables()
+        
+        # Configuration de la fenêtre avec variables
+        self.root.title(self.variables.get_window_title())
         self.root.geometry("1200x700")
         self.root.configure(bg=COLORS["nord0"])
         
         # NOUVEAU : Vérifier si on est en mode root
         self.root_mode = self.check_root_mode()
         
-        # Chemins et initialisation
-        self.base_path = os.path.dirname(os.path.abspath(__file__))
-        self.services = [
-            {"id": "update", "name": "Update RPI", "status": "active"},
-            {"id": "ap", "name": "Network AP", "status": "active"},
-            {"id": "nginx", "name": "NginX Web", "status": "inactive"},
-            {"id": "mqtt", "name": "MQTT BKR", "status": "inactive"}
-        ]
-        self.selected_service = self.services[0]
+        # Charger les services depuis les variables
+        self.services = self.variables.get_services_list()
+        self.selected_service = self.services[0] if self.services else None
         
         # Créer l'interface
         self.create_interface()
@@ -97,7 +218,7 @@ class MaxLinkApp:
         )
         services_title.pack(pady=(0, 15))
         
-        # NOUVEAU : Indicateur de mode privilégié adapté au système
+        # NOUVEAU : Indicateur de mode privilégié adapté au système avec variables
         import platform
         is_windows = (platform.system() == "Windows")
         
@@ -116,6 +237,8 @@ class MaxLinkApp:
             fg=privilege_color
         )
         privilege_label.pack(pady=(0, 10))
+        
+
         
         # Créer les éléments de service
         for service in self.services:
@@ -154,46 +277,27 @@ class MaxLinkApp:
         )
         self.console.pack(fill="both", expand=True)
         
-        # Message d'accueil dans la console
-        # Détecter le système d'exploitation
-        import platform
-        system_name = platform.system()
-        is_windows = (system_name == "Windows")
-        
-        # Message adapté mais simplifié
-        if is_windows:
-            status_text = "Mode Windows (Test uniquement)"
-            status_color = COLORS["nord15"]
-        else:
-            status_text = f"Mode privilégié: {'◦ ACTIF' if self.root_mode else '⦿ INACTIF'}"
-            status_color = COLORS["nord14"] if self.root_mode else COLORS["nord11"]
-        
-        welcome_msg = f"""MaxLink Admin Panel V2.0 - Console Prête
-
-« État du système »
-• {status_text}
-• Répertoire: {self.base_path}
-• Système: {system_name}
-• Utilisateur: {os.getenv('USER', os.getenv('USERNAME', 'unknown'))}
-
-« Instructions »
-1. Sélectionnez un service dans la liste
-2. Choisissez une action (Installer/Démarrer/Tester/Désinstaller)
-3. Suivez l'exécution en temps réel dans cette console
-
-« Fonctionnalités »
-• Logging avancé automatique
-• Snapshots système automatiques
-• Redémarrage automatique après chaque opération
-
-➼ Prêt pour l'action !
-
-"""
-        self.console.insert(tk.END, welcome_msg)
-        self.console.config(state=tk.DISABLED)
+        # Message d'accueil dans la console AVEC VARIABLES
+        self.create_welcome_message()
         
         # Appliquer la sélection initiale
         self.update_selection()
+    
+    def create_welcome_message(self):
+        """Crée le message d'accueil simplifié"""
+        import platform
+        is_windows = (platform.system() == "Windows")
+        
+        if is_windows:
+            welcome_msg = "Console prête - Mode test Windows\n\n"
+        else:
+            status = "Mode privilégié actif" if self.root_mode else "Mode privilégié inactif"
+            welcome_msg = f"Console prête - {status}\n\n"
+        
+        self.console.insert(tk.END, welcome_msg)
+        self.console.config(state=tk.DISABLED)
+    
+
         
     def create_service_item(self, parent, service):
         # Frame pour le service
@@ -287,11 +391,18 @@ class MaxLinkApp:
         
         # Sur Windows : juste vérifier que l'interface s'ouvre (pas d'exécution)
         if is_windows:
+            # NOUVEAU: Message avec variables
+            project_name = self.variables.get('MAXLINK_PROJECT_NAME', 'MaxLink')
             messagebox.showinfo(
-                "Mode Test Windows",
+                f"Mode Test Windows - {project_name}",
                 f"Interface testée avec succès !\n\n"
                 f"Action simulée : {action.upper()}\n"
-                f"Service : {service['name']}\n\n"
+                f"Service : {service['name']}\n"
+                f"ID Service : {service_id}\n\n"
+                f"Configuration chargée :\n"
+                f"• Projet: {project_name}\n"
+                f"• Version: {self.variables.get('MAXLINK_VERSION', 'N/A')}\n"
+                f"• Build: {self.variables.get('MAXLINK_BUILD', 'N/A')}\n\n"
                 f"Pour utilisation réelle :\n"
                 f"• Transférez sur Raspberry Pi Linux\n"
                 f"• Lancez avec : sudo bash config.sh"
@@ -314,7 +425,7 @@ class MaxLinkApp:
                 "Confirmation de désinstallation",
                 f"⦿ ATTENTION ⦿\n\n"
                 f"Vous êtes sur le point de désinstaller complètement :\n"
-                f"• {service['name']}\n\n"
+                f"• {service['name']} [{service_id}]\n\n"
                 f"Cette opération :\n"
                 f"• Supprimera toutes les configurations\n"
                 f"• Restaurera les paramètres par défaut\n"
@@ -325,20 +436,24 @@ class MaxLinkApp:
             )
             
             if not result:
-                self.update_console(f"Désinstallation de {service['name']} annulée par l'utilisateur.\n\n")
+                self.update_console(f"Désinstallation de {service['name']} [{service_id}] annulée par l'utilisateur.\n\n")
                 return
         
         # Nouveau chemin basé sur les sous-dossiers
         script_path = f"scripts/{action}/{service_id}_{action}.sh"
         
-        # Afficher l'action dans la console
+        # Afficher l'action dans la console AVEC VARIABLES
+        project_name = self.variables.get('MAXLINK_PROJECT_NAME', 'MaxLink')
         action_header = f"""
 {"="*80}
-EXÉCUTION: {service['name']} - {action.upper()}
+{project_name.upper()} - EXÉCUTION: {service['name']} - {action.upper()}
 {"="*80}
+Service ID: {service_id}
 Script: {script_path}
 Logs détaillés: logs/{service_id}_{action}.log
 Mode privilégié: ◦ ACTIF
+Utilisateur système: {self.variables.get('SYSTEM_USER', 'max')}
+Configuration: variables.sh chargée
 {"="*80}
 
 """
@@ -371,7 +486,8 @@ Mode privilégié: ◦ ACTIF
             try:
                 if hasattr(os, 'getuid'):
                     # Linux/Unix
-                    self.update_console(f"Mode privilégié: ◦ ACTIF (UID={os.getuid()})\n\n")
+                    self.update_console(f"Mode privilégié: ◦ ACTIF (UID={os.getuid()})\n")
+                    self.update_console(f"Utilisateur cible: {self.variables.get('SYSTEM_USER', 'max')}\n\n")
                 else:
                     # Windows
                     self.update_console(f"Mode privilégié: ◦ ACTIF (Windows)\n\n")
@@ -401,12 +517,14 @@ Mode privilégié: ◦ ACTIF
             # Attendre la fin du processus
             return_code = process.wait()
             
-            # Message de fin avec statut
+            # Message de fin avec statut ET VARIABLES
+            project_name = self.variables.get('MAXLINK_PROJECT_NAME', 'MaxLink')
             end_message = f"""
 {"="*80}
-TERMINÉ: {service['name']} - {action.upper()}
+{project_name.upper()} - TERMINÉ: {service['name']} - {action.upper()}
 Code de sortie: {return_code}
 Logs complets: logs/{service['id']}_{action}.log
+Configuration: {self.variables.get('MAXLINK_BUILD', 'Build 2025.01')}
 {"="*80}
 
 """

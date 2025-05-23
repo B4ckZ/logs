@@ -1,0 +1,99 @@
+
+================================================================================
+DÉMARRAGE: update_install
+Description: Mise à jour système et personnalisation Raspberry Pi
+Date: Tue 13 May 02:20:51 CEST 2025
+Utilisateur: root
+PID: 1500
+================================================================================
+
+[2025-05-13 02:20:51.817] [INFO] [update_install] Script update_install démarré
+[2025-05-13 02:20:54.777] [INFO] [update_install] État système capturé: /media/prod/MAXLINK/logs/system_state_20250513_022052.log
+[2025-05-13 02:20:58.987] [INFO] [update_install] Recherche du réseau WiFi Max
+[2025-05-13 02:20:59.216] [INFO] [update_install] Réseau Max trouvé - Signal: 94 dBm, Canal: Infra
+[2025-05-13 02:21:00.426] [INFO] [update_install] Tentative de connexion au réseau Max
+[2025-05-13 02:21:09.282] [INFO] [update_install] Connexion WiFi établie - IP: 192.168.19.61
+[2025-05-13 02:21:10.490] [INFO] [update_install] Test de stabilité réseau
+[2025-05-13 02:21:19.761] [INFO] [update_install] Test stabilité - 10/10 paquets, latence: 66ms, perte: 0%
+[2025-05-13 02:21:20.970] [INFO] [update_install] Test de débit réseau
+[2025-05-13 02:21:21.527] [INFO] [update_install] Test débit - Durée: 348ms, Qualité: EXCELLENTE
+[2025-05-23 11:12:02.915] [INFO] [update_install] Vérification de l'horloge système
+[2025-05-23 11:12:03.272] [INFO] [update_install] Décalage horloge détecté: 0 secondes
+[2025-05-23 11:12:03.477] [INFO] [update_install] Horloge synchronisée, aucune action nécessaire
+[2025-05-23 11:12:07.688] [INFO] [update_install] Mise à jour des dépôts APT
+[2025-05-23 11:12:17.343] [INFO] [update_install] Mise à jour des dépôts réussie
+[2025-05-23 11:12:18.550] [INFO] [update_install] Installation des mises à jour système
+[2025-05-23 11:12:19.235] [INFO] [update_install] 78 paquets à mettre à jour
+[2025-05-23 11:14:51.705] [INFO] [update_install] Mises à jour installées avec succès
+[2025-05-23 11:14:52.915] [INFO] [update_install] Nettoyage du système
+[2025-05-23 11:14:54.517] [INFO] [update_install] Nettoyage du système terminé
+[2025-05-23 11:14:58.728] [INFO] [update_install] Configuration du système de refroidissement
+[2025-05-23 11:14:58.936] [INFO] [update_install] Sauvegarde config.txt créée
+[2025-05-23 11:14:59.147] [INFO] [update_install] Paramètres de refroidissement ajoutés - Mode PRODUCTION
+[2025-05-23 11:15:03.357] [INFO] [update_install] Préparation personnalisation interface
+[2025-05-23 11:15:03.566] [WARN] [update_install] Utilisateur max non trouvé, utilisation de prod
+[2025-05-23 11:15:04.775] [INFO] [update_install] Installation du fond d'écran avec overlay version
+[2025-05-23 11:15:04.987] [WARN] [update_install] Version non ajoutée - ImageMagick manquant
+[2025-05-23 11:15:05.194] [INFO] [update_install] Fond d'écran installé: /usr/share/backgrounds/maxlink/bg.jpg
+[2025-05-23 11:15:06.403] [INFO] [update_install] Configuration interface utilisateur
+[2025-05-23 11:15:06.616] [INFO] [update_install] Configuration LXDE appliquée pour prod
+[2025-05-23 11:15:10.824] [INFO] [update_install] Vérification connexion WiFi active
+[2025-05-23 11:15:11.059] [INFO] [update_install] Connexion active: Max (192.168.19.61)
+[2025-05-23 11:15:12.267] [INFO] [update_install] Déconnexion du réseau WiFi
+[2025-05-23 11:15:12.639] [INFO] [update_install] Déconnexion WiFi réussie
+[2025-05-23 11:15:12.864] [INFO] [update_install] Profil de connexion supprimé
+[2025-05-23 11:15:13.077] [INFO] [update_install] Interface WiFi préparée pour usage futur
+[2025-05-23 11:15:17.288] [INFO] [update_install] Finalisation du script
+[2025-05-23 11:15:17.493] [INFO] [update_install] Script terminé avec succès
+[2025-05-23 11:15:18.703] [INFO] [update_install] Redémarrage programmé dans 10 secondes
+[2025-05-23 11:15:28.916] [INFO] [update_install] Redémarrage du système
+[2025-05-23 11:15:29.139] [INFO] [update_install] Script update_install terminé avec le code 0
+
+================================================================================
+DÉMARRAGE: update_install
+Description: Mise à jour système et personnalisation Raspberry Pi
+Date: Fri 23 May 11:16:50 CEST 2025
+Utilisateur: root
+PID: 1643
+================================================================================
+
+[2025-05-23 11:16:51.021] [INFO] [update_install] Script update_install démarré
+[2025-05-23 11:16:51.377] [INFO] [update_install] État système capturé: /media/prod/MAXLINK/logs/system_state_20250523_111651.log
+[2025-05-23 11:16:55.587] [INFO] [update_install] Recherche du réseau WiFi Max
+[2025-05-23 11:16:55.817] [INFO] [update_install] Réseau Max trouvé - Signal: 90 dBm, Canal: Infra
+[2025-05-23 11:16:57.026] [INFO] [update_install] Tentative de connexion au réseau Max
+[2025-05-23 11:17:03.083] [INFO] [update_install] Connexion WiFi établie - IP: 192.168.19.61
+[2025-05-23 11:17:04.290] [INFO] [update_install] Test de stabilité réseau
+[2025-05-23 11:17:13.578] [INFO] [update_install] Test stabilité - 10/10 paquets, latence: 66ms, perte: 0%
+[2025-05-23 11:17:14.790] [INFO] [update_install] Test de débit réseau
+[2025-05-23 11:17:15.223] [INFO] [update_install] Test débit - Durée: 225ms, Qualité: EXCELLENTE
+[2025-05-23 11:17:19.433] [INFO] [update_install] Vérification de l'horloge système
+[2025-05-23 11:17:19.821] [INFO] [update_install] Décalage horloge détecté: 0 secondes
+[2025-05-23 11:17:20.029] [INFO] [update_install] Horloge synchronisée, aucune action nécessaire
+[2025-05-23 11:17:24.240] [INFO] [update_install] Mise à jour des dépôts APT
+[2025-05-23 11:17:26.567] [INFO] [update_install] Mise à jour des dépôts réussie
+[2025-05-23 11:17:27.775] [INFO] [update_install] Installation des mises à jour système
+[2025-05-23 11:17:28.439] [INFO] [update_install] Système déjà à jour
+[2025-05-23 11:17:29.646] [INFO] [update_install] Nettoyage du système
+[2025-05-23 11:17:31.258] [INFO] [update_install] Nettoyage du système terminé
+[2025-05-23 11:17:35.468] [INFO] [update_install] Configuration du système de refroidissement
+[2025-05-23 11:17:35.680] [INFO] [update_install] Sauvegarde config.txt créée
+[2025-05-23 11:17:35.891] [INFO] [update_install] Configuration ventilateur déjà présente
+[2025-05-23 11:17:40.100] [INFO] [update_install] Préparation personnalisation interface
+[2025-05-23 11:17:40.309] [WARN] [update_install] Utilisateur max non trouvé, utilisation de prod
+[2025-05-23 11:17:41.519] [INFO] [update_install] Installation du fond d'écran avec overlay version
+[2025-05-23 11:17:41.730] [WARN] [update_install] Version non ajoutée - ImageMagick manquant
+[2025-05-23 11:17:41.938] [INFO] [update_install] Fond d'écran installé: /usr/share/backgrounds/maxlink/bg.jpg
+[2025-05-23 11:17:43.146] [INFO] [update_install] Configuration interface utilisateur
+[2025-05-23 11:17:43.359] [INFO] [update_install] Configuration LXDE appliquée pour prod
+[2025-05-23 11:17:47.567] [INFO] [update_install] Vérification connexion WiFi active
+[2025-05-23 11:17:47.798] [INFO] [update_install] Connexion active: Max (192.168.19.61)
+[2025-05-23 11:17:49.006] [INFO] [update_install] Déconnexion du réseau WiFi
+[2025-05-23 11:17:49.365] [INFO] [update_install] Déconnexion WiFi réussie
+[2025-05-23 11:17:49.592] [INFO] [update_install] Profil de connexion supprimé
+[2025-05-23 11:17:49.801] [INFO] [update_install] Interface WiFi préparée pour usage futur
+[2025-05-23 11:17:54.013] [INFO] [update_install] Finalisation du script
+[2025-05-23 11:17:54.221] [INFO] [update_install] Script terminé avec succès
+[2025-05-23 11:17:55.430] [INFO] [update_install] Redémarrage programmé dans 10 secondes
+[2025-05-23 11:18:05.639] [INFO] [update_install] Redémarrage du système
+[2025-05-23 11:18:05.875] [INFO] [update_install] Script update_install terminé avec le code 0

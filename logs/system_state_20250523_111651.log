@@ -1,0 +1,60 @@
+=== ÉTAT SYSTÈME MAXLINK ===
+Date: Fri 23 May 11:16:51 CEST 2025
+Script: update_install
+Utilisateur: root
+PWD: /media/prod/MAXLINK
+
+=== SERVICES RÉSEAU ===
+● NetworkManager.service - Network Manager
+     Loaded: loaded (/lib/systemd/system/NetworkManager.service; enabled; preset: enabled)
+     Active: active (running) since Fri 2025-05-23 11:15:45 CEST; 1min 5s ago
+       Docs: man:NetworkManager(8)
+   Main PID: 675 (NetworkManager)
+      Tasks: 3 (limit: 9573)
+        CPU: 118ms
+     CGroup: /system.slice/NetworkManager.service
+             └─675 /usr/sbin/NetworkManager --no-daemon
+
+May 23 11:15:45 raspberrypi NetworkManager[675]: <info>  [1747991745.5708] device (lo): Activation: successful, device activated.
+May 23 11:15:45 raspberrypi NetworkManager[675]: <info>  [1747991745.5791] modem-manager: ModemManager available
+May 23 11:15:45 raspberrypi NetworkManager[675]: <info>  [1747991745.6747] device (wlan0): supplicant interface state: internal-starting -> disconnected
+May 23 11:15:45 raspberrypi NetworkManager[675]: <info>  [1747991745.6748] Wi-Fi P2P device controlled by interface wlan0 created
+May 23 11:15:45 raspberrypi NetworkManager[675]: <info>  [1747991745.6751] manager: (p2p-dev-wlan0): new 802.11 Wi-Fi P2P device (/org/freedesktop/NetworkManager/Devices/4)
+May 23 11:15:45 raspberrypi NetworkManager[675]: <info>  [1747991745.6754] device (p2p-dev-wlan0): state change: unmanaged -> unavailable (reason 'managed', sys-iface-state: 'external')
+May 23 11:15:45 raspberrypi NetworkManager[675]: <info>  [1747991745.6757] device (wlan0): state change: unavailable -> disconnected (reason 'supplicant-available', sys-iface-state: 'managed')
+May 23 11:15:45 raspberrypi NetworkManager[675]: <info>  [1747991745.6761] device (p2p-dev-wlan0): state change: unavailable -> disconnected (reason 'none', sys-iface-state: 'managed')
+May 23 11:15:47 raspberrypi NetworkManager[675]: <info>  [1747991747.6929] agent-manager: agent[edffbbd4df305b1d,:1.31/org.freedesktop.nm-applet/1000]: agent registered
+May 23 11:15:52 raspberrypi NetworkManager[675]: <info>  [1747991752.5613] manager: startup complete
+
+=== INTERFACES RÉSEAU ===
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host noprefixroute 
+       valid_lft forever preferred_lft forever
+2: eth0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast state DOWN group default qlen 1000
+    link/ether 2c:cf:67:43:b5:e2 brd ff:ff:ff:ff:ff:ff
+3: wlan0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast state DOWN group default qlen 1000
+    link/ether 2c:cf:67:43:b5:e3 brd ff:ff:ff:ff:ff:ff
+
+=== CONNEXIONS ACTIVES ===
+NAME  UUID                                  TYPE      DEVICE 
+lo    97a8cc0a-4b17-45a2-a5a0-51dff9ba25aa  loopback  lo     
+
+=== RÉSEAUX WIFI ===
+IN-USE  BSSID              SSID             MODE   CHAN  RATE        SIGNAL  BARS  SECURITY    
+        4A:94:4D:D2:48:13  Max              Infra  11    135 Mbit/s  90      ▂▄▆█  WPA2 WPA3   
+        3A:07:16:23:13:E0  !                Infra  1     270 Mbit/s  67      ▂▄▆_  WPA2        
+        F4:17:B8:C4:E6:A1  Bbox-4C8B430E    Infra  1     130 Mbit/s  67      ▂▄▆_  WPA2        
+        3A:07:16:23:13:E4  !                Infra  40    270 Mbit/s  59      ▂▄▆_  WPA2        
+        1E:31:25:50:C7:FC  freebox_AWOWNS   Infra  11    270 Mbit/s  54      ▂▄__  WPA1        
+        1E:31:25:50:C7:FE  FreeWifi_secure  Infra  11    270 Mbit/s  52      ▂▄__  WPA1 802.1X 
+        E4:5D:51:CC:9F:E6  SFR_9FE0         Infra  6     130 Mbit/s  47      ▂▄__  WPA1 WPA2   
+        30:68:93:11:0D:66  TP-Link_0D66     Infra  4     270 Mbit/s  45      ▂▄__  WPA2        
+        6A:5D:51:CC:9F:E7  SFR_9FE0         Infra  104   405 Mbit/s  45      ▂▄__  WPA1 WPA2   
+        E4:5D:51:CC:9F:E5  SFR_9FE0_5GHZ    Infra  104   405 Mbit/s  44      ▂▄__  WPA1 WPA2   
+        CC:2D:1B:B0:79:06  SFR_7900         Infra  1     130 Mbit/s  40      ▂▄__  WPA1 WPA2   
+        3A:07:16:27:44:F4  Freebox-1F22E4   Infra  6     130 Mbit/s  40      ▂▄__  WPA2        
+        F4:17:B8:C4:E6:A2  Bbox-4C8B430E    Infra  100   540 Mbit/s  32      ▂▄__  WPA2        
+

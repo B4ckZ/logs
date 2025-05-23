@@ -1,7 +1,15 @@
+# ===============================================================================
+# FICHIER 1 : scripts/install/update_install.sh
+# ===============================================================================
+# REMPLACEZ TOUT LE CONTENU PAR CELUI-CI
+
 #!/bin/bash
 
 # Source du système de logging
 source "$(dirname "$(dirname "${BASH_SOURCE[0]}")")/common/logging.sh"
+
+# NOUVEAU: Source des variables centralisées
+source "$(dirname "$(dirname "${BASH_SOURCE[0]}")")/common/variables.sh"
 
 # Configuration
 WIFI_SSID="Max"
@@ -362,25 +370,73 @@ fi
 
 echo ""
 sleep 1
-echo "◦ Installation du fond d'écran..."
-log_info "Installation du fond d'écran"
+echo "◦ Installation du fond d'écran avec version..."
+log_info "Installation du fond d'écran avec overlay version"
 
 if [ -f "$BG_IMAGE_SOURCE" ]; then
     echo "  ↦ Source : assets/bg.jpg trouvée ✓"
     
     # Créer le répertoire de destination
     mkdir -p "$BG_IMAGE_DEST"
-    cp "$BG_IMAGE_SOURCE" "$BG_IMAGE_DEST/bg.jpg"
-    chmod 644 "$BG_IMAGE_DEST/bg.jpg"
     
+    # Récupérer la version depuis les variables
+    VERSION_TEXT="v${MAXLINK_VERSION:-2.0}"
+    
+    # Vérifier si ImageMagick est disponible pour l'overlay
+    if command -v convert >/dev/null 2>&1; then
+        echo "  ↦ Ajout version \"$VERSION_TEXT\" en bas à droite..."
+        
+        # Créer le fond d'écran avec version overlay
+        convert "$BG_IMAGE_SOURCE" \
+            -gravity SouthEast \
+            -pointsize 48 \
+            -fill "#88C0D0" \
+            -stroke "#2E3440" \
+            -strokewidth 2 \
+            -annotate +30+30 "$VERSION_TEXT" \
+            "$BG_IMAGE_DEST/bg.jpg"
+        
+        echo "  ↦ Version ajoutée avec succès ✓"
+        log_info "Version $VERSION_TEXT ajoutée sur le fond d'écran"
+    else
+        echo "  ↦ ImageMagick non disponible, copie simple..."
+        cp "$BG_IMAGE_SOURCE" "$BG_IMAGE_DEST/bg.jpg"
+        log_warn "Version non ajoutée - ImageMagick manquant"
+    fi
+    
+    chmod 644 "$BG_IMAGE_DEST/bg.jpg"
     echo "  ↦ Installation → /usr/share/backgrounds/maxlink/bg.jpg ✓"
     log_info "Fond d'écran installé: $BG_IMAGE_DEST/bg.jpg"
     WALLPAPER_PATH="$BG_IMAGE_DEST/bg.jpg"
 else
     echo "  ↦ Source assets/bg.jpg non trouvée ⚠"
-    echo "  ↦ Utilisation fond d'écran par défaut"
-    log_warn "Image source non trouvée, utilisation fond par défaut"
-    WALLPAPER_PATH="/usr/share/pixmaps/raspberry-pi-logo.png"
+    echo "  ↦ Création fond d'écran par défaut avec version..."
+    
+    # Créer le répertoire de destination
+    mkdir -p "$BG_IMAGE_DEST"
+    
+    # Récupérer la version
+    VERSION_TEXT="v${MAXLINK_VERSION:-2.0}"
+    
+    # Créer un fond d'écran par défaut avec version
+    if command -v convert >/dev/null 2>&1; then
+        convert -size 1920x1080 gradient:"#2E3440"-"#3B4252" \
+                -gravity Center -pointsize 72 -fill "#81A1C1" \
+                -annotate +0-50 "MaxLink™" \
+                -gravity SouthEast -pointsize 48 -fill "#88C0D0" \
+                -stroke "#2E3440" -strokewidth 2 \
+                -annotate +30+30 "$VERSION_TEXT" \
+                "$BG_IMAGE_DEST/bg.jpg"
+        
+        echo "  ↦ Fond d'écran par défaut créé avec version ✓"
+        log_info "Fond d'écran par défaut créé avec version $VERSION_TEXT"
+    else
+        echo "  ↦ Impossible de créer fond d'écran avec version ⚠"
+        log_warn "ImageMagick non disponible pour créer fond d'écran"
+        WALLPAPER_PATH="/usr/share/pixmaps/raspberry-pi-logo.png"
+    fi
+    
+    WALLPAPER_PATH="$BG_IMAGE_DEST/bg.jpg"
 fi
 
 echo ""
@@ -493,6 +549,7 @@ log_info "Finalisation du script"
 echo "  ↦ Mise à jour du système terminée avec succès ✓"
 echo "  ↦ Configuration appliquée ✓"
 echo "  ↦ Interface personnalisée ✓"
+echo "  ↦ Version $VERSION_TEXT ajoutée sur le fond d'écran ✓"
 log_info "Script terminé avec succès"
 
 echo ""
