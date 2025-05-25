@@ -1,507 +1,763 @@
 #!/bin/bash
 
-# Source du système de logging
-source "$(dirname "$(dirname "${BASH_SOURCE[0]}")")/common/logging.sh"
+# ===============================================================================
+# MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V4 LIGHT
+# Version allégée sans ImageMagick lourd
+# ===============================================================================
+
+# Définir le répertoire de base
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 # Source des variables centralisées
-source "$(dirname "$(dirname "${BASH_SOURCE[0]}")")/common/variables.sh"
+source "$SCRIPT_DIR/../common/variables.sh"
 
 # ===============================================================================
-# FONCTIONS DE PROGRESSION SIMPLIFIÉES
+# CONFIGURATION
 # ===============================================================================
 
-# Variable pour tracker la progression globale
+# Fichier de log
+LOG_DIR="$BASE_DIR/logs"
+LOG_FILE="$LOG_DIR/update_install_$(date +%Y%m%d_%H%M%S).log"
+mkdir -p "$LOG_DIR"
+
+# Fichier pour la décision utilisateur
+USER_CHOICE_FILE="/tmp/maxlink_update_choice"
+
+# Temps de pause entre les étapes (en secondes)
+PAUSE_COURT=2
+PAUSE_MOYEN=5
+PAUSE_LONG=10
+
+# Variables de progression
 PROGRESS_CURRENT=0
-PROGRESS_TOTAL=100
 
-# Fonction pour envoyer la progression à l'interface Python
+# ===============================================================================
+# FONCTIONS DE LOGGING
+# ===============================================================================
+
+# Logger une information
+log() {
+    local level=$1
+    local message=$2
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
+}
+
+# Logger et afficher
+log_and_show() {
+    local message=$1
+    echo "$message"
+    log "INFO" "$message"
+}
+
+# Logger une commande et son résultat
+log_command() {
+    local cmd=$1
+    local desc=$2
+    
+    log "CMD" "Exécution: $cmd"
+    
+    # Exécuter la commande et capturer la sortie
+    local output
+    local exit_code
+    
+    output=$(eval "$cmd" 2>&1)
+    exit_code=$?
+    
+    # Logger la sortie complète
+    if [ -n "$output" ]; then
+        echo "$output" | while IFS= read -r line; do
+            log "OUT" "$line"
+        done
+    fi
+    
+    log "CMD" "Code de sortie: $exit_code"
+    
+    return $exit_code
+}
+
+# ===============================================================================
+# NOUVELLE FONCTION : AJOUTER VERSION SUR IMAGE AVEC PYTHON
+# ===============================================================================
+
+add_version_to_image() {
+    local source_image=$1
+    local dest_image=$2
+    local version_text="v$MAXLINK_VERSION"
+    
+    # Script Python pour ajouter la version
+    cat > /tmp/add_version.py << 'EOF'
+#!/usr/bin/env python3
+import sys
+import os
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+    
+    # Arguments
+    source_path = sys.argv[1]
+    dest_path = sys.argv[2]
+    version_text = sys.argv[3]
+    
+    # Ouvrir l'image
+    img = Image.open(source_path)
+    draw = ImageDraw.Draw(img)
+    
+    # Position (coin inférieur droit)
+    margin = 50
+    x = img.width - margin
+    y = img.height - margin
+    
+    # Essayer différentes tailles de police
+    font_size = 60
+    font = None
+    
+    # Essayer de charger une police système
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf"
+    ]
+    
+    for font_path in font_paths:
+        if os.path.exists(font_path):
+            try:
+                font = ImageFont.truetype(font_path, font_size)
+                break
+            except:
+                pass
+    
+    # Si aucune police trouvée, utiliser la police par défaut
+    if font is None:
+        font = ImageFont.load_default()
+    
+    # Calculer la taille du texte
+    bbox = draw.textbbox((0, 0), version_text, font=font)
+    text_width = bbox[2] - bbox[0]
+    text_height = bbox[3] - bbox[1]
+    
+    # Position ajustée
+    x = img.width - text_width - margin
+    y = img.height - text_height - margin
+    
+    # Dessiner l'ombre
+    shadow_offset = 3
+    draw.text((x + shadow_offset, y + shadow_offset), version_text, 
+              font=font, fill=(0, 0, 0, 128))
+    
+    # Dessiner le texte
+    draw.text((x, y), version_text, font=font, fill=(255, 255, 255, 255))
+    
+    # Sauvegarder
+    img.save(dest_path)
+    print("Version ajoutée avec succès")
+    
+except ImportError:
+    # Si PIL n'est pas disponible, copier simplement
+    import shutil
+    shutil.copy2(sys.argv[1], sys.argv[2])
+    print("PIL non disponible, copie simple effectuée")
+except Exception as e:
+    print(f"Erreur: {e}")
+    # En cas d'erreur, copier simplement
+    import shutil
+    shutil.copy2(sys.argv[1], sys.argv[2])
+EOF
+
+    # Exécuter le script Python
+    if python3 /tmp/add_version.py "$source_image" "$dest_image" "$version_text" >/dev/null 2>&1; then
+        rm -f /tmp/add_version.py
+        return 0
+    else
+        # En cas d'échec, copier simplement
+        cp "$source_image" "$dest_image"
+        rm -f /tmp/add_version.py
+        return 1
+    fi
+}
+
+# ===============================================================================
+# FONCTIONS UTILITAIRES
+# ===============================================================================
+
+# Afficher la progression pour l'interface Python
 send_progress() {
     local value=$1
     local text=$2
     echo "PROGRESS:$value:$text"
 }
 
-# Fonction pour convertir MB en GB avec 1 décimale
-mb_to_gb() {
-    local mb=$1
-    echo "scale=1; $mb / 1024" | bc 2>/dev/null || awk "BEGIN {printf \"%.1f\", $mb/1024}"
-}
-
-# Fonction pour attendre SANS afficher le message de délai
-wait_silently() {
+# Pause avec message simple
+pause_system() {
     local seconds=$1
     local message=$2
-    echo "  ↦ $message..."  # Affiche seulement le message, pas le temps
+    [ -n "$message" ] && log_and_show "  ↦ $message..."
     sleep $seconds
 }
 
-# ===============================================================================
-# DÉBUT DU SCRIPT PRINCIPAL
-# ===============================================================================
+# Vérifier si on est en mode AP
+is_ap_mode() {
+    nmcli con show --active | grep -q "$AP_SSID" && return 0 || return 1
+}
 
-# Désactiver l'affichage des logs dans la console pour une sortie propre
-LOG_TO_CONSOLE=false
-
-# Initialisation du logging
-init_logging "Mise à jour système et personnalisation Raspberry Pi"
-
-# NOUVEAU : Attente initiale plus longue pour stabiliser le système
-echo "◦ Stabilisation du système après démarrage..."
-wait_silently 5 "Initialisation des services réseau"
-
-send_progress 0 "Initialisation..."
-
-echo "========================================================================"
-echo "ÉTAPE 1 : CONNEXION ET TESTS RÉSEAU"
-echo "========================================================================"
-echo ""
-
-# NOUVEAU : Vérifier que l'interface WiFi est prête
-echo "◦ Vérification de l'interface WiFi..."
-send_progress 2 "Vérification de l'interface WiFi..."
-
-# Attendre que l'interface WiFi soit disponible
-WIFI_READY=false
-for i in {1..10}; do
-    if ip link show wlan0 >/dev/null 2>&1; then
-        WIFI_READY=true
-        echo "  ↦ Interface WiFi détectée ✓"
-        break
+# Désactiver le mode AP temporairement
+disable_ap_mode() {
+    if is_ap_mode; then
+        log_and_show "  ↦ Désactivation du mode point d'accès..."
+        log_command "nmcli con down '$AP_SSID'" "Désactivation AP"
+        pause_system $PAUSE_COURT
+        return 0
     fi
-    echo "  ↦ Tentative $i/10 - Interface WiFi non prête"
-    sleep 2
-done
-
-if [ "$WIFI_READY" = false ]; then
-    echo "  ↦ Interface WiFi non disponible ✗"
-    log_error "Interface WiFi non disponible après 20 secondes"
-    exit 1
-fi
-
-# NOUVEAU : Activer l'interface WiFi si nécessaire
-echo ""
-echo "◦ Activation de l'interface WiFi..."
-nmcli radio wifi on >/dev/null 2>&1
-wait_silently 3 "Activation radio WiFi"
-
-echo ""
-echo "◦ Recherche du réseau WiFi \"$WIFI_SSID\"..."
-send_progress 5 "Recherche du réseau WiFi..."
-
-# NOUVEAU : Forcer un scan des réseaux et attendre
-echo "  ↦ Scan des réseaux disponibles..."
-nmcli device wifi rescan >/dev/null 2>&1 || true
-wait_silently 5 "Scan en cours"
-
-# Tentatives multiples pour trouver le réseau
-NETWORK_FOUND=""
-for attempt in {1..3}; do
-    NETWORK_FOUND=$(nmcli device wifi list | grep "$WIFI_SSID" | head -1)
-    if [ -n "$NETWORK_FOUND" ]; then
-        break
-    fi
-    echo "  ↦ Tentative $attempt/3 - Réseau non trouvé, nouveau scan..."
-    nmcli device wifi rescan >/dev/null 2>&1 || true
-    wait_silently 3 "Nouveau scan"
-done
-
-if [ -n "$NETWORK_FOUND" ]; then
-    # Extraire le signal correctement (peut être à différentes positions)
-    SIGNAL=$(echo "$NETWORK_FOUND" | awk '{for(i=1;i<=NF;i++) if($i ~ /^[0-9]+$/) {print $i; break}}')
-    echo "  ↦ Réseau trouvé (Signal: ${SIGNAL:-N/A}) ✓"
-    log_info "Réseau $WIFI_SSID trouvé - Signal: ${SIGNAL:-N/A}"
-else
-    echo "  ↦ Réseau \"$WIFI_SSID\" non trouvé ✗"
-    log_error "Réseau $WIFI_SSID non trouvé après 3 tentatives"
-    exit 1
-fi
-
-send_progress 10 "Connexion au réseau WiFi..."
-echo ""
-echo "◦ Connexion au réseau \"$WIFI_SSID\"..."
-
-# NOUVEAU : Supprimer toute connexion existante avant de reconnecter
-nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1 || true
-wait_silently 2 "Nettoyage des connexions existantes"
-
-# Tentative de connexion avec timeout plus long
-if timeout 30 nmcli device wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" >/dev/null 2>&1; then
-    echo "  ↦ Connexion initiée ✓"
-    wait_silently 5 "Obtention de l'adresse IP"
-    
-    # Vérifier l'obtention de l'IP
-    CURRENT_IP=""
-    for i in {1..10}; do
-        CURRENT_IP=$(ip route get 8.8.8.8 2>/dev/null | grep -oP 'src \K\S+' | head -1)
-        if [ -n "$CURRENT_IP" ]; then
-            break
-        fi
-        sleep 1
-    done
-    
-    if [ -n "$CURRENT_IP" ]; then
-        echo "  ↦ Connexion établie (IP: $CURRENT_IP) ✓"
-        log_info "Connexion WiFi établie - IP: $CURRENT_IP"
-    else
-        echo "  ↦ Connexion établie mais IP non attribuée ⚠"
-        log_warn "Connexion WiFi établie mais pas d'IP"
-    fi
-else
-    echo "  ↦ Échec de la connexion ✗"
-    log_error "Échec de la connexion WiFi"
-    exit 1
-fi
-
-send_progress 15 "Test de connectivité..."
-echo ""
-echo "◦ Test de connectivité..."
-
-# NOUVEAU : Attendre avant le test de connectivité
-wait_silently 3 "Stabilisation de la connexion"
-
-# Test de connectivité avec plusieurs tentatives
-CONNECTIVITY_OK=false
-for attempt in {1..5}; do
-    if ping -c $PING_COUNT -W 2 8.8.8.8 >/dev/null 2>&1; then
-        CONNECTIVITY_OK=true
-        echo "  ↦ Connectivité Internet confirmée ✓"
-        log_info "Connectivité Internet OK"
-        break
-    fi
-    echo "  ↦ Tentative $attempt/5 - Pas de connectivité"
-    sleep 2
-done
-
-if [ "$CONNECTIVITY_OK" = false ]; then
-    echo "  ↦ Pas de connectivité Internet ✗"
-    log_error "Pas de connectivité Internet après 5 tentatives"
-    exit 1
-fi
-
-send_progress 20 "Réseau configuré"
-echo ""
-sleep $DISPLAY_DELAY_BETWEEN_STEPS
-
-echo "========================================================================"
-echo "ÉTAPE 2 : SYNCHRONISATION HORLOGE"
-echo "========================================================================"
-echo ""
-
-echo "◦ Vérification de l'horloge système..."
-send_progress 25 "Synchronisation de l'horloge..."
-log_info "Vérification de l'horloge système"
-
-# Synchronisation avec timedatectl
-if command -v timedatectl >/dev/null 2>&1; then
-    timedatectl set-ntp true >/dev/null 2>&1
-    wait_silently 5 "Synchronisation NTP"
-    echo "  ↦ Horloge synchronisée ✓"
-    log_info "Horloge synchronisée via timedatectl"
-else
-    echo "  ↦ Synchronisation non disponible ⚠"
-    log_warn "timedatectl non disponible"
-fi
-
-send_progress 30 "Horloge synchronisée"
-echo ""
-sleep $DISPLAY_DELAY_BETWEEN_STEPS
-
-echo "========================================================================"
-echo "ÉTAPE 3 : MISE À JOUR DU SYSTÈME"
-echo "========================================================================"
-echo ""
-
-# NOUVEAU : Libérer les verrous APT avant de commencer
-echo "◦ Préparation du système de paquets..."
-send_progress 32 "Préparation APT..."
-
-# Tuer les processus APT bloquants
-pkill -9 apt >/dev/null 2>&1 || true
-pkill -9 dpkg >/dev/null 2>&1 || true
-
-# Supprimer les verrous
-rm -f /var/lib/apt/lists/lock >/dev/null 2>&1 || true
-rm -f /var/cache/apt/archives/lock >/dev/null 2>&1 || true
-rm -f /var/lib/dpkg/lock* >/dev/null 2>&1 || true
-
-# Reconfigurer dpkg si nécessaire
-dpkg --configure -a >/dev/null 2>&1 || true
-
-wait_silently 3 "Nettoyage des verrous APT"
-
-# Vérifier l'espace disque
-echo ""
-echo "◦ Vérification de l'espace disque..."
-send_progress 35 "Vérification de l'espace disque..."
-
-AVAILABLE_SPACE_MB=$(df -BM / | tail -1 | awk '{print $4}' | sed 's/M//')
-AVAILABLE_SPACE_GB=$(mb_to_gb $AVAILABLE_SPACE_MB)
-
-if [ $AVAILABLE_SPACE_MB -lt 500 ]; then
-    echo "  ↦ Espace insuffisant (${AVAILABLE_SPACE_GB} Go disponible) ✗"
-    log_error "Espace disque insuffisant: ${AVAILABLE_SPACE_GB} Go"
-    exit 1
-fi
-echo "  ↦ Espace disponible: ${AVAILABLE_SPACE_GB} Go ✓"
-
-# Fonction de retry améliorée pour APT (VERSION RAPIDE pour ImageMagick)
-retry_apt() {
-    local cmd="$1"
-    local desc="$2"
-    local attempt=1
-    local timeout_duration=120  # Timeout réduit à 2 minutes
-    
-    while [ $attempt -le $APT_RETRY_MAX_ATTEMPTS ]; do
-        echo "  ↦ Tentative $attempt/$APT_RETRY_MAX_ATTEMPTS..."
-        
-        # Nettoyer les verrous avant chaque tentative
-        rm -f /var/lib/apt/lists/lock >/dev/null 2>&1 || true
-        rm -f /var/cache/apt/archives/lock >/dev/null 2>&1 || true
-        
-        if timeout $timeout_duration bash -c "$cmd" >/dev/null 2>&1; then
-            echo "  ↦ $desc ✓"
-            return 0
-        fi
-        
-        if [ $attempt -lt $APT_RETRY_MAX_ATTEMPTS ]; then
-            wait_silently 5 "Attente avant nouvelle tentative"
-        fi
-        ((attempt++))
-    done
-    
-    echo "  ↦ $desc ✗"
     return 1
 }
 
-send_progress 40 "Mise à jour des dépôts..."
-echo ""
-echo "◦ Mise à jour des dépôts..."
-
-# NOUVEAU : Attendre que le service APT soit prêt
-wait_silently 5 "Attente service APT"
-
-retry_apt "apt-get update -y --allow-releaseinfo-change" "Dépôts mis à jour" || {
-    echo "  ⚠ Échec de la mise à jour des dépôts, tentative avec fix-missing..."
-    retry_apt "apt-get update -y --fix-missing" "Dépôts mis à jour (fix-missing)" || exit 1
+# Attendre la décision utilisateur depuis l'interface
+wait_for_user_choice() {
+    local timeout=${1:-60}
+    local count=0
+    
+    # Effacer l'ancien fichier
+    rm -f "$USER_CHOICE_FILE"
+    
+    # Attendre que le fichier apparaisse
+    while [ ! -f "$USER_CHOICE_FILE" ] && [ $count -lt $timeout ]; do
+        sleep 1
+        ((count++))
+    done
+    
+    if [ -f "$USER_CHOICE_FILE" ]; then
+        local choice=$(cat "$USER_CHOICE_FILE")
+        rm -f "$USER_CHOICE_FILE"
+        [ "$choice" = "yes" ] && return 0 || return 1
+    else
+        # Timeout - considérer comme "non"
+        return 1
+    fi
 }
 
-send_progress 50 "Installation des mises à jour..."
-echo ""
-echo "◦ Installation des mises à jour..."
+# ===============================================================================
+# FONCTION DE RÉPARATION DES DÉPENDANCES
+# ===============================================================================
 
-# Vérifier les mises à jour disponibles
-UPGRADABLE=$(apt list --upgradable 2>/dev/null | grep -c upgradable || echo "1")
-if [ $UPGRADABLE -gt 1 ]; then
-    echo "  ↦ $(($UPGRADABLE - 1)) paquet(s) à mettre à jour"
-    wait_silently 3 "Préparation des mises à jour"
-    retry_apt "DEBIAN_FRONTEND=noninteractive apt-get upgrade -y" "Mises à jour installées"
-else
-    echo "  ↦ Système déjà à jour ✓"
-fi
+repair_dependencies() {
+    log_and_show "◦ Réparation des dépendances cassées..."
+    
+    # Étape 1 : Forcer la configuration des paquets en attente
+    log_and_show "  ↦ Configuration forcée des paquets..."
+    log_command "dpkg --configure -a --force-depends" "Configuration forcée"
+    
+    # Étape 2 : Installer les dépendances manquantes
+    log_and_show "  ↦ Installation des dépendances manquantes..."
+    
+    # Essayer d'installer spécifiquement les paquets Python problématiques
+    log_command "apt-get install -f -y libpython3.11-stdlib=3.11.2-6+deb12u6" "Installation libpython3.11-stdlib"
+    log_command "apt-get install -f -y python3.11-minimal=3.11.2-6+deb12u6" "Installation python3.11-minimal"
+    
+    # Étape 3 : Réparer avec apt --fix-broken
+    log_and_show "  ↦ Réparation automatique des paquets cassés..."
+    if log_command "DEBIAN_FRONTEND=noninteractive apt-get --fix-broken install -y" "Réparation des paquets"; then
+        log_and_show "  ↦ Dépendances réparées ✓"
+        return 0
+    else
+        # Si ça ne marche pas, essayer une approche plus agressive
+        log_and_show "  ↦ Tentative de réparation forcée..."
+        
+        # Forcer la suppression des paquets problématiques
+        log_command "dpkg --remove --force-remove-reinstreq python3.11 python3.11-dev python3.11-venv libpython3.11 libpython3.11-dev" "Suppression forcée"
+        
+        # Nettoyer
+        log_command "apt-get autoremove -y" "Nettoyage"
+        
+        # Réinstaller proprement
+        log_command "apt-get update" "Mise à jour des dépôts"
+        log_command "apt-get install -y python3.11" "Réinstallation Python"
+        
+        # Vérifier si c'est réparé
+        if dpkg -l | grep -E "^[^i].*python3\.11" >/dev/null 2>&1; then
+            log_and_show "  ↦ Certains problèmes persistent ⚠"
+            return 1
+        else
+            log_and_show "  ↦ Dépendances réparées après suppression/réinstallation ✓"
+            return 0
+        fi
+    fi
+}
 
-# Installation d'ImageMagick si nécessaire (VERSION RAPIDE)
-if ! command -v convert >/dev/null 2>&1; then
-    send_progress 55 "Installation d'ImageMagick..."
+# ===============================================================================
+# ÉTAPES PRINCIPALES
+# ===============================================================================
+
+# ÉTAPE 1 : Préparation et vérification WiFi
+step_prepare_wifi() {
+    log_and_show "========================================================================"
+    log_and_show "ÉTAPE 1 : PRÉPARATION DU SYSTÈME"
+    log_and_show "========================================================================"
     echo ""
-    echo "◦ Installation d'ImageMagick..."
     
-    # VERSION RAPIDE : Installation simple sans attente inutile
-    retry_apt "apt-get install -y imagemagick" "ImageMagick installé"
+    send_progress 5 "Préparation du système..."
     
-    # Vérifier l'installation
-    if command -v convert >/dev/null 2>&1; then
-        log_info "ImageMagick installé avec succès"
-    else
-        log_warn "Installation ImageMagick incomplète"
+    # Informations système pour debug
+    log "INFO" "=== INFORMATIONS SYSTÈME ==="
+    log "INFO" "Date/Heure: $(date)"
+    log "INFO" "Utilisateur: $(whoami)"
+    log "INFO" "Distribution: $(cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)"
+    log "INFO" "Kernel: $(uname -r)"
+    log "INFO" "Architecture: $(uname -m)"
+    log "INFO" "=========================="
+    
+    # Stabilisation initiale
+    log_and_show "◦ Stabilisation du système après démarrage..."
+    pause_system $PAUSE_MOYEN "Initialisation des services"
+    
+    # Vérifier et désactiver le mode AP si actif
+    local AP_WAS_ACTIVE=false
+    if is_ap_mode; then
+        echo ""
+        log_and_show "◦ Mode point d'accès détecté..."
+        AP_WAS_ACTIVE=true
+        disable_ap_mode
+        log_and_show "  ↦ Mode AP désactivé temporairement ✓"
     fi
-fi
-
-send_progress 60 "Nettoyage du système..."
-echo ""
-echo "◦ Nettoyage du système..."
-apt-get autoremove -y >/dev/null 2>&1 && apt-get autoclean >/dev/null 2>&1
-echo "  ↦ Système nettoyé ✓"
-
-echo ""
-sleep $DISPLAY_DELAY_BETWEEN_STEPS
-
-echo "========================================================================"
-echo "ÉTAPE 4 : CONFIGURATION DU REFROIDISSEMENT"
-echo "========================================================================"
-echo ""
-
-send_progress 70 "Configuration du ventilateur..."
-echo "◦ Configuration du ventilateur..."
-
-if [ -f "$CONFIG_FILE" ]; then
-    if ! grep -q "dtparam=fan_temp0" "$CONFIG_FILE"; then
-        cp "$CONFIG_FILE" "${CONFIG_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
-        {
-            echo ""
-            echo "# Configuration de refroidissement MaxLink"
-            echo "dtparam=fan_temp0=${FAN_TEMP_MIN}"
-            echo "dtparam=fan_temp1=${FAN_TEMP_ACTIVATE}"
-            echo "dtparam=fan_temp2=${FAN_TEMP_MAX}"
-        } >> "$CONFIG_FILE"
-        echo "  ↦ Configuration ajoutée ✓"
-        log_info "Configuration ventilateur ajoutée"
-    else
-        echo "  ↦ Configuration existante ✓"
-    fi
-else
-    echo "  ↦ Fichier config.txt non trouvé ⚠"
-    log_warn "Fichier config.txt non trouvé"
-fi
-
-echo ""
-sleep $DISPLAY_DELAY_BETWEEN_STEPS
-
-echo "========================================================================"
-echo "ÉTAPE 5 : PERSONNALISATION DE L'INTERFACE"
-echo "========================================================================"
-echo ""
-
-send_progress 80 "Personnalisation de l'interface..."
-
-# Déterminer l'utilisateur cible
-TARGET_USER="$EFFECTIVE_USER"
-USER_HOME="$EFFECTIVE_USER_HOME"
-
-echo "◦ Installation du fond d'écran..."
-
-# Créer le répertoire de destination
-mkdir -p "$BG_IMAGE_DEST_DIR"
-
-# NOUVEAU : Vérifier les chemins et créer l'image
-VERSION_TEXT="v${MAXLINK_VERSION}"
-
-# Debug des chemins
-echo "  ↦ Source: $BG_IMAGE_SOURCE"
-echo "  ↦ Destination: $BG_IMAGE_DEST"
-
-# Vérifier que le répertoire source existe
-if [ ! -f "$BG_IMAGE_SOURCE" ]; then
-    echo "  ↦ Image source non trouvée, création d'une image par défaut..."
     
-    # Créer le répertoire assets s'il n'existe pas
-    mkdir -p "$(dirname "$BG_IMAGE_SOURCE")"
-    
-    # Créer une image par défaut avec ImageMagick si disponible
-    if command -v convert >/dev/null 2>&1; then
-        convert -size 1920x1080 gradient:"#2E3440"-"#3B4252" \
-                -gravity center -pointsize 100 -fill "#81A1C1" \
-                -annotate +0-100 "MaxLink™" \
-                -gravity SouthEast -pointsize 60 -fill white \
-                -stroke black -strokewidth 2 \
-                -annotate +50+50 "$VERSION_TEXT" \
-                "$BG_IMAGE_DEST"
-        echo "  ↦ Image de fond créée avec version $VERSION_TEXT ✓"
-        log_info "Image de fond créée par défaut avec version"
-    else
-        echo "  ↦ Impossible de créer l'image (ImageMagick non disponible) ✗"
-        log_error "Impossible de créer l'image de fond"
-    fi
-elif command -v convert >/dev/null 2>&1; then
-    # Ajouter la version sur l'image existante
-    echo "  ↦ Ajout de la version sur l'image..."
-    convert "$BG_IMAGE_SOURCE" \
-        -gravity SouthEast \
-        -pointsize 60 \
-        -fill black \
-        -stroke black \
-        -strokewidth 2 \
-        -annotate +50+50 "$VERSION_TEXT" \
-        "$BG_IMAGE_DEST"
-    
-    # Vérifier que l'image a été créée
-    if [ -f "$BG_IMAGE_DEST" ]; then
-        echo "  ↦ Fond d'écran installé avec version $VERSION_TEXT ✓"
-        log_info "Fond d'écran installé avec version $VERSION_TEXT"
-    else
-        echo "  ↦ Erreur lors de la création de l'image ✗"
-        log_error "Erreur lors de la création de l'image avec version"
-    fi
-else
-    # Copie simple si ImageMagick non disponible
-    cp "$BG_IMAGE_SOURCE" "$BG_IMAGE_DEST"
-    echo "  ↦ Fond d'écran copié (sans version) ⚠"
-    log_warn "Fond d'écran copié sans version (ImageMagick non disponible)"
-fi
-
-# Configuration LXDE si présent
-if [ -d "/etc/xdg/lxsession" ] && [ -d "$USER_HOME" ]; then
+    # Vérifier l'interface WiFi
     echo ""
-    echo "◦ Configuration du bureau..."
+    log_and_show "◦ Vérification de l'interface WiFi..."
     
-    wait_silently 2 "Préparation de la configuration bureau"
+    # Logger l'état des interfaces réseau
+    log "INFO" "=== INTERFACES RÉSEAU ==="
+    log_command "ip link show" "Liste des interfaces"
+    log_command "rfkill list" "État rfkill"
+    log "INFO" "========================"
     
-    mkdir -p "$USER_HOME/.config/pcmanfm/LXDE-pi"
-    
-    # S'assurer que l'image de destination existe pour la configuration
-    WALLPAPER_PATH="$BG_IMAGE_DEST"
-    if [ ! -f "$WALLPAPER_PATH" ]; then
-        WALLPAPER_PATH="/usr/share/pixmaps/raspberry-pi-logo.png"
-        echo "  ↦ Image personnalisée non trouvée, utilisation image par défaut ⚠"
+    if ip link show wlan0 >/dev/null 2>&1; then
+        log_and_show "  ↦ Interface WiFi détectée ✓"
+        
+        # Activer le WiFi
+        log_command "nmcli radio wifi on" "Activation WiFi"
+        pause_system $PAUSE_COURT "Activation radio WiFi"
+        log_and_show "  ↦ WiFi activé ✓"
+    else
+        log_and_show "  ↦ Interface WiFi non disponible ✗"
+        log "ERROR" "Interface wlan0 non trouvée"
+        exit 1
     fi
     
-    cat > "$USER_HOME/.config/pcmanfm/LXDE-pi/desktop-items-0.conf" << EOF
+    send_progress 10 "WiFi préparé"
+    echo ""
+    sleep $PAUSE_COURT
+}
+
+# ÉTAPE 2 : Connexion au réseau
+step_connect_wifi() {
+    log_and_show "========================================================================"
+    log_and_show "ÉTAPE 2 : CONNEXION RÉSEAU"
+    log_and_show "========================================================================"
+    echo ""
+    
+    send_progress 15 "Recherche du réseau..."
+    
+    # Scan et recherche du réseau
+    log_and_show "◦ Recherche du réseau WiFi \"$WIFI_SSID\"..."
+    log_and_show "  ↦ Scan des réseaux disponibles..."
+    
+    log_command "nmcli device wifi rescan" "Scan WiFi"
+    pause_system $PAUSE_MOYEN
+    
+    # Logger tous les réseaux trouvés
+    log "INFO" "=== RÉSEAUX DISPONIBLES ==="
+    log_command "nmcli device wifi list" "Liste des réseaux"
+    log "INFO" "=========================="
+    
+    # Vérifier la présence du réseau
+    NETWORK_INFO=$(nmcli device wifi list | grep "$WIFI_SSID" | head -1)
+    if [ -n "$NETWORK_INFO" ]; then
+        SIGNAL=$(echo "$NETWORK_INFO" | awk '{for(i=1;i<=NF;i++) if($i ~ /^[0-9]+$/) {print $i; break}}')
+        log_and_show "  ↦ Réseau trouvé (Signal: ${SIGNAL:-N/A} dBm) ✓"
+        log "INFO" "Réseau trouvé avec signal: ${SIGNAL:-N/A}"
+    else
+        log_and_show "  ↦ Réseau \"$WIFI_SSID\" non trouvé ✗"
+        log "ERROR" "Réseau $WIFI_SSID non trouvé"
+        exit 1
+    fi
+    
+    send_progress 20 "Connexion en cours..."
+    
+    # Connexion au réseau
+    echo ""
+    log_and_show "◦ Connexion au réseau \"$WIFI_SSID\"..."
+    
+    # Supprimer l'ancienne connexion si elle existe
+    log_command "nmcli connection delete '$WIFI_SSID' 2>/dev/null || true" "Suppression ancienne connexion"
+    
+    # Se connecter
+    if log_command "nmcli device wifi connect '$WIFI_SSID' password '$WIFI_PASSWORD'" "Connexion WiFi"; then
+        log_and_show "  ↦ Connexion initiée ✓"
+        pause_system $PAUSE_MOYEN "Obtention de l'adresse IP"
+        
+        # Récupérer l'IP
+        IP=$(ip -4 addr show wlan0 | grep inet | awk '{print $2}' | cut -d/ -f1)
+        if [ -n "$IP" ]; then
+            log_and_show "  ↦ Connexion établie (IP: $IP) ✓"
+            log "INFO" "IP obtenue: $IP"
+        else
+            log_and_show "  ↦ Connexion établie mais pas d'IP ⚠"
+            log "WARN" "Pas d'IP obtenue"
+        fi
+    else
+        log_and_show "  ↦ Échec de la connexion ✗"
+        log "ERROR" "Échec de la connexion WiFi"
+        exit 1
+    fi
+    
+    # Test de connectivité
+    echo ""
+    log_and_show "◦ Test de connectivité..."
+    pause_system $PAUSE_COURT "Stabilisation de la connexion"
+    
+    if log_command "ping -c 3 -W 2 8.8.8.8" "Test ping Google DNS"; then
+        log_and_show "  ↦ Connectivité Internet confirmée ✓"
+    else
+        log_and_show "  ↦ Pas de connectivité Internet ✗"
+        log "ERROR" "Pas de connectivité Internet"
+        exit 1
+    fi
+    
+    send_progress 30 "Connexion établie"
+    echo ""
+    sleep $PAUSE_COURT
+}
+
+# ÉTAPE 3 : Synchronisation de l'horloge
+step_sync_time() {
+    log_and_show "========================================================================"
+    log_and_show "ÉTAPE 3 : SYNCHRONISATION HORLOGE"
+    log_and_show "========================================================================"
+    echo ""
+    
+    send_progress 35 "Synchronisation de l'horloge..."
+    
+    log_and_show "◦ Synchronisation de l'horloge système..."
+    
+    log "INFO" "Heure avant sync: $(date)"
+    
+    if command -v timedatectl >/dev/null 2>&1; then
+        log_command "timedatectl set-ntp true" "Activation NTP"
+        pause_system $PAUSE_MOYEN "Synchronisation NTP"
+        log_and_show "  ↦ Horloge synchronisée ✓"
+        log_and_show "  ↦ Date/Heure: $(date '+%d/%m/%Y %H:%M:%S')"
+        log "INFO" "Heure après sync: $(date)"
+    else
+        log_and_show "  ↦ timedatectl non disponible ⚠"
+        log "WARN" "timedatectl non disponible"
+    fi
+    
+    send_progress 40 "Horloge synchronisée"
+    echo ""
+    sleep $PAUSE_COURT
+}
+
+# ÉTAPE 4 : Mise à jour du système (sécurité uniquement)
+step_system_update() {
+    log_and_show "========================================================================"
+    log_and_show "ÉTAPE 4 : MISE À JOUR DE SÉCURITÉ"
+    log_and_show "========================================================================"
+    echo ""
+    
+    send_progress 45 "Vérification des mises à jour..."
+    
+    # Nettoyer les verrous APT
+    log_and_show "◦ Préparation du système de paquets..."
+    
+    log "INFO" "=== NETTOYAGE APT ==="
+    log_command "pkill -9 apt 2>/dev/null || true" "Kill processus APT"
+    log_command "pkill -9 dpkg 2>/dev/null || true" "Kill processus DPKG"
+    log_command "rm -f /var/lib/apt/lists/lock" "Suppression lock lists"
+    log_command "rm -f /var/cache/apt/archives/lock" "Suppression lock archives"
+    log_command "rm -f /var/lib/dpkg/lock*" "Suppression lock dpkg"
+    log "INFO" "==================="
+    
+    # Vérifier s'il y a des problèmes de dépendances
+    echo ""
+    log_and_show "◦ Vérification de l'intégrité du système de paquets..."
+    
+    if ! dpkg --configure -a >/dev/null 2>&1; then
+        log_and_show "  ↦ Problèmes de dépendances détectés"
+        repair_dependencies
+    else
+        log_and_show "  ↦ Système de paquets intact ✓"
+    fi
+    
+    pause_system $PAUSE_COURT
+    
+    # Mise à jour des dépôts
+    echo ""
+    log_and_show "◦ Mise à jour de la liste des paquets..."
+    
+    if log_command "apt-get update -y" "APT update"; then
+        log_and_show "  ↦ Liste des paquets mise à jour ✓"
+    else
+        log_and_show "  ↦ Erreur lors de la mise à jour ✗"
+        log "ERROR" "Échec apt-get update"
+        exit 1
+    fi
+    
+    send_progress 50 "Installation des mises à jour de sécurité..."
+    
+    echo ""
+    log_and_show "◦ Installation des mises à jour de sécurité critiques..."
+    
+    # NOUVELLE APPROCHE : Installer uniquement les paquets critiques
+    # Liste des paquets essentiels à maintenir à jour
+    CRITICAL_PACKAGES=(
+        "openssh-server"
+        "openssh-client"
+        "openssl"
+        "libssl*"
+        "sudo"
+        "passwd"
+        "login"
+        "systemd"
+        "apt"
+        "dpkg"
+        "libc6"
+        "libpam*"
+        "ca-certificates"
+        "tzdata"
+    )
+    
+    # Créer une liste des paquets critiques installés
+    PACKAGES_TO_UPDATE=""
+    for pkg in "${CRITICAL_PACKAGES[@]}"; do
+        if dpkg -l | grep -q "^ii  $pkg"; then
+            PACKAGES_TO_UPDATE="$PACKAGES_TO_UPDATE $pkg"
+        fi
+    done
+    
+    if [ -n "$PACKAGES_TO_UPDATE" ]; then
+        log_and_show "  ↦ Mise à jour des paquets critiques uniquement"
+        log "INFO" "Paquets critiques: $PACKAGES_TO_UPDATE"
+        
+        # Installer uniquement les mises à jour critiques
+        if log_command "DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade $PACKAGES_TO_UPDATE" "Mise à jour sécurité"; then
+            log_and_show "  ↦ Mises à jour de sécurité installées ✓"
+        else
+            log_and_show "  ↦ Erreur lors des mises à jour de sécurité ⚠"
+        fi
+    else
+        log_and_show "  ↦ Aucun paquet critique à mettre à jour ✓"
+    fi
+    
+    # Optionnel : Afficher le nombre total de mises à jour disponibles (sans les installer)
+    echo ""
+    log_and_show "◦ Information sur les autres mises à jour..."
+    TOTAL_UPDATES=$(apt list --upgradable 2>/dev/null | grep -c upgradable || echo "0")
+    if [ $TOTAL_UPDATES -gt 0 ]; then
+        log_and_show "  ↦ $TOTAL_UPDATES mises à jour disponibles au total (non installées)"
+        log_and_show "  ↦ Seules les mises à jour de sécurité ont été appliquées"
+    else
+        log_and_show "  ↦ Système entièrement à jour ✓"
+    fi
+    
+    send_progress 65 "Mises à jour de sécurité terminées"
+    echo ""
+    sleep $PAUSE_COURT
+}
+
+# ÉTAPE 5 : Installation de Python3-PIL (au lieu d'ImageMagick)
+step_install_image_tools() {
+    log_and_show "========================================================================"
+    log_and_show "ÉTAPE 5 : INSTALLATION DES OUTILS D'IMAGE"
+    log_and_show "========================================================================"
+    echo ""
+    
+    send_progress 70 "Installation des outils d'image..."
+    
+    log_and_show "◦ Vérification de Python PIL/Pillow..."
+    
+    # Vérifier si PIL est déjà installé
+    if python3 -c "import PIL" >/dev/null 2>&1; then
+        log_and_show "  ↦ Python PIL/Pillow déjà installé ✓"
+        log "INFO" "PIL/Pillow déjà présent"
+    else
+        log_and_show "  ↦ Python PIL/Pillow non installé"
+        echo ""
+        log_and_show "◦ Installation de Python3-PIL..."
+        
+        # Installer python3-pil (beaucoup plus léger qu'ImageMagick)
+        if log_command "apt-get install -y python3-pil" "Installation python3-pil"; then
+            log_and_show "  ↦ Python3-PIL installé ✓"
+            log "INFO" "Python3-PIL installé avec succès"
+        else
+            log_and_show "  ↦ Erreur lors de l'installation ⚠"
+            log "ERROR" "Échec installation Python3-PIL"
+        fi
+    fi
+    
+    # Nettoyage
+    echo ""
+    log_and_show "◦ Nettoyage du système..."
+    log_command "apt-get autoremove -y" "APT autoremove"
+    log_command "apt-get autoclean" "APT autoclean"
+    log_and_show "  ↦ Système nettoyé ✓"
+    
+    send_progress 75 "Outils d'image installés"
+    echo ""
+    sleep $PAUSE_COURT
+}
+
+# ÉTAPE 6 : Configuration du système
+step_configure_system() {
+    log_and_show "========================================================================"
+    log_and_show "ÉTAPE 6 : CONFIGURATION DU SYSTÈME"
+    log_and_show "========================================================================"
+    echo ""
+    
+    send_progress 80 "Configuration du système..."
+    
+    # Configuration du refroidissement
+    log_and_show "◦ Configuration du ventilateur..."
+    
+    if [ -f "$CONFIG_FILE" ]; then
+        if ! grep -q "dtparam=fan_temp0" "$CONFIG_FILE"; then
+            {
+                echo ""
+                echo "# Configuration ventilateur MaxLink"
+                echo "dtparam=fan_temp0=$FAN_TEMP_MIN"
+                echo "dtparam=fan_temp1=$FAN_TEMP_ACTIVATE"
+                echo "dtparam=fan_temp2=$FAN_TEMP_MAX"
+            } >> "$CONFIG_FILE"
+            log_and_show "  ↦ Configuration ajoutée ✓"
+            log "INFO" "Configuration ventilateur ajoutée"
+        else
+            log_and_show "  ↦ Configuration existante ✓"
+            log "INFO" "Configuration ventilateur déjà présente"
+        fi
+    else
+        log_and_show "  ↦ Fichier config.txt non trouvé ⚠"
+        log "WARN" "Fichier $CONFIG_FILE non trouvé"
+    fi
+    
+    # Personnalisation de l'interface
+    echo ""
+    log_and_show "◦ Personnalisation de l'interface..."
+    
+    # Créer le répertoire des fonds d'écran
+    mkdir -p "$BG_IMAGE_DEST_DIR"
+    
+    # Copier le fond d'écran avec ajout de version
+    if [ -f "$BG_IMAGE_SOURCE" ]; then
+        # Utiliser la fonction Python pour ajouter la version
+        if add_version_to_image "$BG_IMAGE_SOURCE" "$BG_IMAGE_DEST" ; then
+            log_and_show "  ↦ Fond d'écran installé avec version ✓"
+            log "INFO" "Fond d'écran installé avec version v$MAXLINK_VERSION"
+        else
+            log_and_show "  ↦ Fond d'écran installé (sans version) ✓"
+            log "INFO" "Fond d'écran copié sans version"
+        fi
+    else
+        log_and_show "  ↦ Fond d'écran non trouvé ⚠"
+        log "WARN" "Fond d'écran source non trouvé: $BG_IMAGE_SOURCE"
+    fi
+    
+    # Configuration bureau LXDE
+    if [ -d "$EFFECTIVE_USER_HOME/.config" ]; then
+        mkdir -p "$EFFECTIVE_USER_HOME/.config/pcmanfm/LXDE-pi"
+        
+        cat > "$EFFECTIVE_USER_HOME/.config/pcmanfm/LXDE-pi/desktop-items-0.conf" << EOF
 [*]
 wallpaper_mode=stretch
 wallpaper_common=1
-wallpaper=$WALLPAPER_PATH
+wallpaper=$BG_IMAGE_DEST
 desktop_bg=$DESKTOP_BG_COLOR
 desktop_fg=$DESKTOP_FG_COLOR
 desktop_shadow=$DESKTOP_SHADOW_COLOR
 desktop_font=$DESKTOP_FONT
 show_wm_menu=0
-sort=mtime;ascending;
 show_documents=0
 show_trash=0
 show_mounts=0
 EOF
+        
+        chown -R $EFFECTIVE_USER:$EFFECTIVE_USER "$EFFECTIVE_USER_HOME/.config"
+        log_and_show "  ↦ Bureau configuré ✓"
+        log "INFO" "Configuration bureau LXDE appliquée"
+    fi
     
-    chown -R $TARGET_USER:$TARGET_USER "$USER_HOME/.config" 2>/dev/null || true
-    echo "  ↦ Bureau configuré ✓"
-    log_info "Bureau LXDE configuré pour $TARGET_USER"
+    send_progress 90 "Configuration terminée"
+    echo ""
+    sleep $PAUSE_COURT
+}
+
+# ÉTAPE 7 : Finalisation
+step_finalize() {
+    log_and_show "========================================================================"
+    log_and_show "ÉTAPE 7 : FINALISATION"
+    log_and_show "========================================================================"
+    echo ""
+    
+    send_progress 95 "Finalisation..."
+    
+    # Déconnexion WiFi
+    log_and_show "◦ Déconnexion du réseau WiFi..."
+    log_command "nmcli connection down '$WIFI_SSID'" "Déconnexion WiFi"
+    pause_system $PAUSE_COURT
+    log_command "nmcli connection delete '$WIFI_SSID'" "Suppression profil WiFi"
+    log_and_show "  ↦ WiFi déconnecté ✓"
+    
+    send_progress 100 "Mise à jour terminée !"
+    
+    echo ""
+    log_and_show "◦ Mise à jour terminée avec succès !"
+    log_and_show "  ↦ Version: v$MAXLINK_VERSION"
+    log_and_show "  ↦ Redémarrage en cours..."
+    echo ""
+    
+    log "INFO" "Script terminé avec succès"
+    log "INFO" "Fichier de log: $LOG_FILE"
+    
+    # Pause de 3 secondes avant reboot
+    sleep 3
+    
+    # Redémarrer
+    reboot
+}
+
+# ===============================================================================
+# PROGRAMME PRINCIPAL
+# ===============================================================================
+
+# Vérifier les privilèges root
+if [ "$EUID" -ne 0 ]; then
+    echo "⚠ Ce script doit être exécuté avec des privilèges root"
+    exit 1
 fi
 
-send_progress 90 "Interface personnalisée"
+# Initialiser le log
+log "INFO" "=========================================="
+log "INFO" "DÉBUT DU SCRIPT UPDATE_INSTALL V4 LIGHT"
+log "INFO" "=========================================="
+log "INFO" "Version: $MAXLINK_VERSION"
+log "INFO" "Utilisateur: $(whoami)"
+log "INFO" "PWD: $(pwd)"
+log "INFO" "Script: $0"
+log "INFO" "=========================================="
+
+# Message initial
 echo ""
-sleep $DISPLAY_DELAY_BETWEEN_STEPS
-
-echo "========================================================================"
-echo "ÉTAPE 6 : FINALISATION"
-echo "========================================================================"
+echo "Démarrage du script de mise à jour MaxLink (version allégée)..."
+echo "Les logs détaillés sont disponibles dans :"
+echo "$LOG_FILE"
 echo ""
 
-send_progress 95 "Finalisation..."
-echo "◦ Déconnexion WiFi..."
+# Enregistrer si le mode AP était actif
+export AP_WAS_ACTIVE=false
 
-# Déconnexion et suppression du profil
-nmcli connection down "$WIFI_SSID" >/dev/null 2>&1
-wait_silently 2 "Déconnexion en cours"
-
-nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1
-echo "  ↦ WiFi déconnecté ✓"
-log_info "WiFi déconnecté et profil supprimé"
-
-send_progress 100 "Mise à jour terminée !"
-
-echo ""
-echo "◦ Mise à jour terminée avec succès !"
-echo "  ↦ Version: $VERSION_TEXT"
-echo "  ↦ Redémarrage dans 10 secondes..."
-
-log_info "Script terminé avec succès - Redémarrage programmé"
-
-# Compte à rebours visuel plus long
-for i in {10..1}; do
-    printf "\r  ↦ Redémarrage dans %2d secondes... " $i
-    sleep 1
-done
-printf "\r  ↦ Redémarrage en cours...          \n"
-
-# NOUVEAU : Petit délai avant le reboot pour s'assurer que les logs sont écrits
-sleep 2
-
-reboot
+# Exécuter les étapes
+step_prepare_wifi
+step_connect_wifi
+step_sync_time
+step_system_update
+step_install_image_tools  # Au lieu de step_install_imagemagick
+step_configure_system
+step_finalize
