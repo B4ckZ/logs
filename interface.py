@@ -152,7 +152,7 @@ class MaxLinkApp:
         
         # Configuration de la fenêtre avec variables
         self.root.title(self.variables.get_window_title())
-        self.root.geometry("1150x750")
+        self.root.geometry("1100x700")
         self.root.configure(bg=COLORS["nord0"])
         
         # NOUVEAU : Vérifier si on est en mode root
