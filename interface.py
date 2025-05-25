@@ -2,12 +2,17 @@ import tkinter as tk
 from tkinter import scrolledtext, messagebox
 import subprocess
 import os
+import sys
 import threading
 from datetime import datetime
 import re
 import time
+import platform
 
-# Couleurs du thème Nord - Interface principale
+# Détection du système
+IS_WINDOWS = platform.system() == "Windows"
+
+# Couleurs du thème Nord
 COLORS = {
     "nord0": "#2E3440",  # Fond sombre
     "nord1": "#3B4252",  # Fond moins sombre
@@ -34,7 +39,10 @@ class VariablesManager:
         variables_file = os.path.join(self.base_path, "scripts", "common", "variables.sh")
         
         if not os.path.exists(variables_file):
-            raise FileNotFoundError(f"ERREUR CRITIQUE: Fichier variables.sh non trouvé: {variables_file}")
+            raise FileNotFoundError(f"Fichier variables.sh non trouvé: {variables_file}")
+        
+        if os.path.getsize(variables_file) == 0:
+            raise ValueError("Fichier variables.sh vide")
         
         try:
             # Lire directement le fichier et parser les variables importantes
@@ -69,13 +77,18 @@ class VariablesManager:
             
             # Vérifier que les variables essentielles sont présentes
             required_vars = ['MAXLINK_VERSION', 'SERVICES_LIST']
+            missing_vars = []
+            
             for var in required_vars:
                 if var not in self.variables:
-                    raise ValueError(f"Variable requise '{var}' non trouvée dans variables.sh")
+                    missing_vars.append(var)
             
-            # Debug optionnel
-            if os.getenv('MAXLINK_DEBUG'):
-                self.print_loaded_variables()
+            if missing_vars:
+                raise ValueError(f"Variables requises manquantes: {', '.join(missing_vars)}")
+            
+            # Vérifier que SERVICES_LIST n'est pas vide
+            if not self.variables.get('SERVICES_LIST'):
+                raise ValueError("SERVICES_LIST est vide")
                 
         except Exception as e:
             raise Exception(f"Erreur lors du chargement de variables.sh: {e}")
@@ -111,36 +124,42 @@ class VariablesManager:
             raise ValueError("Aucun service défini dans SERVICES_LIST")
             
         return services
+
+def validate_configuration():
+    """Valide la configuration avant de créer l'interface"""
+    base_path = os.path.dirname(os.path.abspath(__file__))
     
-    def print_loaded_variables(self):
-        """Affiche les variables chargées pour debug"""
-        print("\n=== VARIABLES CHARGÉES ===")
-        for key, value in sorted(self.variables.items()):
-            print(f"{key}: {value}")
-        print("========================\n")
+    try:
+        # Essayer de charger les variables
+        variables = VariablesManager(base_path)
+        
+        # Essayer de récupérer les services
+        services = variables.get_services_list()
+        
+        # Vérifier qu'on a au moins un service
+        if not services:
+            raise ValueError("Aucun service configuré")
+        
+        # Si on arrive ici, la configuration est valide
+        return True, variables, None
+        
+    except Exception as e:
+        # Retourner l'erreur pour affichage
+        return False, None, str(e)
 
 class MaxLinkApp:
-    def __init__(self, root):
+    def __init__(self, root, variables):
         self.root = root
+        self.variables = variables
         
         # Chemins et initialisation
         self.base_path = os.path.dirname(os.path.abspath(__file__))
-        
-        try:
-            # Charger les variables centralisées
-            self.variables = VariablesManager(self.base_path)
-        except Exception as e:
-            messagebox.showerror("Erreur de configuration", str(e))
-            root.destroy()
-            return
         
         # Configuration de la fenêtre avec variables
         try:
             self.root.title(self.variables.get_window_title())
         except Exception as e:
-            messagebox.showerror("Erreur de configuration", str(e))
-            root.destroy()
-            return
+            self.root.title("MaxLink™ Admin Panel - Erreur de configuration")
             
         self.root.geometry("1280x720")
         self.root.configure(bg=COLORS["nord0"])
@@ -156,7 +175,10 @@ class MaxLinkApp:
             self.services = self.variables.get_services_list()
             self.selected_service = self.services[0] if self.services else None
         except Exception as e:
-            messagebox.showerror("Erreur de configuration", str(e))
+            messagebox.showerror(
+                "Erreur de configuration",
+                f"Impossible de charger les services:\n{e}\n\nL'application va se fermer."
+            )
             root.destroy()
             return
         
@@ -212,7 +234,7 @@ class MaxLinkApp:
         # Panneau gauche (services + boutons)
         self.left_frame = tk.Frame(main, bg=COLORS["nord1"], width=350)
         self.left_frame.pack_propagate(False)
-        self.left_frame.pack(side="left", fill="both", padx=(0, 15))
+        self.left_frame.pack(side="left", fill="both", padx=15)
         
         # Zone des services
         services_frame = tk.Frame(self.left_frame, bg=COLORS["nord1"], padx=15, pady=15)
@@ -225,13 +247,10 @@ class MaxLinkApp:
             bg=COLORS["nord1"],
             fg=COLORS["nord6"]
         )
-        services_title.pack(pady=(0, 15))
+        services_title.pack(pady=15)
         
         # Indicateur de mode privilégié
-        import platform
-        is_windows = (platform.system() == "Windows")
-        
-        if is_windows:
+        if IS_WINDOWS:
             privilege_text = "Mode: Test Windows"
             privilege_color = COLORS["nord15"]
         else:
@@ -245,7 +264,7 @@ class MaxLinkApp:
             bg=COLORS["nord1"],
             fg=privilege_color
         )
-        privilege_label.pack(pady=(0, 10))
+        privilege_label.pack(pady=10)
         
         # Créer les éléments de service
         for service in self.services:
@@ -273,7 +292,7 @@ class MaxLinkApp:
             bg=COLORS["nord1"],
             fg=COLORS["nord6"]
         )
-        console_title.pack(pady=(0, 10))
+        console_title.pack(pady=10)
         
         self.console = scrolledtext.ScrolledText(
             console_frame, 
@@ -284,8 +303,8 @@ class MaxLinkApp:
         )
         self.console.pack(fill="both", expand=True)
         
-        # NOUVEAU : Cadre pour la barre de progression
-        self.progress_frame = tk.Frame(right_frame, bg=COLORS["nord1"], padx=15, pady=(0, 15))
+        # Cadre pour la barre de progression
+        self.progress_frame = tk.Frame(right_frame, bg=COLORS["nord1"], padx=15, pady=15)
         self.progress_frame.pack(fill="x", side="bottom")
         
         # Titre de la progression
@@ -296,7 +315,7 @@ class MaxLinkApp:
             bg=COLORS["nord1"],
             fg=COLORS["nord6"]
         )
-        self.progress_label.pack(pady=(5, 10))
+        self.progress_label.pack(pady=10)
         
         # Canvas pour la barre de progression
         self.progress_canvas = tk.Canvas(
@@ -305,7 +324,7 @@ class MaxLinkApp:
             bg=COLORS["nord0"],
             highlightthickness=0
         )
-        self.progress_canvas.pack(fill="x", padx=10, pady=(0, 5))
+        self.progress_canvas.pack(fill="x", padx=10, pady=5)
         
         # Label pour les informations de progression
         self.progress_info = tk.Label(
@@ -387,10 +406,7 @@ class MaxLinkApp:
     
     def create_welcome_message(self):
         """Crée le message d'accueil simplifié"""
-        import platform
-        is_windows = (platform.system() == "Windows")
-        
-        if is_windows:
+        if IS_WINDOWS:
             welcome_msg = "Console prête - Mode test Windows\n\n"
         else:
             status = "Mode privilégié actif" if self.root_mode else "Mode privilégié inactif"
@@ -483,26 +499,9 @@ class MaxLinkApp:
         service = self.selected_service
         service_id = service["id"]
         
-        # Détecter le système
-        import platform
-        is_windows = (platform.system() == "Windows")
-        
-        # Sur Windows : mode test uniquement
-        if is_windows:
-            messagebox.showinfo(
-                "Mode Test Windows",
-                f"Interface testée avec succès !\n\n"
-                f"Action simulée : {action.upper()}\n"
-                f"Service : {service['name']}\n"
-                f"ID Service : {service_id}\n\n"
-                f"Configuration :\n"
-                f"• Version: {self.variables.get('MAXLINK_VERSION', 'N/A')}\n"
-                f"• WiFi SSID: {self.variables.get('WIFI_SSID', 'N/A')}\n"
-                f"• AP SSID: {self.variables.get('AP_SSID', 'N/A')}\n\n"
-                f"Pour utilisation réelle :\n"
-                f"• Transférez sur Raspberry Pi\n"
-                f"• Lancez avec : sudo bash config.sh"
-            )
+        # Sur Windows : ne rien faire, juste afficher dans la console
+        if IS_WINDOWS:
+            self.update_console(f"[Mode Test Windows] Action: {action} - Service: {service['name']}\n")
             return
             
         # Sur Linux : vérifier le mode privilégié
@@ -653,10 +652,36 @@ Code de sortie: {return_code}
         self.console.see(tk.END)
         self.console.config(state=tk.DISABLED)
 
+# ===============================================================================
+# POINT D'ENTRÉE PRINCIPAL
+# ===============================================================================
+
 if __name__ == "__main__":
-    root = tk.Tk()
+    # Valider la configuration AVANT de créer l'interface
+    print("Validation de la configuration...")
+    
+    is_valid, variables, error_msg = validate_configuration()
+    
+    if not is_valid:
+        # Afficher l'erreur dans le terminal
+        print("\n" + "="*80)
+        print("ERREUR DE CONFIGURATION")
+        print("="*80)
+        print(f"\n{error_msg}\n")
+        print("L'interface ne peut pas démarrer sans une configuration valide.")
+        print("Vérifiez le fichier: scripts/common/variables.sh")
+        print("\n" + "="*80)
+        
+        # Sortir avec un code d'erreur
+        sys.exit(1)
+    
+    # Si la configuration est valide, créer l'interface
+    print("Configuration validée, lancement de l'interface...")
+    
     try:
-        app = MaxLinkApp(root)
+        root = tk.Tk()
+        app = MaxLinkApp(root, variables)
         root.mainloop()
     except Exception as e:
-        print(f"Erreur lors du démarrage: {e}")
+        print(f"\nErreur lors du démarrage de l'interface: {e}")
+        sys.exit(2)
