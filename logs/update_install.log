@@ -103,3 +103,22 @@ Date: Sun 25 May 13:02:01 CEST 2025
 ================================================================================
 
 [2025-05-25 13:02:01] [INFO] [update_install] Script update_install démarré
+
+================================================================================
+DÉMARRAGE: update_install
+Description: Mise à jour système et personnalisation Raspberry Pi
+Date: Sun 25 May 13:14:37 CEST 2025
+================================================================================
+
+[2025-05-25 13:14:37] [INFO] [update_install] Script update_install démarré
+[2025-05-25 13:14:50] [INFO] [update_install] Réseau Max trouvé - Signal: 11
+[2025-05-25 13:14:58] [INFO] [update_install] Connexion WiFi établie - IP: 192.168.19.61
+[2025-05-25 13:15:03] [INFO] [update_install] Connectivité Internet OK
+[2025-05-25 13:15:05] [INFO] [update_install] Vérification de l'horloge système
+[2025-05-25 13:15:11] [INFO] [update_install] Horloge synchronisée via timedatectl
+[2025-05-25 13:18:45] [INFO] [update_install] ImageMagick installé avec succès
+[2025-05-25 13:18:50] [INFO] [update_install] Fond d'écran installé avec version v2.4
+[2025-05-25 13:18:52] [INFO] [update_install] Bureau LXDE configuré pour prod
+[2025-05-25 13:18:57] [INFO] [update_install] WiFi déconnecté et profil supprimé
+[2025-05-25 13:18:57] [INFO] [update_install] Script terminé avec succès - Redémarrage programmé
+[2025-05-25 13:19:09] [INFO] [update_install] Script update_install terminé avec le code 0
