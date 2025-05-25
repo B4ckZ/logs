@@ -5,6 +5,7 @@ import os
 import threading
 from datetime import datetime
 import re
+import time
 
 # Couleurs du thème Nord - Interface principale
 COLORS = {
@@ -29,66 +30,55 @@ class VariablesManager:
         self.load_variables()
     
     def load_variables(self):
-        """Charge les variables depuis le fichier variables.sh de manière robuste"""
+        """Charge les variables depuis le fichier variables.sh"""
         variables_file = os.path.join(self.base_path, "scripts", "common", "variables.sh")
         
         if not os.path.exists(variables_file):
-            print(f"ATTENTION: Fichier variables.sh non trouvé: {variables_file}")
-            self._load_default_variables()
-            return
+            raise FileNotFoundError(f"ERREUR CRITIQUE: Fichier variables.sh non trouvé: {variables_file}")
         
         try:
-            # Méthode robuste : sourcer le fichier et exporter les variables
-            cmd = f"""bash -c '
-                source {variables_file}
-                # Exporter toutes les variables MAXLINK et autres importantes
-                for var in MAXLINK_VERSION MAXLINK_COPYRIGHT SYSTEM_USER WIFI_SSID AP_SSID; do
-                    echo "$var=${{!var}}"
-                done
-                # Exporter SERVICES_LIST
-                echo "SERVICES_LIST=${{SERVICES_LIST[@]}}"
-            '"""
+            # Lire directement le fichier et parser les variables importantes
+            with open(variables_file, 'r') as f:
+                content = f.read()
             
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            
-            for line in result.stdout.strip().split('\n'):
-                if '=' in line and line.strip():
-                    key, value = line.split('=', 1)
-                    # Gérer SERVICES_LIST spécialement
-                    if key == "SERVICES_LIST":
-                        # Parser le format bash array
-                        services = []
-                        for item in value.split():
-                            if ':' in item:
-                                services.append(item)
-                        self.variables[key] = services
-                    else:
+            # Parser les variables simples
+            for line in content.split('\n'):
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    # Ignorer les fonctions et les exports
+                    if line.startswith('export') or line.startswith('function') or '()' in line:
+                        continue
+                    
+                    # Parser les variables simples
+                    match = re.match(r'^([A-Z_][A-Z0-9_]*)="?([^"]*)"?$', line)
+                    if match:
+                        key = match.group(1)
+                        value = match.group(2)
                         self.variables[key] = value
+            
+            # Parser SERVICES_LIST spécialement
+            services_match = re.search(r'SERVICES_LIST=\((.*?)\)', content, re.DOTALL)
+            if services_match:
+                services_content = services_match.group(1)
+                services = []
+                # Extraire chaque service entre guillemets
+                for match in re.findall(r'"([^"]+)"', services_content):
+                    if ':' in match:
+                        services.append(match)
+                self.variables['SERVICES_LIST'] = services
+            
+            # Vérifier que les variables essentielles sont présentes
+            required_vars = ['MAXLINK_VERSION', 'SERVICES_LIST']
+            for var in required_vars:
+                if var not in self.variables:
+                    raise ValueError(f"Variable requise '{var}' non trouvée dans variables.sh")
             
             # Debug optionnel
             if os.getenv('MAXLINK_DEBUG'):
                 self.print_loaded_variables()
                 
         except Exception as e:
-            print(f"Erreur lors du chargement de variables.sh: {e}")
-            self._load_default_variables()
-    
-    def _load_default_variables(self):
-        """Charge des variables par défaut si le fichier n'existe pas"""
-        self.variables = {
-            'MAXLINK_VERSION': '2.4',
-            'MAXLINK_COPYRIGHT': '© 2025 WERIT. Tous droits réservés.',
-            'SYSTEM_USER': 'max',
-            'WIFI_SSID': 'Max',
-            'AP_SSID': 'MaxLink-NETWORK',
-            'SERVICES_LIST': [
-                "update:Update RPI:active",
-                "ap:Network AP:active", 
-                "nginx:NginX Web:inactive",
-                "mqtt:MQTT BKR:inactive"
-            ]
-        }
-        print("Variables par défaut chargées")
+            raise Exception(f"Erreur lors du chargement de variables.sh: {e}")
     
     def get(self, key, default=None):
         """Récupère une variable avec valeur par défaut"""
@@ -96,7 +86,9 @@ class VariablesManager:
     
     def get_window_title(self):
         """Construit le titre de la fenêtre depuis les variables"""
-        version = self.get('MAXLINK_VERSION', '2.4')
+        version = self.get('MAXLINK_VERSION')
+        if not version:
+            raise ValueError("MAXLINK_VERSION non définie dans variables.sh")
         copyright_text = self.get('MAXLINK_COPYRIGHT', '© 2025 WERIT. Tous droits réservés.')
         return f"MaxLink™ Admin Panel V{version} - {copyright_text} - Usage non autorisé strictement interdit."
     
@@ -115,16 +107,10 @@ class VariablesManager:
                     "status": parts[2]
                 })
         
-        return services if services else self._get_default_services()
-    
-    def _get_default_services(self):
-        """Retourne les services par défaut"""
-        return [
-            {"id": "update", "name": "Update RPI", "status": "active"},
-            {"id": "ap", "name": "Network AP", "status": "active"},
-            {"id": "nginx", "name": "NginX Web", "status": "inactive"},
-            {"id": "mqtt", "name": "MQTT BKR", "status": "inactive"}
-        ]
+        if not services:
+            raise ValueError("Aucun service défini dans SERVICES_LIST")
+            
+        return services
     
     def print_loaded_variables(self):
         """Affiche les variables chargées pour debug"""
@@ -140,11 +126,22 @@ class MaxLinkApp:
         # Chemins et initialisation
         self.base_path = os.path.dirname(os.path.abspath(__file__))
         
-        # Charger les variables centralisées
-        self.variables = VariablesManager(self.base_path)
+        try:
+            # Charger les variables centralisées
+            self.variables = VariablesManager(self.base_path)
+        except Exception as e:
+            messagebox.showerror("Erreur de configuration", str(e))
+            root.destroy()
+            return
         
         # Configuration de la fenêtre avec variables
-        self.root.title(self.variables.get_window_title())
+        try:
+            self.root.title(self.variables.get_window_title())
+        except Exception as e:
+            messagebox.showerror("Erreur de configuration", str(e))
+            root.destroy()
+            return
+            
         self.root.geometry("1280x720")
         self.root.configure(bg=COLORS["nord0"])
         
@@ -155,8 +152,18 @@ class MaxLinkApp:
         self.root_mode = self.check_root_mode()
         
         # Charger les services depuis les variables
-        self.services = self.variables.get_services_list()
-        self.selected_service = self.services[0] if self.services else None
+        try:
+            self.services = self.variables.get_services_list()
+            self.selected_service = self.services[0] if self.services else None
+        except Exception as e:
+            messagebox.showerror("Erreur de configuration", str(e))
+            root.destroy()
+            return
+        
+        # Variables pour la barre de progression
+        self.progress_value = 0
+        self.progress_max = 100
+        self.progress_start_time = None
         
         # Créer l'interface
         self.create_interface()
@@ -251,7 +258,7 @@ class MaxLinkApp:
         # Créer les boutons d'action
         self.create_action_buttons(buttons_frame)
         
-        # Panneau droit (console)
+        # Panneau droit (console + barre de progression)
         right_frame = tk.Frame(main, bg=COLORS["nord1"])
         right_frame.pack(side="right", fill="both", expand=True)
         
@@ -277,11 +284,106 @@ class MaxLinkApp:
         )
         self.console.pack(fill="both", expand=True)
         
+        # NOUVEAU : Cadre pour la barre de progression
+        self.progress_frame = tk.Frame(right_frame, bg=COLORS["nord1"], padx=15, pady=(0, 15))
+        self.progress_frame.pack(fill="x", side="bottom")
+        
+        # Titre de la progression
+        self.progress_label = tk.Label(
+            self.progress_frame,
+            text="Progression",
+            font=("Arial", 12, "bold"),
+            bg=COLORS["nord1"],
+            fg=COLORS["nord6"]
+        )
+        self.progress_label.pack(pady=(5, 10))
+        
+        # Canvas pour la barre de progression
+        self.progress_canvas = tk.Canvas(
+            self.progress_frame,
+            height=30,
+            bg=COLORS["nord0"],
+            highlightthickness=0
+        )
+        self.progress_canvas.pack(fill="x", padx=10, pady=(0, 5))
+        
+        # Label pour les informations de progression
+        self.progress_info = tk.Label(
+            self.progress_frame,
+            text="En attente...",
+            font=("Arial", 10),
+            bg=COLORS["nord1"],
+            fg=COLORS["nord4"]
+        )
+        self.progress_info.pack()
+        
+        # Masquer la barre de progression initialement
+        self.progress_frame.pack_forget()
+        
         # Message d'accueil dans la console
         self.create_welcome_message()
         
         # Appliquer la sélection initiale
         self.update_selection()
+    
+    def show_progress_bar(self):
+        """Affiche la barre de progression"""
+        self.progress_frame.pack(fill="x", side="bottom")
+        self.progress_value = 0
+        self.progress_start_time = time.time()
+        self.update_progress_bar()
+    
+    def hide_progress_bar(self):
+        """Masque la barre de progression"""
+        self.progress_frame.pack_forget()
+    
+    def update_progress_bar(self, value=None, text="En cours..."):
+        """Met à jour la barre de progression"""
+        if value is not None:
+            self.progress_value = value
+        
+        # Calculer les dimensions
+        self.progress_canvas.update_idletasks()
+        width = self.progress_canvas.winfo_width() - 20
+        height = 20
+        
+        # Effacer le canvas
+        self.progress_canvas.delete("all")
+        
+        # Dessiner le fond
+        self.progress_canvas.create_rectangle(
+            10, 5, width + 10, height + 5,
+            fill=COLORS["nord3"], outline=""
+        )
+        
+        # Dessiner la barre de progression
+        if self.progress_value > 0:
+            filled_width = int(width * self.progress_value / self.progress_max)
+            self.progress_canvas.create_rectangle(
+                10, 5, filled_width + 10, height + 5,
+                fill=COLORS["nord8"], outline=""
+            )
+        
+        # Afficher le pourcentage au centre
+        percentage = int(self.progress_value * 100 / self.progress_max)
+        self.progress_canvas.create_text(
+            width / 2 + 10, height / 2 + 5,
+            text=f"{percentage}%",
+            fill=COLORS["nord6"],
+            font=("Arial", 10, "bold")
+        )
+        
+        # Calculer le temps écoulé et restant
+        if self.progress_start_time and self.progress_value > 0:
+            elapsed = time.time() - self.progress_start_time
+            eta = (elapsed / self.progress_value) * (self.progress_max - self.progress_value) if self.progress_value > 0 else 0
+            
+            elapsed_str = f"{int(elapsed // 60):02d}:{int(elapsed % 60):02d}"
+            eta_str = f"{int(eta // 60):02d}:{int(eta % 60):02d}"
+            
+            self.progress_info.config(text=f"{text} | Écoulé: {elapsed_str} | Restant: ~{eta_str}")
+        else:
+            self.progress_info.config(text=text)
     
     def create_welcome_message(self):
         """Crée le message d'accueil simplifié"""
@@ -450,6 +552,9 @@ Configuration: {self.variables.get('MAXLINK_VERSION', 'N/A')}
 """
         self.update_console(action_header)
         
+        # Afficher la barre de progression
+        self.show_progress_bar()
+        
         # Exécuter le script en arrière-plan
         threading.Thread(target=self.execute_script, args=(script_path, service, action), daemon=True).start()
     
@@ -462,6 +567,7 @@ Configuration: {self.variables.get('MAXLINK_VERSION', 'N/A')}
             if not os.path.exists(full_script_path):
                 self.update_console(f"ERREUR: Script {script_path} non trouvé\n")
                 self.update_console(f"Chemin recherché: {full_script_path}\n\n")
+                self.hide_progress_bar()
                 return
             
             # Exécuter avec subprocess de manière sécurisée
@@ -478,10 +584,17 @@ Configuration: {self.variables.get('MAXLINK_VERSION', 'N/A')}
                 env=os.environ.copy()
             )
             
-            # Afficher la sortie en temps réel
+            # Lire la sortie en temps réel et détecter les mises à jour de progression
             for line in iter(process.stdout.readline, ''):
                 if line:
-                    self.update_console(line)
+                    # Chercher les mises à jour de progression dans la sortie
+                    progress_match = re.search(r'PROGRESS:(\d+):(.+)', line)
+                    if progress_match:
+                        progress_value = int(progress_match.group(1))
+                        progress_text = progress_match.group(2)
+                        self.root.after(0, self.update_progress_bar, progress_value, progress_text)
+                    else:
+                        self.update_console(line)
             
             for line in iter(process.stderr.readline, ''):
                 if line:
@@ -489,6 +602,9 @@ Configuration: {self.variables.get('MAXLINK_VERSION', 'N/A')}
             
             # Attendre la fin du processus
             return_code = process.wait()
+            
+            # Masquer la barre de progression
+            self.root.after(0, self.hide_progress_bar)
             
             # Message de fin
             end_message = f"""
@@ -513,6 +629,7 @@ Code de sortie: {return_code}
             
         except Exception as e:
             self.update_console(f"ERREUR SYSTÈME: {str(e)}\n\n", error=True)
+            self.root.after(0, self.hide_progress_bar)
     
     def update_status_indicator(self, service, is_active):
         if "indicator" in service:
@@ -538,5 +655,8 @@ Code de sortie: {return_code}
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = MaxLinkApp(root)
-    root.mainloop()
+    try:
+        app = MaxLinkApp(root)
+        root.mainloop()
+    except Exception as e:
+        print(f"Erreur lors du démarrage: {e}")
