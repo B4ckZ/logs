@@ -2,7 +2,7 @@
 
 # ===============================================================================
 # MAXLINK - INSTALLATION NGINX ET DASHBOARD
-# Version épurée - Less is More
+# Version finale avec toutes les corrections intégrées
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -37,6 +37,38 @@ wait_silently() {
     sleep "$1"
 }
 
+# Fonction pour ajouter la configuration DNS si AP est installé
+update_dns_if_ap_exists() {
+    # Vérifier si le mode AP est configuré
+    if [ -f "/etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf" ]; then
+        echo "◦ Mode AP détecté, mise à jour de la configuration DNS..."
+        
+        # Vérifier si l'entrée DNS existe déjà
+        if ! grep -q "address=/$NGINX_DASHBOARD_DOMAIN/" /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf; then
+            # Ajouter l'entrée DNS
+            echo "" >> /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf
+            echo "# Dashboard MaxLink (ajouté par nginx_install.sh)" >> /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf
+            echo "address=/$NGINX_DASHBOARD_DOMAIN/$AP_IP" >> /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf
+            echo "  ↦ Entrée DNS ajoutée pour $NGINX_DASHBOARD_DOMAIN ✓"
+            
+            # Redémarrer NetworkManager si le mode AP est actif
+            if nmcli con show --active | grep -q "$AP_SSID"; then
+                echo "  ↦ Redémarrage de NetworkManager pour appliquer les changements..."
+                systemctl restart NetworkManager
+                wait_silently 3
+                
+                # Réactiver le mode AP
+                nmcli con up "$AP_SSID" >/dev/null 2>&1
+                echo "  ↦ Mode AP réactivé avec la nouvelle configuration DNS ✓"
+            fi
+        else
+            echo "  ↦ Configuration DNS déjà présente ✓"
+        fi
+    else
+        echo "◦ Mode AP non installé - La résolution DNS sera configurée lors de l'installation de l'AP"
+    fi
+}
+
 # ===============================================================================
 # ÉTAPE 1 : PRÉPARATION ET VÉRIFICATION WIFI
 # ===============================================================================
@@ -66,12 +98,7 @@ if nmcli con show --active | grep -q "$AP_SSID"; then
     AP_WAS_ACTIVE=true
     nmcli con down "$AP_SSID" >/dev/null 2>&1
     wait_silently 2
-    echo "  ↦ Mode AP désactivé ✓"
-    
-    # Redémarrer NetworkManager pour nettoyer
-    echo "  ↦ Redémarrage de NetworkManager..."
-    systemctl restart NetworkManager
-    wait_silently 5
+    echo "  ↦ Mode AP désactivé temporairement ✓"
 fi
 
 # Vérifier l'interface WiFi
@@ -266,11 +293,8 @@ echo "  ↦ Clonage du dépôt..."
 CLONE_URL_FIXED="${CLONE_URL%.git}.git"
 log_info "Tentative de clonage depuis: $CLONE_URL_FIXED"
 
-# Afficher l'URL pour debug
-echo "  ↦ URL: $CLONE_URL_FIXED"
-
-# Cloner avec sortie visible pour debug
-if git clone --branch "$GITHUB_BRANCH" --depth 1 "$CLONE_URL_FIXED" "$TEMP_DIR/repo"; then
+# Cloner avec sortie réduite
+if git clone --branch "$GITHUB_BRANCH" --depth 1 "$CLONE_URL_FIXED" "$TEMP_DIR/repo" >/dev/null 2>&1; then
     echo "  ↦ Dépôt cloné ✓"
     log_info "Clonage réussi"
 else
@@ -341,78 +365,102 @@ send_progress 75 "Configuration de Nginx..."
 # Vérifier si Nginx est déjà configuré
 if [ -f "/etc/nginx/sites-available/maxlink-dashboard" ]; then
     echo "◦ Configuration Nginx existante détectée..."
-    echo "  ↦ Conservation de la configuration actuelle ✓"
-else
-    echo "◦ Création de la configuration du site..."
+    echo "  ↦ Mise à jour de la configuration..."
+fi
 
-    # Créer la configuration Nginx
-    cat > /etc/nginx/sites-available/maxlink-dashboard << EOF
+echo "◦ Création de la configuration du site..."
+
+# Créer la configuration Nginx COMPLÈTE avec autoindex
+cat > /etc/nginx/sites-available/maxlink-dashboard << EOF
 server {
-    listen $NGINX_PORT;
-    server_name $NGINX_DASHBOARD_DOMAIN;
+    listen $NGINX_PORT default_server;
+    server_name $NGINX_DASHBOARD_DOMAIN maxlink-dashboard.local maxlink.dashboard.local dashboard.local $AP_IP localhost _;
     
     root $NGINX_DASHBOARD_DIR;
     index index.html;
     
+    # Configuration principale
     location / {
         try_files \$uri \$uri/ =404;
     }
     
-    # Désactiver le cache pour le développement
-    location ~* \.(html|js|css)$ {
-        add_header Cache-Control "no-cache, no-store, must-revalidate";
-        add_header Pragma "no-cache";
-        add_header Expires "0";
+    # AUTOINDEX POUR WIDGETS - Configuration corrigée
+    location /widgets {
+        alias $NGINX_DASHBOARD_DIR/widgets;
+        autoindex on;
+        autoindex_format json;
+        autoindex_exact_size off;
+        autoindex_localtime on;
     }
+    
+    # Alternative pour compatibilité maximale
+    location ~ ^/widgets/$ {
+        root $NGINX_DASHBOARD_DIR;
+        autoindex on;
+        autoindex_format html;
+    }
+    
+    # Optimisations de performance
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    
+    # Compression gzip
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript application/json application/javascript application/xml+rss application/rss+xml application/atom+xml image/svg+xml;
+    
+    # Cache pour les fichiers statiques
+    location ~* \.(jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|otf)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Pas de cache pour HTML/JS/CSS (développement)
+    location ~* \.(html|js|css)$ {
+        expires -1;
+        add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0";
+    }
+    
+    # Headers de sécurité
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    
+    # Logs
+    access_log /var/log/nginx/maxlink-access.log;
+    error_log /var/log/nginx/maxlink-error.log;
 }
 EOF
 
-    echo "  ↦ Configuration créée ✓"
+echo "  ↦ Configuration créée ✓"
 
-    # Activer le site
-    echo ""
-    echo "◦ Activation du site..."
-    rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
-    ln -s /etc/nginx/sites-available/maxlink-dashboard /etc/nginx/sites-enabled/
-    echo "  ↦ Site activé ✓"
-fi
+# Vérifier les permissions du dashboard
+echo ""
+echo "◦ Vérification des permissions..."
+chown -R www-data:www-data "$NGINX_DASHBOARD_DIR"
+find "$NGINX_DASHBOARD_DIR" -type d -exec chmod 755 {} \;
+find "$NGINX_DASHBOARD_DIR" -type f -exec chmod 644 {} \;
+echo "  ↦ Permissions vérifiées ✓"
+
+# Activer le site
+echo ""
+echo "◦ Activation du site..."
+rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+rm -f /etc/nginx/sites-enabled/maxlink-dashboard 2>/dev/null || true
+ln -s /etc/nginx/sites-available/maxlink-dashboard /etc/nginx/sites-enabled/
+echo "  ↦ Site activé ✓"
 
 # Tester la configuration
 if nginx -t >/dev/null 2>&1; then
     echo "  ↦ Configuration validée ✓"
 else
     echo "  ↦ Erreur de configuration ✗"
+    nginx -t
     exit 1
-fi
-
-send_progress 85 "Nginx configuré"
-echo ""
-sleep 2
-
-# ===============================================================================
-# ÉTAPE 6 : CONFIGURATION DNS LOCAL
-# ===============================================================================
-
-echo "========================================================================"
-echo "ÉTAPE 6 : CONFIGURATION DNS LOCAL"
-echo "========================================================================"
-echo ""
-
-send_progress 90 "Configuration DNS..."
-
-echo "◦ Configuration de la résolution DNS locale..."
-
-# Ajouter la configuration DNS pour le mode AP
-mkdir -p /etc/NetworkManager/dnsmasq-shared.d/
-
-# Ajouter l'entrée DNS si elle n'existe pas
-if ! grep -q "address=/$NGINX_DASHBOARD_DOMAIN/" /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf 2>/dev/null; then
-    echo "" >> /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf
-    echo "# Dashboard MaxLink" >> /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf
-    echo "address=/$NGINX_DASHBOARD_DOMAIN/$AP_IP" >> /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf
-    echo "  ↦ Entrée DNS ajoutée ✓"
-else
-    echo "  ↦ Entrée DNS déjà présente ✓"
 fi
 
 # Démarrer Nginx
@@ -421,6 +469,34 @@ echo "◦ Démarrage de Nginx..."
 systemctl enable nginx >/dev/null 2>&1
 systemctl start nginx >/dev/null 2>&1
 echo "  ↦ Nginx démarré et activé ✓"
+
+# Test rapide de l'autoindex
+echo ""
+echo "◦ Test de l'autoindex..."
+sleep 2
+if curl -s http://localhost/widgets/ | grep -q "clock\|logo\|mqtt" || curl -s http://localhost/widgets/ | grep -q "Index of"; then
+    echo "  ↦ Autoindex fonctionnel ✓"
+else
+    echo "  ↦ Autoindex peut nécessiter un redémarrage ⚠"
+fi
+
+send_progress 85 "Nginx configuré"
+echo ""
+sleep 2
+
+# ===============================================================================
+# ÉTAPE 6 : CONFIGURATION DNS INTELLIGENTE
+# ===============================================================================
+
+echo "========================================================================"
+echo "ÉTAPE 6 : CONFIGURATION DNS"
+echo "========================================================================"
+echo ""
+
+send_progress 90 "Configuration DNS..."
+
+# Appeler la fonction pour mettre à jour le DNS si l'AP existe
+update_dns_if_ap_exists
 
 send_progress 95 "Configuration terminée"
 echo ""
@@ -444,16 +520,44 @@ wait_silently 2
 nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1
 echo "  ↦ WiFi déconnecté ✓"
 
+# Réactiver le mode AP s'il était actif avant
+if [ "$AP_WAS_ACTIVE" = true ]; then
+    echo ""
+    echo "◦ Réactivation du mode point d'accès..."
+    nmcli con up "$AP_SSID" >/dev/null 2>&1 || true
+    wait_silently 3
+    echo "  ↦ Mode AP réactivé ✓"
+fi
+
 send_progress 100 "Installation terminée !"
 
 echo ""
 echo "◦ Installation terminée avec succès !"
-echo "  ↦ Dashboard accessible à : http://$NGINX_DASHBOARD_DOMAIN"
-echo "  ↦ (Uniquement en mode AP sur le réseau $AP_SSID)"
+echo "  ↦ Dashboard installé dans : $NGINX_DASHBOARD_DIR"
+echo "  ↦ Accessible via :"
+echo "    • http://$AP_IP (toujours fonctionnel)"
+if [ -f "/etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf" ] && grep -q "address=/$NGINX_DASHBOARD_DOMAIN/" /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf; then
+    echo "    • http://$NGINX_DASHBOARD_DOMAIN"
+    echo "    • http://maxlink-dashboard.local"
+    echo "    • http://dashboard.local"
+else
+    echo "    • http://$NGINX_DASHBOARD_DOMAIN (nécessite l'installation de l'AP)"
+fi
+echo ""
+
+# Note importante pour les utilisateurs Windows
+echo "◦ Note pour les utilisateurs Windows :"
+echo "  Si l'accès par nom de domaine ne fonctionne pas :"
+echo "  1. Ouvrez PowerShell en tant qu'administrateur"
+echo "  2. Exécutez : ipconfig /flushdns"
+echo "  3. Ou ajoutez dans C:\\Windows\\System32\\drivers\\etc\\hosts :"
+echo "     $AP_IP    $NGINX_DASHBOARD_DOMAIN"
+echo ""
+
 echo "  ↦ Redémarrage dans 10 secondes..."
 echo ""
 
-log_info "Installation Nginx et Dashboard terminée - Redémarrage du système"
+log_info "Installation Nginx et Dashboard terminée avec toutes les corrections - Redémarrage du système"
 
 # Pause de 10 secondes avant reboot
 sleep 10
