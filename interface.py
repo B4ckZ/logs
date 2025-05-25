@@ -6,7 +6,6 @@ import sys
 import threading
 from datetime import datetime
 import re
-import time
 
 # ===============================================================================
 # CONFIGURATION
@@ -250,10 +249,9 @@ class MaxLinkApp:
         self.services = self.variables.get_services_list()
         self.selected_service = self.services[0] if self.services else None
         
-        # Variables de progression
+        # Variables de progression (simplifiées)
         self.progress_value = 0
         self.progress_max = 100
-        self.progress_start_time = None
         
         # Thread d'exécution actuel
         self.current_process = None
@@ -292,7 +290,7 @@ class MaxLinkApp:
         services_frame = tk.Frame(self.left_frame, bg=COLORS["nord1"], padx=20, pady=20)
         services_frame.pack(fill="both", expand=True)
         
-        # Titre services
+        # Titre services (sans l'indicateur de privilèges qui est déplacé)
         services_title = tk.Label(
             services_frame,
             text="Services Disponibles",
@@ -301,19 +299,6 @@ class MaxLinkApp:
             fg=COLORS["nord6"]
         )
         services_title.pack(pady=(0, 20))
-        
-        # Indicateur de privilèges
-        privilege_text = "Mode Privilégié: ACTIF" if self.root_mode else "Mode Privilégié: INACTIF"
-        privilege_color = COLORS["nord14"] if self.root_mode else COLORS["nord11"]
-        
-        privilege_label = tk.Label(
-            services_frame,
-            text=privilege_text,
-            font=("Arial", 12, "bold"),
-            bg=COLORS["nord1"],
-            fg=privilege_color
-        )
-        privilege_label.pack(pady=(0, 20))
         
         # Créer les services
         for service in self.services:
@@ -333,14 +318,31 @@ class MaxLinkApp:
         console_frame = tk.Frame(right_frame, bg=COLORS["nord1"], padx=20, pady=20)
         console_frame.pack(fill="both", expand=True)
         
+        # Titre console avec indicateur de privilèges sur la même ligne
+        console_title_frame = tk.Frame(console_frame, bg=COLORS["nord1"])
+        console_title_frame.pack(fill="x", pady=(0, 10))
+        
         console_title = tk.Label(
-            console_frame,
+            console_title_frame,
             text="Console de Sortie",
             font=("Arial", 18, "bold"),
             bg=COLORS["nord1"],
             fg=COLORS["nord6"]
         )
-        console_title.pack(pady=(0, 10))
+        console_title.pack(side="left")
+        
+        # Indicateur de privilèges à droite du titre
+        privilege_text = "Mode Privilégié: ACTIF" if self.root_mode else "Mode Privilégié: INACTIF"
+        privilege_color = COLORS["nord14"] if self.root_mode else COLORS["nord11"]
+        
+        privilege_label = tk.Label(
+            console_title_frame,
+            text=privilege_text,
+            font=("Arial", 12, "bold"),
+            bg=COLORS["nord1"],
+            fg=privilege_color
+        )
+        privilege_label.pack(side="right")
         
         self.console = scrolledtext.ScrolledText(
             console_frame, 
@@ -351,7 +353,7 @@ class MaxLinkApp:
         )
         self.console.pack(fill="both", expand=True)
         
-        # Barre de progression
+        # Barre de progression (simplifiée)
         self.create_progress_bar(right_frame)
         
         # Message d'accueil
@@ -362,35 +364,18 @@ class MaxLinkApp:
         self.update_selection()
     
     def create_progress_bar(self, parent):
-        """Crée la barre de progression"""
+        """Crée la barre de progression simplifiée"""
         self.progress_frame = tk.Frame(parent, bg=COLORS["nord1"], padx=20, pady=20)
         self.progress_frame.pack(fill="x", side="bottom")
         
-        self.progress_label = tk.Label(
-            self.progress_frame,
-            text="Progression",
-            font=("Arial", 14, "bold"),
-            bg=COLORS["nord1"],
-            fg=COLORS["nord6"]
-        )
-        self.progress_label.pack(pady=(0, 10))
-        
+        # Canvas pour la barre de progression seulement
         self.progress_canvas = tk.Canvas(
             self.progress_frame,
             height=30,
             bg=COLORS["nord0"],
             highlightthickness=0
         )
-        self.progress_canvas.pack(fill="x", pady=5)
-        
-        self.progress_info = tk.Label(
-            self.progress_frame,
-            text="En attente...",
-            font=("Arial", 10),
-            bg=COLORS["nord1"],
-            fg=COLORS["nord4"]
-        )
-        self.progress_info.pack()
+        self.progress_canvas.pack(fill="x")
         
         # Masquer initialement
         self.progress_frame.pack_forget()
@@ -473,15 +458,14 @@ class MaxLinkApp:
         """Affiche la barre de progression"""
         self.progress_frame.pack(fill="x", side="bottom")
         self.progress_value = 0
-        self.progress_start_time = time.time()
         self.update_progress_bar()
     
     def hide_progress_bar(self):
         """Masque la barre de progression"""
         self.progress_frame.pack_forget()
     
-    def update_progress_bar(self, value=None, text="En cours..."):
-        """Met à jour la barre de progression"""
+    def update_progress_bar(self, value=None):
+        """Met à jour la barre de progression (version simplifiée)"""
         if value is not None:
             self.progress_value = value
         
@@ -507,7 +491,7 @@ class MaxLinkApp:
                 fill=COLORS["nord8"], outline=""
             )
         
-        # Pourcentage
+        # Pourcentage au centre
         percentage = int(self.progress_value * 100 / self.progress_max)
         self.progress_canvas.create_text(
             width / 2 + 10, height / 2 + 5,
@@ -515,13 +499,6 @@ class MaxLinkApp:
             fill=COLORS["nord6"],
             font=("Arial", 10, "bold")
         )
-        
-        # Info temps
-        if self.progress_start_time and self.progress_value > 0:
-            elapsed = time.time() - self.progress_start_time
-            self.progress_info.config(text=f"{text} | Temps: {int(elapsed)}s")
-        else:
-            self.progress_info.config(text=text)
     
     def run_action(self, action):
         """Exécute une action sur le service sélectionné"""
@@ -621,8 +598,8 @@ Script: {script_path}
                         progress_match = re.search(r'PROGRESS:(\d+):(.+)', line)
                         if progress_match:
                             progress_value = int(progress_match.group(1))
-                            progress_text = progress_match.group(2)
-                            self.root.after(0, self.update_progress_bar, progress_value, progress_text)
+                            # Ignorer le texte de progression, on veut juste la valeur
+                            self.root.after(0, self.update_progress_bar, progress_value)
                     else:
                         self.update_console(line)
             
