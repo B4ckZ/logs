@@ -12,7 +12,7 @@
 # ===============================================================================
 
 # Version et informations de l'interface
-MAXLINK_VERSION="2.4"
+MAXLINK_VERSION="22.4"
 MAXLINK_COPYRIGHT="© 2025 WERIT. Tous droits réservés."
 
 # ===============================================================================

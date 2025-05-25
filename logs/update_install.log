@@ -122,3 +122,60 @@ Date: Sun 25 May 13:14:37 CEST 2025
 [2025-05-25 13:18:57] [INFO] [update_install] WiFi déconnecté et profil supprimé
 [2025-05-25 13:18:57] [INFO] [update_install] Script terminé avec succès - Redémarrage programmé
 [2025-05-25 13:19:09] [INFO] [update_install] Script update_install terminé avec le code 0
+
+================================================================================
+DÉMARRAGE: update_install
+Description: Mise à jour système et personnalisation Raspberry Pi
+Date: Sun 25 May 13:33:51 CEST 2025
+================================================================================
+
+[2025-05-25 13:33:51] [INFO] [update_install] Script update_install démarré
+[2025-05-25 13:34:04] [INFO] [update_install] Réseau Max trouvé - Signal: 11
+[2025-05-25 13:34:12] [INFO] [update_install] Connexion WiFi établie - IP: 192.168.19.61
+[2025-05-25 13:34:17] [INFO] [update_install] Connectivité Internet OK
+[2025-05-25 13:34:19] [INFO] [update_install] Vérification de l'horloge système
+[2025-05-25 13:34:25] [INFO] [update_install] Horloge synchronisée via timedatectl
+[2025-05-25 13:34:42] [INFO] [update_install] Fond d'écran installé avec version v22.4
+[2025-05-25 13:34:45] [INFO] [update_install] Bureau LXDE configuré pour prod
+[2025-05-25 13:34:49] [INFO] [update_install] WiFi déconnecté et profil supprimé
+[2025-05-25 13:34:49] [INFO] [update_install] Script terminé avec succès - Redémarrage programmé
+[2025-05-25 13:35:01] [INFO] [update_install] Script update_install terminé avec le code 0
+
+================================================================================
+DÉMARRAGE: update_install
+Description: Mise à jour système et personnalisation Raspberry Pi
+Date: Tue 13 May 02:18:53 CEST 2025
+================================================================================
+
+[2025-05-13 02:18:53] [INFO] [update_install] Script update_install démarré
+[2025-05-13 02:19:06] [INFO] [update_install] Réseau Max trouvé - Signal: 11
+[2025-05-13 02:19:14] [INFO] [update_install] Connexion WiFi établie - IP: 192.168.19.61
+[2025-05-13 02:19:19] [INFO] [update_install] Connectivité Internet OK
+[2025-05-13 02:19:21] [INFO] [update_install] Vérification de l'horloge système
+[2025-05-25 13:48:20] [INFO] [update_install] Horloge synchronisée via timedatectl
+[2025-05-25 13:51:02] [WARN] [update_install] Installation ImageMagick incomplète
+[2025-05-25 13:51:04] [INFO] [update_install] Configuration ventilateur ajoutée
+[2025-05-25 13:51:06] [WARN] [update_install] Fond d'écran copié sans version (ImageMagick non disponible)
+[2025-05-25 13:51:09] [INFO] [update_install] Bureau LXDE configuré pour prod
+[2025-05-25 13:51:13] [INFO] [update_install] WiFi déconnecté et profil supprimé
+[2025-05-25 13:51:13] [INFO] [update_install] Script terminé avec succès - Redémarrage programmé
+[2025-05-25 13:51:25] [INFO] [update_install] Script update_install terminé avec le code 0
+
+================================================================================
+DÉMARRAGE: update_install
+Description: Mise à jour système et personnalisation Raspberry Pi
+Date: Sun 25 May 13:52:15 CEST 2025
+================================================================================
+
+[2025-05-25 13:52:15] [INFO] [update_install] Script update_install démarré
+[2025-05-25 13:52:29] [INFO] [update_install] Réseau Max trouvé - Signal: 11
+[2025-05-25 13:52:39] [INFO] [update_install] Connexion WiFi établie - IP: 192.168.19.61
+[2025-05-25 13:52:44] [INFO] [update_install] Connectivité Internet OK
+[2025-05-25 13:52:46] [INFO] [update_install] Vérification de l'horloge système
+[2025-05-25 13:52:52] [INFO] [update_install] Horloge synchronisée via timedatectl
+[2025-05-25 13:53:36] [WARN] [update_install] Installation ImageMagick incomplète
+[2025-05-25 13:53:41] [WARN] [update_install] Fond d'écran copié sans version (ImageMagick non disponible)
+[2025-05-25 13:53:43] [INFO] [update_install] Bureau LXDE configuré pour prod
+[2025-05-25 13:53:48] [INFO] [update_install] WiFi déconnecté et profil supprimé
+[2025-05-25 13:53:48] [INFO] [update_install] Script terminé avec succès - Redémarrage programmé
+[2025-05-25 13:54:00] [INFO] [update_install] Script update_install terminé avec le code 0

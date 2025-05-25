@@ -27,11 +27,11 @@ mb_to_gb() {
     echo "scale=1; $mb / 1024" | bc 2>/dev/null || awk "BEGIN {printf \"%.1f\", $mb/1024}"
 }
 
-# Fonction pour attendre avec message
-wait_with_message() {
+# Fonction pour attendre SANS afficher le message de délai
+wait_silently() {
     local seconds=$1
     local message=$2
-    echo "  ↦ $message (attente ${seconds}s)..."
+    echo "  ↦ $message..."  # Affiche seulement le message, pas le temps
     sleep $seconds
 }
 
@@ -47,7 +47,7 @@ init_logging "Mise à jour système et personnalisation Raspberry Pi"
 
 # NOUVEAU : Attente initiale plus longue pour stabiliser le système
 echo "◦ Stabilisation du système après démarrage..."
-wait_with_message 5 "Initialisation des services réseau"
+wait_silently 5 "Initialisation des services réseau"
 
 send_progress 0 "Initialisation..."
 
@@ -82,7 +82,7 @@ fi
 echo ""
 echo "◦ Activation de l'interface WiFi..."
 nmcli radio wifi on >/dev/null 2>&1
-wait_with_message 3 "Activation radio WiFi"
+wait_silently 3 "Activation radio WiFi"
 
 echo ""
 echo "◦ Recherche du réseau WiFi \"$WIFI_SSID\"..."
@@ -91,7 +91,7 @@ send_progress 5 "Recherche du réseau WiFi..."
 # NOUVEAU : Forcer un scan des réseaux et attendre
 echo "  ↦ Scan des réseaux disponibles..."
 nmcli device wifi rescan >/dev/null 2>&1 || true
-wait_with_message 5 "Scan en cours"
+wait_silently 5 "Scan en cours"
 
 # Tentatives multiples pour trouver le réseau
 NETWORK_FOUND=""
@@ -102,7 +102,7 @@ for attempt in {1..3}; do
     fi
     echo "  ↦ Tentative $attempt/3 - Réseau non trouvé, nouveau scan..."
     nmcli device wifi rescan >/dev/null 2>&1 || true
-    wait_with_message 3 "Nouveau scan"
+    wait_silently 3 "Nouveau scan"
 done
 
 if [ -n "$NETWORK_FOUND" ]; then
@@ -122,12 +122,12 @@ echo "◦ Connexion au réseau \"$WIFI_SSID\"..."
 
 # NOUVEAU : Supprimer toute connexion existante avant de reconnecter
 nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1 || true
-wait_with_message 2 "Nettoyage des connexions existantes"
+wait_silently 2 "Nettoyage des connexions existantes"
 
 # Tentative de connexion avec timeout plus long
 if timeout 30 nmcli device wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" >/dev/null 2>&1; then
     echo "  ↦ Connexion initiée ✓"
-    wait_with_message 5 "Obtention de l'adresse IP"
+    wait_silently 5 "Obtention de l'adresse IP"
     
     # Vérifier l'obtention de l'IP
     CURRENT_IP=""
@@ -157,7 +157,7 @@ echo ""
 echo "◦ Test de connectivité..."
 
 # NOUVEAU : Attendre avant le test de connectivité
-wait_with_message 3 "Stabilisation de la connexion"
+wait_silently 3 "Stabilisation de la connexion"
 
 # Test de connectivité avec plusieurs tentatives
 CONNECTIVITY_OK=false
@@ -194,7 +194,7 @@ log_info "Vérification de l'horloge système"
 # Synchronisation avec timedatectl
 if command -v timedatectl >/dev/null 2>&1; then
     timedatectl set-ntp true >/dev/null 2>&1
-    wait_with_message 5 "Synchronisation NTP"
+    wait_silently 5 "Synchronisation NTP"
     echo "  ↦ Horloge synchronisée ✓"
     log_info "Horloge synchronisée via timedatectl"
 else
@@ -227,7 +227,7 @@ rm -f /var/lib/dpkg/lock* >/dev/null 2>&1 || true
 # Reconfigurer dpkg si nécessaire
 dpkg --configure -a >/dev/null 2>&1 || true
 
-wait_with_message 3 "Nettoyage des verrous APT"
+wait_silently 3 "Nettoyage des verrous APT"
 
 # Vérifier l'espace disque
 echo ""
@@ -244,11 +244,12 @@ if [ $AVAILABLE_SPACE_MB -lt 500 ]; then
 fi
 echo "  ↦ Espace disponible: ${AVAILABLE_SPACE_GB} Go ✓"
 
-# Fonction de retry améliorée pour APT
+# Fonction de retry améliorée pour APT (VERSION RAPIDE pour ImageMagick)
 retry_apt() {
     local cmd="$1"
     local desc="$2"
     local attempt=1
+    local timeout_duration=120  # Timeout réduit à 2 minutes
     
     while [ $attempt -le $APT_RETRY_MAX_ATTEMPTS ]; do
         echo "  ↦ Tentative $attempt/$APT_RETRY_MAX_ATTEMPTS..."
@@ -257,13 +258,13 @@ retry_apt() {
         rm -f /var/lib/apt/lists/lock >/dev/null 2>&1 || true
         rm -f /var/cache/apt/archives/lock >/dev/null 2>&1 || true
         
-        if timeout 180 bash -c "$cmd" >/dev/null 2>&1; then
+        if timeout $timeout_duration bash -c "$cmd" >/dev/null 2>&1; then
             echo "  ↦ $desc ✓"
             return 0
         fi
         
         if [ $attempt -lt $APT_RETRY_MAX_ATTEMPTS ]; then
-            wait_with_message 5 "Attente avant nouvelle tentative"
+            wait_silently 5 "Attente avant nouvelle tentative"
         fi
         ((attempt++))
     done
@@ -277,7 +278,7 @@ echo ""
 echo "◦ Mise à jour des dépôts..."
 
 # NOUVEAU : Attendre que le service APT soit prêt
-wait_with_message 5 "Attente service APT"
+wait_silently 5 "Attente service APT"
 
 retry_apt "apt-get update -y --allow-releaseinfo-change" "Dépôts mis à jour" || {
     echo "  ⚠ Échec de la mise à jour des dépôts, tentative avec fix-missing..."
@@ -292,32 +293,25 @@ echo "◦ Installation des mises à jour..."
 UPGRADABLE=$(apt list --upgradable 2>/dev/null | grep -c upgradable || echo "1")
 if [ $UPGRADABLE -gt 1 ]; then
     echo "  ↦ $(($UPGRADABLE - 1)) paquet(s) à mettre à jour"
-    wait_with_message 3 "Préparation des mises à jour"
+    wait_silently 3 "Préparation des mises à jour"
     retry_apt "DEBIAN_FRONTEND=noninteractive apt-get upgrade -y" "Mises à jour installées"
 else
     echo "  ↦ Système déjà à jour ✓"
 fi
 
-# Installation d'ImageMagick si nécessaire
+# Installation d'ImageMagick si nécessaire (VERSION RAPIDE)
 if ! command -v convert >/dev/null 2>&1; then
     send_progress 55 "Installation d'ImageMagick..."
     echo ""
     echo "◦ Installation d'ImageMagick..."
-    wait_with_message 3 "Préparation installation ImageMagick"
     
-    # Installer ImageMagick avec toutes ses dépendances
-    retry_apt "apt-get install -y imagemagick imagemagick-6-common" "ImageMagick installé" || {
-        echo "  ⚠ Installation standard échouée, essai avec --fix-broken..."
-        retry_apt "apt-get install -y --fix-broken imagemagick" "ImageMagick installé (fix-broken)"
-    }
+    # VERSION RAPIDE : Installation simple sans attente inutile
+    retry_apt "apt-get install -y imagemagick" "ImageMagick installé"
     
     # Vérifier l'installation
-    wait_with_message 2 "Vérification de l'installation"
     if command -v convert >/dev/null 2>&1; then
-        echo "  ↦ ImageMagick installé et fonctionnel ✓"
         log_info "ImageMagick installé avec succès"
     else
-        echo "  ↦ ImageMagick installé mais commande convert non trouvée ⚠"
         log_warn "Installation ImageMagick incomplète"
     fi
 fi
@@ -413,7 +407,7 @@ elif command -v convert >/dev/null 2>&1; then
     convert "$BG_IMAGE_SOURCE" \
         -gravity SouthEast \
         -pointsize 60 \
-        -fill white \
+        -fill black \
         -stroke black \
         -strokewidth 2 \
         -annotate +50+50 "$VERSION_TEXT" \
@@ -439,7 +433,7 @@ if [ -d "/etc/xdg/lxsession" ] && [ -d "$USER_HOME" ]; then
     echo ""
     echo "◦ Configuration du bureau..."
     
-    wait_with_message 2 "Préparation de la configuration bureau"
+    wait_silently 2 "Préparation de la configuration bureau"
     
     mkdir -p "$USER_HOME/.config/pcmanfm/LXDE-pi"
     
@@ -485,7 +479,7 @@ echo "◦ Déconnexion WiFi..."
 
 # Déconnexion et suppression du profil
 nmcli connection down "$WIFI_SSID" >/dev/null 2>&1
-wait_with_message 2 "Déconnexion en cours"
+wait_silently 2 "Déconnexion en cours"
 
 nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1
 echo "  ↦ WiFi déconnecté ✓"
