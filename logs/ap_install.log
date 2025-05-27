@@ -2,9 +2,9 @@
 ================================================================================
 DÉMARRAGE: ap_install
 Description: Installation du mode Access Point
-Date: Tue 27 May 18:29:40 CEST 2025
+Date: Tue 27 May 20:06:48 CEST 2025
 ================================================================================
 
-[2025-05-27 18:29:40] [INFO] [ap_install] Script ap_install démarré
-[2025-05-27 18:30:02] [INFO] [ap_install] Installation AP terminée avec toutes les corrections - Redémarrage du système
-[2025-05-27 18:30:13] [INFO] [ap_install] Script ap_install terminé avec le code 0
+[2025-05-27 20:06:49] [INFO] [ap_install] Script ap_install démarré
+[2025-05-27 20:07:11] [INFO] [ap_install] Installation AP terminée avec toutes les corrections - Redémarrage du système
+[2025-05-27 20:07:22] [INFO] [ap_install] Script ap_install terminé avec le code 0

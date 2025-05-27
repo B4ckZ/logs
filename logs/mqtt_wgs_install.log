@@ -1,16 +1,10 @@
-[2025-05-27 20:06:49] [INFO] [ap_install] Script ap_install démarré
-[2025-05-27 20:07:11] [INFO] [ap_install] Installation AP terminée avec toutes les corrections - Redémarrage du système
-[2025-05-27 20:08:06] [INFO] [nginx_install] Script nginx_install démarré
-[2025-05-27 20:08:45] [INFO] [nginx_install] Tentative de clonage depuis: https://github.com/B4ckZ/MaxLinK.git
-[2025-05-27 20:08:47] [INFO] [nginx_install] Clonage réussi
-[2025-05-27 20:09:02] [INFO] [nginx_install] Installation Nginx et Dashboard terminée avec toutes les corrections - Redémarrage du système
-[2025-05-27 20:09:46] [INFO] [mqtt_install] Script mqtt_install démarré
-[2025-05-27 20:10:08] [INFO] [mqtt_install] Mosquitto installé avec succès
-[2025-05-27 20:10:08] [INFO] [mqtt_install] Configuration Mosquitto créée
-[2025-05-27 20:10:09] [INFO] [mqtt_install] Mosquitto démarré avec succès
-[2025-05-27 20:10:12] [INFO] [mqtt_install] Test de connexion réussi
-[2025-05-27 20:10:16] [INFO] [mqtt_install] Installation MQTT Broker terminée avec succès
-[2025-05-27 20:10:16] [INFO] [mqtt_install] Script mqtt_install terminé avec le code 0
+
+================================================================================
+DÉMARRAGE: mqtt_wgs_install
+Description: Installation MQTT Widgets
+Date: Tue 27 May 20:18:13 CEST 2025
+================================================================================
+
 [2025-05-27 20:18:13] [INFO] [mqtt_wgs_install] Script mqtt_wgs_install démarré
 [2025-05-27 20:18:14] [INFO] [mqtt_wgs_install] Vérification du broker MQTT...
 [2025-05-27 20:18:14] [INFO] [mqtt_wgs_install] Connexion MQTT fonctionnelle
@@ -19,6 +13,18 @@
 [2025-05-27 20:18:19] [INFO] [mqtt_wgs_install] Package Python manquant pour servermonitoring: paho-mqtt
 [2025-05-27 20:18:21] [ERROR] [mqtt_wgs_install] Impossible de se connecter au WiFi
 [2025-05-27 20:18:23] [INFO] [mqtt_wgs_install] Script mqtt_wgs_install terminé avec le code 1
+
+================================================================================
+FIN: mqtt_wgs_install - Code: 1
+================================================================================
+
+
+================================================================================
+DÉMARRAGE: mqtt_wgs_install
+Description: Installation MQTT Widgets
+Date: Tue 27 May 20:27:25 CEST 2025
+================================================================================
+
 [2025-05-27 20:27:25] [INFO] [mqtt_wgs_install] Script mqtt_wgs_install démarré
 [2025-05-27 20:27:25] [INFO] [mqtt_wgs_install]   ↦ Initialisation des services...
 [2025-05-27 20:27:30] [INFO] [mqtt_wgs_install] Vérification du broker MQTT...

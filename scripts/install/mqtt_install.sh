@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION MQTT MODULAIRE
-# Version de base - Installe Mosquitto et gère les modules
+# MAXLINK - INSTALLATION MQTT BROKER (BKR)
+# Version simplifiée - Installe uniquement Mosquitto
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -18,7 +18,7 @@ source "$SCRIPT_DIR/../common/logging.sh"
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Installation MQTT et modules"
+init_logging "Installation MQTT Broker"
 
 # Variables MQTT
 MQTT_USER="${MQTT_USER:-maxlink}"
@@ -26,10 +26,6 @@ MQTT_PASS="${MQTT_PASS:-mqtt}"
 MQTT_PORT="${MQTT_PORT:-1883}"
 MQTT_WEBSOCKET_PORT="${MQTT_WEBSOCKET_PORT:-9001}"
 MQTT_CONFIG_DIR="/etc/mosquitto"
-MAXLINK_CONFIG_DIR="/etc/maxlink"
-
-# Fichier de tracking des modules
-MODULES_FILE="$MAXLINK_CONFIG_DIR/installed_modules.json"
 
 # Variables pour la connexion WiFi
 AP_WAS_ACTIVE=false
@@ -48,199 +44,17 @@ wait_silently() {
     sleep "$1"
 }
 
-# Créer le fichier de tracking des modules
-init_modules_tracking() {
-    mkdir -p "$MAXLINK_CONFIG_DIR"
-    if [ ! -f "$MODULES_FILE" ]; then
-        echo "{}" > "$MODULES_FILE"
-        log_info "Fichier de tracking des modules créé"
-    fi
-}
-
-# Enregistrer un module installé
-register_module() {
-    local module_name=$1
-    local module_version=$2
-    local status=${3:-"active"}
-    
-    # Utiliser Python pour manipuler le JSON
-    python3 -c "
-import json
-from datetime import datetime
-
-with open('$MODULES_FILE', 'r') as f:
-    modules = json.load(f)
-
-modules['$module_name'] = {
-    'version': '$module_version',
-    'installed_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-    'status': '$status'
-}
-
-with open('$MODULES_FILE', 'w') as f:
-    json.dump(modules, f, indent=2)
-"
-    log_info "Module $module_name enregistré"
-}
-
-# Vérifier si un module est installé
-is_module_installed() {
-    local module_name=$1
-    python3 -c "
-import json
-import sys
-
-try:
-    with open('$MODULES_FILE', 'r') as f:
-        modules = json.load(f)
-    sys.exit(0 if '$module_name' in modules else 1)
-except:
-    sys.exit(1)
-"
-}
-
 # ===============================================================================
-# INSTALLATION DE BASE MOSQUITTO
+# INSTALLATION DE MOSQUITTO
 # ===============================================================================
 
-install_mosquitto_base() {
-    echo "========================================================================"
-    echo "INSTALLATION DU BROKER MQTT"
-    echo "========================================================================"
-    echo ""
-    
-    send_progress 20 "Installation de Mosquitto..."
-    
-    echo "◦ Vérification de Mosquitto..."
-    if dpkg -l mosquitto >/dev/null 2>&1; then
-        echo "  ↦ Mosquitto déjà installé ✓"
-        log_info "Mosquitto déjà présent"
-    else
-        echo "  ↦ Installation de Mosquitto..."
-        if apt-get update -qq && apt-get install -y mosquitto mosquitto-clients; then
-            echo "  ↦ Mosquitto installé ✓"
-            log_info "Mosquitto installé avec succès"
-        else
-            echo "  ↦ Erreur lors de l'installation ✗"
-            log_error "Échec installation Mosquitto"
-            return 1
-        fi
-    fi
-    
-    # Configuration de base
-    echo ""
-    echo "◦ Configuration de Mosquitto..."
-    
-    # Arrêter le service pour configuration
-    systemctl stop mosquitto >/dev/null 2>&1
-    
-    # Créer le fichier de mots de passe
-    rm -f "$MQTT_CONFIG_DIR/passwords"
-    /usr/bin/mosquitto_passwd -b -c "$MQTT_CONFIG_DIR/passwords" "$MQTT_USER" "$MQTT_PASS"
-    chmod 600 "$MQTT_CONFIG_DIR/passwords"
-    chown mosquitto:mosquitto "$MQTT_CONFIG_DIR/passwords"
-    echo "  ↦ Authentification configurée ✓"
-    
-    # Configuration principale
-    cat > "$MQTT_CONFIG_DIR/mosquitto.conf" << EOF
-# Configuration Mosquitto pour MaxLink
-pid_file /var/run/mosquitto/mosquitto.pid
-persistence true
-persistence_location /var/lib/mosquitto/
-log_dest file /var/log/mosquitto/mosquitto.log
+echo ""
+echo "========================================================================"
+echo "INSTALLATION DU BROKER MQTT (MOSQUITTO)"
+echo "========================================================================"
+echo ""
 
-# Authentification
-allow_anonymous false
-password_file $MQTT_CONFIG_DIR/passwords
-
-# Listener standard
-listener $MQTT_PORT
-protocol mqtt
-
-# Listener WebSocket pour le dashboard
-listener $MQTT_WEBSOCKET_PORT
-protocol websockets
-
-# Logs
-log_type error
-log_type warning
-log_type notice
-log_type information
-EOF
-    
-    echo "  ↦ Configuration créée ✓"
-    
-    # Démarrer Mosquitto
-    echo ""
-    echo "◦ Démarrage de Mosquitto..."
-    systemctl enable mosquitto >/dev/null 2>&1
-    if systemctl start mosquitto; then
-        echo "  ↦ Mosquitto démarré ✓"
-        register_module "mqtt_broker" "2.0.11" "active"
-        return 0
-    else
-        echo "  ↦ Erreur au démarrage ✗"
-        log_error "Mosquitto n'a pas pu démarrer"
-        return 1
-    fi
-}
-
-# ===============================================================================
-# SÉLECTION ET INSTALLATION DES MODULES
-# ===============================================================================
-
-# Afficher la sélection des modules dans l'interface Python
-select_modules() {
-    echo "MODULE_SELECTION_REQUEST"
-    
-    # Attendre la réponse de l'interface Python
-    local selection_file="/tmp/maxlink_mqtt_modules_selection"
-    rm -f "$selection_file"
-    
-    # Attendre jusqu'à 60 secondes
-    local count=0
-    while [ ! -f "$selection_file" ] && [ $count -lt 60 ]; do
-        sleep 1
-        ((count++))
-    done
-    
-    if [ -f "$selection_file" ]; then
-        # Lire les modules sélectionnés
-        selected_modules=$(cat "$selection_file")
-        rm -f "$selection_file"
-        echo "$selected_modules"
-    else
-        echo ""
-    fi
-}
-
-# Installer un module spécifique
-install_module() {
-    local module_name=$1
-    local module_script="$SCRIPT_DIR/modules/${module_name}/${module_name}_install.sh"
-    
-    echo ""
-    echo "◦ Installation du module: $module_name"
-    
-    if [ ! -f "$module_script" ]; then
-        echo "  ↦ Script d'installation non trouvé ✗"
-        log_error "Script manquant pour $module_name: $module_script"
-        return 1
-    fi
-    
-    # Exécuter le script d'installation du module
-    if bash "$module_script"; then
-        echo "  ↦ Module installé ✓"
-        return 0
-    else
-        echo "  ↦ Erreur d'installation ✗"
-        return 1
-    fi
-}
-
-# ===============================================================================
-# PROGRAMME PRINCIPAL
-# ===============================================================================
+send_progress 5 "Initialisation..."
 
 # Vérifier les privilèges root
 if [ "$EUID" -ne 0 ]; then
@@ -248,16 +62,13 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-echo ""
-echo "========================================================================"
-echo "INSTALLATION MQTT MAXLINK - VERSION MODULAIRE"
+# ÉTAPE 1 : Préparation
+echo "ÉTAPE 1 : PRÉPARATION DU SYSTÈME"
 echo "========================================================================"
 echo ""
 
-# Initialiser le tracking des modules
-init_modules_tracking
+send_progress 10 "Préparation du système..."
 
-# ÉTAPE 1 : Préparer le système (WiFi, etc.)
 echo "◦ Préparation du système..."
 echo "  ↦ Initialisation..."
 wait_silently 2
@@ -269,115 +80,224 @@ if nmcli con show --active | grep -q "$AP_SSID"; then
     echo "  ↦ Mode AP désactivé temporairement ✓"
 fi
 
-send_progress 10 "Système préparé"
+send_progress 15 "Système préparé"
 
-# ÉTAPE 2 : Installer Mosquitto de base
-if ! is_module_installed "mqtt_broker"; then
-    # Connexion WiFi pour télécharger
+# ÉTAPE 2 : Vérification de Mosquitto
+echo ""
+echo "ÉTAPE 2 : VÉRIFICATION DE MOSQUITTO"
+echo "========================================================================"
+echo ""
+
+send_progress 20 "Vérification de Mosquitto..."
+
+echo "◦ Vérification de Mosquitto..."
+if dpkg -l mosquitto >/dev/null 2>&1; then
+    echo "  ↦ Mosquitto déjà installé ✓"
+    log_info "Mosquitto déjà présent"
+    
+    # Arrêter le service pour reconfiguration
+    systemctl stop mosquitto >/dev/null 2>&1
+    echo "  ↦ Service arrêté pour reconfiguration"
+else
+    echo "  ↦ Mosquitto non installé"
     echo ""
-    echo "◦ Connexion au réseau WiFi..."
+    echo "◦ Connexion au réseau WiFi pour l'installation..."
+    
+    # Se connecter au WiFi
     nmcli device wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" >/dev/null 2>&1
     wait_silently 5
     
-    if ! install_mosquitto_base; then
-        echo ""
-        echo "⚠ ERREUR CRITIQUE : Impossible d'installer Mosquitto"
-        echo "L'installation ne peut pas continuer."
+    if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
+        echo "  ↦ Connecté au WiFi ✓"
         
-        # Réactiver l'AP si nécessaire
-        if [ "$AP_WAS_ACTIVE" = true ]; then
-            nmcli con up "$AP_SSID" >/dev/null 2>&1
+        send_progress 30 "Téléchargement de Mosquitto..."
+        
+        echo ""
+        echo "◦ Installation de Mosquitto..."
+        echo "  ↦ Mise à jour des paquets..."
+        apt-get update -qq
+        
+        echo "  ↦ Installation en cours..."
+        if apt-get install -y mosquitto mosquitto-clients >/dev/null 2>&1; then
+            echo "  ↦ Mosquitto installé ✓"
+            log_info "Mosquitto installé avec succès"
+        else
+            echo "  ↦ Erreur lors de l'installation ✗"
+            log_error "Échec installation Mosquitto"
+            
+            # Déconnexion WiFi
+            nmcli connection down "$WIFI_SSID" >/dev/null 2>&1
+            nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1
+            
+            # Réactiver l'AP si nécessaire
+            if [ "$AP_WAS_ACTIVE" = true ]; then
+                nmcli con up "$AP_SSID" >/dev/null 2>&1
+            fi
+            
+            exit 1
         fi
+        
+        # Déconnexion WiFi
+        echo ""
+        echo "◦ Déconnexion du WiFi..."
+        nmcli connection down "$WIFI_SSID" >/dev/null 2>&1
+        nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1
+        echo "  ↦ WiFi déconnecté ✓"
+    else
+        echo "  ↦ Impossible de se connecter au WiFi ✗"
         exit 1
     fi
-    
-    # Déconnexion WiFi
-    nmcli connection down "$WIFI_SSID" >/dev/null 2>&1
-    nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1
-else
-    echo "◦ Mosquitto déjà installé ✓"
-    send_progress 30 "Mosquitto présent"
 fi
 
-# ÉTAPE 3 : Sélection des modules
+send_progress 50 "Mosquitto prêt"
+
+# ÉTAPE 3 : Configuration
 echo ""
-echo "========================================================================"
-echo "SÉLECTION DES MODULES"
+echo "ÉTAPE 3 : CONFIGURATION DE MOSQUITTO"
 echo "========================================================================"
 echo ""
 
-send_progress 40 "Sélection des modules..."
+send_progress 60 "Configuration de Mosquitto..."
 
-# Demander la sélection à l'interface Python
-selected_modules=$(select_modules)
+echo "◦ Configuration de l'authentification..."
 
-if [ -z "$selected_modules" ]; then
-    echo "◦ Aucun module sélectionné"
-    echo ""
-    echo "Installation de base terminée."
+# Créer le fichier de mots de passe
+rm -f "$MQTT_CONFIG_DIR/passwords"
+/usr/bin/mosquitto_passwd -b -c "$MQTT_CONFIG_DIR/passwords" "$MQTT_USER" "$MQTT_PASS"
+chmod 600 "$MQTT_CONFIG_DIR/passwords"
+chown mosquitto:mosquitto "$MQTT_CONFIG_DIR/passwords"
+echo "  ↦ Utilisateur '$MQTT_USER' créé ✓"
+
+# Configuration principale
+echo ""
+echo "◦ Création de la configuration..."
+cat > "$MQTT_CONFIG_DIR/mosquitto.conf" << EOF
+# Configuration Mosquitto pour MaxLink
+# Généré le $(date)
+
+# Fichiers système
+pid_file /var/run/mosquitto/mosquitto.pid
+persistence true
+persistence_location /var/lib/mosquitto/
+log_dest file /var/log/mosquitto/mosquitto.log
+
+# Authentification
+allow_anonymous false
+password_file $MQTT_CONFIG_DIR/passwords
+
+# Listener standard MQTT
+listener $MQTT_PORT
+protocol mqtt
+
+# Listener WebSocket pour le dashboard
+listener $MQTT_WEBSOCKET_PORT
+protocol websockets
+
+# Configuration des logs
+log_type error
+log_type warning
+log_type notice
+log_type information
+connection_messages true
+log_timestamp true
+
+# Limites de connexion
+max_connections -1
+max_inflight_messages 20
+max_queued_messages 100
+
+# Keep alive
+keepalive_interval 60
+EOF
+
+echo "  ↦ Configuration créée ✓"
+echo "  ↦ Port MQTT: $MQTT_PORT"
+echo "  ↦ Port WebSocket: $MQTT_WEBSOCKET_PORT"
+
+log_info "Configuration Mosquitto créée"
+
+send_progress 80 "Configuration terminée"
+
+# ÉTAPE 4 : Démarrage du service
+echo ""
+echo "ÉTAPE 4 : DÉMARRAGE DU SERVICE"
+echo "========================================================================"
+echo ""
+
+send_progress 85 "Démarrage du service..."
+
+echo "◦ Activation du service..."
+systemctl enable mosquitto >/dev/null 2>&1
+echo "  ↦ Service activé au démarrage ✓"
+
+echo ""
+echo "◦ Démarrage de Mosquitto..."
+if systemctl start mosquitto; then
+    echo "  ↦ Mosquitto démarré ✓"
+    log_info "Mosquitto démarré avec succès"
 else
-    echo "◦ Modules sélectionnés : $selected_modules"
+    echo "  ↦ Erreur au démarrage ✗"
+    log_error "Mosquitto n'a pas pu démarrer"
     
-    # ÉTAPE 4 : Installation des modules
+    # Afficher les logs pour debug
     echo ""
-    echo "========================================================================"
-    echo "INSTALLATION DES MODULES"
-    echo "========================================================================"
+    echo "Dernières lignes du journal :"
+    journalctl -u mosquitto -n 20 --no-pager
     
-    # Connexion WiFi si des modules sont à installer
-    echo ""
-    echo "◦ Connexion au réseau WiFi..."
-    nmcli device wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" >/dev/null 2>&1
-    wait_silently 5
-    
-    # Installer chaque module
-    IFS=',' read -ra MODULES <<< "$selected_modules"
-    total_modules=${#MODULES[@]}
-    current=0
-    success=0
-    failed=0
-    
-    for module in "${MODULES[@]}"; do
-        ((current++))
-        progress=$((40 + (current * 40 / total_modules)))
-        send_progress $progress "Installation: $module"
-        
-        if install_module "$module"; then
-            ((success++))
-        else
-            ((failed++))
-        fi
-    done
-    
-    # Déconnexion WiFi
-    nmcli connection down "$WIFI_SSID" >/dev/null 2>&1
-    nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1
-    
-    # Résumé
-    echo ""
-    echo "========================================================================"
-    echo "RÉSUMÉ DE L'INSTALLATION"
-    echo "========================================================================"
-    echo "◦ Modules installés : $success"
-    echo "◦ Échecs : $failed"
+    exit 1
 fi
+
+# Attendre que le service soit complètement démarré
+wait_silently 3
+
+# Test de connexion
+echo ""
+echo "◦ Test de connexion..."
+if mosquitto_pub -h localhost -p $MQTT_PORT -u "$MQTT_USER" -P "$MQTT_PASS" -t "test/broker/install" -m "Installation réussie" 2>/dev/null; then
+    echo "  ↦ Connexion réussie ✓"
+    log_info "Test de connexion réussi"
+else
+    echo "  ↦ Connexion échouée ✗"
+    log_error "Test de connexion échoué"
+fi
+
+send_progress 95 "Tests terminés"
 
 # Réactiver le mode AP si nécessaire
 if [ "$AP_WAS_ACTIVE" = true ]; then
     echo ""
     echo "◦ Réactivation du mode point d'accès..."
     nmcli con up "$AP_SSID" >/dev/null 2>&1
+    wait_silently 3
     echo "  ↦ Mode AP réactivé ✓"
 fi
 
 send_progress 100 "Installation terminée"
 
+# RÉSUMÉ
 echo ""
-echo "◦ Installation terminée !"
-echo "  ↦ Logs : $LOG_DIR/"
+echo "========================================================================"
+echo "INSTALLATION TERMINÉE"
+echo "========================================================================"
+echo ""
+echo "◦ Broker MQTT installé et configuré avec succès !"
+echo ""
+echo "Informations de connexion :"
+echo "  • Hôte        : localhost (ou l'IP du Raspberry Pi)"
+echo "  • Port MQTT   : $MQTT_PORT"
+echo "  • Port WebSocket : $MQTT_WEBSOCKET_PORT"
+echo "  • Utilisateur : $MQTT_USER"
+echo "  • Mot de passe: $MQTT_PASS"
+echo ""
+echo "Commandes utiles :"
+echo "  • État du service : systemctl status mosquitto"
+echo "  • Logs : journalctl -u mosquitto -f"
+echo "  • Test publication : mosquitto_pub -h localhost -u $MQTT_USER -P $MQTT_PASS -t 'test' -m 'Hello'"
+echo "  • Test souscription : mosquitto_sub -h localhost -u $MQTT_USER -P $MQTT_PASS -t '#' -v"
+echo ""
+echo "Prochaine étape : Installer les widgets avec MQTT WGS"
 echo ""
 
-# Redémarrage
-echo "  ↦ Redémarrage dans 10 secondes..."
-sleep 10
-reboot
+log_info "Installation MQTT Broker terminée avec succès"
+
+exit 0

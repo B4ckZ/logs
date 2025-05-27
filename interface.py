@@ -149,238 +149,6 @@ class StyledConfirmDialog:
         return self.result
 
 # ===============================================================================
-# POPUP DE SÉLECTION DES MODULES MQTT
-# ===============================================================================
-
-class ModuleSelectionDialog:
-    """Dialogue pour sélectionner les modules MQTT à installer"""
-    
-    def __init__(self, parent):
-        self.result = []
-        self.selected_modules = {}
-        
-        # Créer la fenêtre
-        self.dialog = tk.Toplevel(parent)
-        self.dialog.title("Sélection des modules MQTT")
-        self.dialog.configure(bg=COLORS["nord0"])
-        
-        # Rendre modale
-        self.dialog.transient(parent)
-        self.dialog.grab_set()
-        
-        # Taille et position
-        width, height = 600, 500
-        x = (self.dialog.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.dialog.winfo_screenheight() // 2) - (height // 2)
-        self.dialog.geometry(f"{width}x{height}+{x}+{y}")
-        
-        # Désactiver le redimensionnement
-        self.dialog.resizable(False, False)
-        
-        # Définir les modules disponibles
-        self.modules = {
-            "system_metrics": {
-                "name": "System Metrics",
-                "description": "Collecte CPU, RAM, températures, fréquences",
-                "widgets": ["servermonitoring", "uptime"],
-                "installed": False
-            },
-            "network_metrics": {
-                "name": "Network Metrics",
-                "description": "Statistiques WiFi et clients connectés",
-                "widgets": ["wifistats"],
-                "installed": False
-            },
-            "mqtt_monitor": {
-                "name": "MQTT Monitor",
-                "description": "Surveillance du broker MQTT",
-                "widgets": ["mqttstats"],
-                "installed": False
-            },
-            "device_bridge": {
-                "name": "Device Bridge",
-                "description": "Communication avec ESP32/Arduino",
-                "widgets": ["mqttlogs509511"],
-                "installed": False
-            }
-        }
-        
-        # Charger l'état d'installation
-        self.load_installed_modules()
-        
-        # Créer le contenu
-        self.create_content()
-        
-        # Focus
-        self.dialog.focus_set()
-        
-        # Bind Escape
-        self.dialog.bind('<Escape>', lambda e: self.on_cancel())
-    
-    def load_installed_modules(self):
-        """Charge la liste des modules déjà installés"""
-        try:
-            modules_file = "/etc/maxlink/installed_modules.json"
-            if os.path.exists(modules_file):
-                with open(modules_file, 'r') as f:
-                    installed = json.load(f)
-                    for module_id in installed:
-                        if module_id in self.modules:
-                            self.modules[module_id]["installed"] = True
-        except:
-            pass
-    
-    def create_content(self):
-        # Frame principal
-        main_frame = tk.Frame(self.dialog, bg=COLORS["nord1"], padx=30, pady=20)
-        main_frame.pack(fill="both", expand=True, padx=2, pady=2)
-        
-        # Titre
-        title_label = tk.Label(
-            main_frame,
-            text="Sélectionnez les modules à installer",
-            font=("Arial", 18, "bold"),
-            fg=COLORS["nord6"],
-            bg=COLORS["nord1"]
-        )
-        title_label.pack(pady=(0, 20))
-        
-        # Description
-        desc_label = tk.Label(
-            main_frame,
-            text="Cochez les modules que vous souhaitez installer ou mettre à jour.",
-            font=("Arial", 12),
-            fg=COLORS["nord4"],
-            bg=COLORS["nord1"]
-        )
-        desc_label.pack(pady=(0, 20))
-        
-        # Frame pour les modules (avec scrollbar si nécessaire)
-        modules_frame = tk.Frame(main_frame, bg=COLORS["nord1"])
-        modules_frame.pack(fill="both", expand=True)
-        
-        # Créer les checkboxes pour chaque module
-        for module_id, module_info in self.modules.items():
-            module_frame = tk.Frame(
-                modules_frame,
-                bg=COLORS["nord0"],
-                padx=15,
-                pady=10,
-                relief="flat",
-                borderwidth=1
-            )
-            module_frame.pack(fill="x", pady=5)
-            
-            # Variable pour la checkbox
-            var = tk.BooleanVar()
-            self.selected_modules[module_id] = var
-            
-            # Checkbox
-            cb = tk.Checkbutton(
-                module_frame,
-                text=module_info["name"],
-                variable=var,
-                font=("Arial", 14, "bold"),
-                fg=COLORS["nord6"],
-                bg=COLORS["nord0"],
-                activebackground=COLORS["nord0"],
-                selectcolor=COLORS["nord0"],
-                highlightthickness=0
-            )
-            cb.pack(anchor="w")
-            
-            # Description
-            desc = tk.Label(
-                module_frame,
-                text=f"  {module_info['description']}",
-                font=("Arial", 11),
-                fg=COLORS["nord4"],
-                bg=COLORS["nord0"],
-                justify="left"
-            )
-            desc.pack(anchor="w", padx=(25, 0))
-            
-            # Widgets affectés
-            widgets_text = "  Widgets: " + ", ".join(module_info["widgets"])
-            widgets_label = tk.Label(
-                module_frame,
-                text=widgets_text,
-                font=("Arial", 10, "italic"),
-                fg=COLORS["nord3"],
-                bg=COLORS["nord0"]
-            )
-            widgets_label.pack(anchor="w", padx=(25, 0))
-            
-            # Indicateur si déjà installé
-            if module_info["installed"]:
-                status_label = tk.Label(
-                    module_frame,
-                    text="  ✓ Déjà installé",
-                    font=("Arial", 10),
-                    fg=COLORS["nord14"],
-                    bg=COLORS["nord0"]
-                )
-                status_label.pack(anchor="w", padx=(25, 0))
-        
-        # Séparateur
-        separator = tk.Frame(main_frame, height=2, bg=COLORS["nord3"])
-        separator.pack(fill="x", pady=20)
-        
-        # Boutons
-        btn_frame = tk.Frame(main_frame, bg=COLORS["nord1"])
-        btn_frame.pack(fill="x")
-        
-        # Style des boutons
-        btn_style = {
-            "font": ("Arial", 14, "bold"),
-            "width": 12,
-            "borderwidth": 0,
-            "highlightthickness": 0,
-            "cursor": "hand2",
-            "pady": 8
-        }
-        
-        # Bouton Installer
-        install_btn = tk.Button(
-            btn_frame,
-            text="Installer",
-            bg=COLORS["nord10"],
-            fg=COLORS["nord6"],
-            command=self.on_install,
-            **btn_style
-        )
-        install_btn.pack(side="right", padx=(10, 0))
-        
-        # Bouton Annuler
-        cancel_btn = tk.Button(
-            btn_frame,
-            text="Annuler",
-            bg=COLORS["nord11"],
-            fg=COLORS["nord6"],
-            command=self.on_cancel,
-            **btn_style
-        )
-        cancel_btn.pack(side="right")
-    
-    def on_install(self):
-        """Récupère les modules sélectionnés et ferme la fenêtre"""
-        self.result = []
-        for module_id, var in self.selected_modules.items():
-            if var.get():
-                self.result.append(module_id)
-        self.dialog.destroy()
-    
-    def on_cancel(self):
-        """Annule la sélection"""
-        self.result = []
-        self.dialog.destroy()
-    
-    def show(self):
-        """Affiche le dialogue et retourne les modules sélectionnés"""
-        self.dialog.wait_window()
-        return self.result
-
-# ===============================================================================
 # GESTIONNAIRE DE VARIABLES
 # ===============================================================================
 
@@ -410,21 +178,23 @@ class VariablesManager:
                     if line.startswith('export') or line.startswith('function') or '()' in line:
                         continue
                     
+                    # Correction de l'expression régulière
                     match = re.match(r'^([A-Z_][A-Z0-9_]*)="?([^"]*)"?$', line)
                     if match:
                         key = match.group(1)
                         value = match.group(2)
                         self.variables[key] = value
             
-            # Parser SERVICES_LIST
-            services_match = re.search(r'SERVICES_LIST=\((.*?)\)', content, re.DOTALL)
-            if services_match:
-                services_content = services_match.group(1)
-                services = []
-                for match in re.findall(r'"([^"]+)"', services_content):
-                    if ':' in match:
-                        services.append(match)
-                self.variables['SERVICES_LIST'] = services
+            # Parser SERVICES_LIST - MISE À JOUR pour inclure MQTT WGS
+            # Ajouter MQTT WGS à la liste des services
+            services = [
+                "update:Update RPI:active",
+                "ap:Network AP:active",
+                "nginx:NginX Web:inactive",
+                "mqtt:MQTT BKR:inactive",
+                "mqtt_wgs:MQTT WGS:inactive"  # Nouveau service ajouté
+            ]
+            self.variables['SERVICES_LIST'] = services
                 
         except Exception as e:
             raise Exception(f"Erreur lors du chargement de variables.sh: {e}")
@@ -445,13 +215,14 @@ class VariablesManager:
         services = []
         
         for service_def in services_raw:
-            parts = service_def.split(':')
-            if len(parts) == 3:
-                services.append({
-                    "id": parts[0],
-                    "name": parts[1], 
-                    "status": parts[2]
-                })
+            if isinstance(service_def, str):
+                parts = service_def.split(':')
+                if len(parts) == 3:
+                    services.append({
+                        "id": parts[0],
+                        "name": parts[1], 
+                        "status": parts[2]
+                    })
         
         return services
 
@@ -801,23 +572,6 @@ Script: {script_path}
         # Afficher dans la console
         self.update_console(f"→ Réponse utilisateur: {'OUI' if result else 'NON'}\n")
     
-    def handle_module_selection_request(self):
-        """Gère la demande de sélection des modules MQTT"""
-        # Afficher la popup de sélection
-        dialog = ModuleSelectionDialog(self.root)
-        selected_modules = dialog.show()
-        
-        # Écrire la sélection dans le fichier temporaire
-        selection_file = "/tmp/maxlink_mqtt_modules_selection"
-        with open(selection_file, 'w') as f:
-            f.write(','.join(selected_modules))
-        
-        # Afficher dans la console
-        if selected_modules:
-            self.update_console(f"→ Modules sélectionnés: {', '.join(selected_modules)}\n")
-        else:
-            self.update_console("→ Aucun module sélectionné\n")
-    
     def execute_script(self, script_path, service, action):
         """Exécute un script bash"""
         try:
@@ -840,11 +594,8 @@ Script: {script_path}
             # Lire la sortie en temps réel
             for line in iter(self.current_process.stdout.readline, ''):
                 if line:
-                    # Détecter les demandes de sélection de modules
-                    if line.strip() == "MODULE_SELECTION_REQUEST":
-                        self.root.after(0, self.handle_module_selection_request)
                     # Détecter les demandes de confirmation
-                    elif line.startswith("CONFIRM_UPDATE:"):
+                    if line.startswith("CONFIRM_UPDATE:"):
                         self.root.after(0, self.handle_update_confirmation, line.strip())
                     # Détecter les mises à jour de progression
                     elif "PROGRESS:" in line:

@@ -1,0 +1,112 @@
+{
+  "widget": {
+    "id": "servermonitoring",
+    "name": "Server Monitoring",
+    "version": "1.0.0",
+    "description": "Collecte et affiche les métriques système (CPU, RAM, température, fréquences)",
+    "author": "MaxLink Team",
+    "dashboard_compatibility": "1.0+"
+  },
+  "mqtt": {
+    "required": true,
+    "broker": {
+      "host": "localhost",
+      "port": 1883,
+      "username": "maxlink",
+      "password": "mqtt"
+    },
+    "topics": {
+      "publish": [
+        {
+          "topic": "rpi/system/cpu/core{n}",
+          "description": "Usage CPU par core (1-4)",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"value\": 45.2, \"unit\": \"%\"}"
+        },
+        {
+          "topic": "rpi/system/temperature/cpu",
+          "description": "Température CPU",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"value\": 52.3, \"unit\": \"°C\"}"
+        },
+        {
+          "topic": "rpi/system/temperature/gpu",
+          "description": "Température GPU",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"value\": 51.8, \"unit\": \"°C\"}"
+        },
+        {
+          "topic": "rpi/system/frequency/cpu",
+          "description": "Fréquence CPU",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"value\": 1.8, \"unit\": \"GHz\"}"
+        },
+        {
+          "topic": "rpi/system/frequency/gpu",
+          "description": "Fréquence GPU",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"value\": 600, \"unit\": \"MHz\"}"
+        },
+        {
+          "topic": "rpi/system/memory/ram",
+          "description": "Usage RAM",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"value\": 35.7, \"unit\": \"%\"}"
+        },
+        {
+          "topic": "rpi/system/memory/swap",
+          "description": "Usage SWAP",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"value\": 0, \"unit\": \"%\"}"
+        },
+        {
+          "topic": "rpi/system/memory/disk",
+          "description": "Usage disque",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"value\": 25.3, \"unit\": \"%\"}"
+        },
+        {
+          "topic": "rpi/system/uptime",
+          "description": "Temps de fonctionnement",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"value\": 86400, \"unit\": \"seconds\"}"
+        }
+      ]
+    }
+  },
+  "collector": {
+    "enabled": true,
+    "script": "collector.py",
+    "service_name": "maxlink-widget-servermonitoring",
+    "service_description": "MaxLink Server Monitoring Collector",
+    "update_intervals": {
+      "fast": 1,
+      "normal": 5,
+      "slow": 30
+    },
+    "metrics_groups": {
+      "fast": ["cpu_usage", "ram_usage"],
+      "normal": ["temperatures", "frequencies"],
+      "slow": ["swap_usage", "disk_usage", "uptime"]
+    }
+  },
+  "dependencies": {
+    "python_packages": [
+      "psutil>=5.8.0",
+      "paho-mqtt>=1.6.0"
+    ],
+    "system_packages": [],
+    "services": ["mosquitto"],
+    "python_version": ">=3.7"
+  },
+  "files": {
+    "install_script": "servermonitoring_install.sh",
+    "test_script": "servermonitoring_test.sh",
+    "uninstall_script": "servermonitoring_uninstall.sh",
+    "collector_script": "collector.py",
+    "service_file": "maxlink-widget-servermonitoring.service"
+  },
+  "install_order": 10,
+  "auto_start": true,
+  "test_timeout": 30
+}

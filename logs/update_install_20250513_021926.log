@@ -1,0 +1,332 @@
+[2025-05-13 02:19:26] [INFO] ==========================================
+[2025-05-13 02:19:27] [INFO] DÉBUT DU SCRIPT UPDATE_INSTALL V4 LIGHT
+[2025-05-13 02:19:27] [INFO] ==========================================
+[2025-05-13 02:19:27] [INFO] Version: 22.4
+[2025-05-13 02:19:27] [INFO] Utilisateur: root
+[2025-05-13 02:19:27] [INFO] PWD: /media/prod/MAXLINK
+[2025-05-13 02:19:27] [INFO] Script: /media/prod/MAXLINK/scripts/install/update_install.sh
+[2025-05-13 02:19:27] [INFO] ==========================================
+[2025-05-13 02:19:27] [INFO] ========================================================================
+[2025-05-13 02:19:27] [INFO] ÉTAPE 1 : PRÉPARATION DU SYSTÈME
+[2025-05-13 02:19:28] [INFO] ========================================================================
+[2025-05-13 02:19:28] [INFO] === INFORMATIONS SYSTÈME ===
+[2025-05-13 02:19:28] [INFO] Date/Heure: Tue 13 May 02:19:28 CEST 2025
+[2025-05-13 02:19:28] [INFO] Utilisateur: root
+[2025-05-13 02:19:28] [INFO] Distribution: Debian GNU/Linux 12 (bookworm)
+[2025-05-13 02:19:28] [INFO] Kernel: 6.12.25+rpt-rpi-2712
+[2025-05-13 02:19:28] [INFO] Architecture: aarch64
+[2025-05-13 02:19:28] [INFO] ==========================
+[2025-05-13 02:19:28] [INFO] ◦ Stabilisation du système après démarrage...
+[2025-05-13 02:19:28] [INFO]   ↦ Initialisation des services...
+[2025-05-13 02:19:34] [INFO] ◦ Vérification de l'interface WiFi...
+[2025-05-13 02:19:34] [INFO] === INTERFACES RÉSEAU ===
+[2025-05-13 02:19:34] [CMD] Exécution: ip link show
+[2025-05-13 02:19:34] [OUT] 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+[2025-05-13 02:19:34] [OUT]     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+[2025-05-13 02:19:34] [OUT] 2: eth0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast state DOWN mode DEFAULT group default qlen 1000
+[2025-05-13 02:19:34] [OUT]     link/ether 2c:cf:67:43:b5:e2 brd ff:ff:ff:ff:ff:ff
+[2025-05-13 02:19:34] [OUT] 3: wlan0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc pfifo_fast state DOWN mode DORMANT group default qlen 1000
+[2025-05-13 02:19:34] [OUT]     link/ether 2c:cf:67:43:b5:e3 brd ff:ff:ff:ff:ff:ff
+[2025-05-13 02:19:35] [CMD] Code de sortie: 0
+[2025-05-13 02:19:35] [CMD] Exécution: rfkill list
+[2025-05-13 02:19:35] [OUT] 0: hci0: Bluetooth
+[2025-05-13 02:19:35] [OUT] 	Soft blocked: no
+[2025-05-13 02:19:35] [OUT] 	Hard blocked: no
+[2025-05-13 02:19:35] [OUT] 1: phy0: Wireless LAN
+[2025-05-13 02:19:35] [OUT] 	Soft blocked: no
+[2025-05-13 02:19:35] [OUT] 	Hard blocked: no
+[2025-05-13 02:19:35] [CMD] Code de sortie: 0
+[2025-05-13 02:19:35] [INFO] ========================
+[2025-05-13 02:19:36] [INFO]   ↦ Interface WiFi détectée ✓
+[2025-05-13 02:19:36] [CMD] Exécution: nmcli radio wifi on
+[2025-05-13 02:19:36] [CMD] Code de sortie: 0
+[2025-05-13 02:19:36] [INFO]   ↦ Activation radio WiFi...
+[2025-05-13 02:19:38] [INFO]   ↦ WiFi activé ✓
+[2025-05-13 02:19:40] [INFO] ========================================================================
+[2025-05-13 02:19:40] [INFO] ÉTAPE 2 : CONNEXION RÉSEAU
+[2025-05-13 02:19:40] [INFO] ========================================================================
+[2025-05-13 02:19:40] [INFO] ◦ Recherche du réseau WiFi "Max"...
+[2025-05-13 02:19:41] [INFO]   ↦ Scan des réseaux disponibles...
+[2025-05-13 02:19:41] [CMD] Exécution: nmcli device wifi rescan
+[2025-05-13 02:19:41] [CMD] Code de sortie: 0
+[2025-05-13 02:19:46] [INFO] === RÉSEAUX DISPONIBLES ===
+[2025-05-13 02:19:46] [CMD] Exécution: nmcli device wifi list
+[2025-05-13 02:19:46] [OUT] IN-USE  BSSID              SSID             MODE   CHAN  RATE        SIGNAL  BARS  SECURITY    
+[2025-05-13 02:19:46] [OUT]         4A:94:4D:D2:48:13  Max              Infra  11    135 Mbit/s  95      ▂▄▆█  WPA2 WPA3   
+[2025-05-13 02:19:46] [OUT]         F4:17:B8:C4:E6:A1  Bbox-4C8B430E    Infra  1     130 Mbit/s  69      ▂▄▆_  WPA2        
+[2025-05-13 02:19:46] [OUT]         3A:07:16:23:13:E0  !                Infra  1     270 Mbit/s  67      ▂▄▆_  WPA2        
+[2025-05-13 02:19:46] [OUT]         CC:2D:1B:B0:79:06  SFR_7900         Infra  1     130 Mbit/s  57      ▂▄▆_  WPA1 WPA2   
+[2025-05-13 02:19:47] [OUT]         3A:07:16:23:13:E4  !                Infra  40    270 Mbit/s  57      ▂▄▆_  WPA2        
+[2025-05-13 02:19:47] [OUT]         E4:5D:51:CC:9F:E6  SFR_9FE0         Infra  1     130 Mbit/s  50      ▂▄__  WPA1 WPA2   
+[2025-05-13 02:19:47] [OUT]         E4:9E:12:12:69:87  FreeWifi_secure  Infra  11    195 Mbit/s  45      ▂▄__  WPA2 802.1X 
+[2025-05-13 02:19:47] [OUT]         6A:5D:51:CC:9F:E7  SFR_9FE0         Infra  104   405 Mbit/s  34      ▂▄__  WPA1 WPA2   
+[2025-05-13 02:19:47] [OUT]         E4:5D:51:CC:9F:E5  SFR_9FE0_5GHZ    Infra  104   405 Mbit/s  34      ▂▄__  WPA1 WPA2   
+[2025-05-13 02:19:47] [OUT]         32:68:93:21:0D:68  --               Infra  48    270 Mbit/s  30      ▂___  WPA2        
+[2025-05-13 02:19:47] [CMD] Code de sortie: 0
+[2025-05-13 02:19:47] [INFO] ==========================
+[2025-05-13 02:19:47] [INFO]   ↦ Réseau trouvé (Signal: 11 dBm) ✓
+[2025-05-13 02:19:48] [INFO] Réseau trouvé avec signal: 11
+[2025-05-13 02:19:48] [INFO] ◦ Connexion au réseau "Max"...
+[2025-05-13 02:19:48] [CMD] Exécution: nmcli connection delete 'Max' 2>/dev/null || true
+[2025-05-13 02:19:48] [CMD] Code de sortie: 0
+[2025-05-13 02:19:48] [CMD] Exécution: nmcli device wifi connect 'Max' password '1234567890'
+[2025-05-13 02:19:48] [OUT] [2KDevice 'wlan0' successfully activated with '07e176b4-ae58-43e3-9fc3-b742773467c2'.
+[2025-05-13 02:19:49] [CMD] Code de sortie: 0
+[2025-05-13 02:19:49] [INFO]   ↦ Connexion initiée ✓
+[2025-05-13 02:19:49] [INFO]   ↦ Obtention de l'adresse IP...
+[2025-05-27 20:04:21] [INFO]   ↦ Connexion établie (IP: 192.168.19.61) ✓
+[2025-05-27 20:04:21] [INFO] IP obtenue: 192.168.19.61
+[2025-05-27 20:04:21] [INFO] ◦ Test de connectivité...
+[2025-05-27 20:04:21] [INFO]   ↦ Stabilisation de la connexion...
+[2025-05-27 20:04:23] [CMD] Exécution: ping -c 3 -W 2 8.8.8.8
+[2025-05-27 20:04:25] [OUT] PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+[2025-05-27 20:04:25] [OUT] 64 bytes from 8.8.8.8: icmp_seq=1 ttl=113 time=59.8 ms
+[2025-05-27 20:04:26] [OUT] 64 bytes from 8.8.8.8: icmp_seq=2 ttl=113 time=60.2 ms
+[2025-05-27 20:04:26] [OUT] 64 bytes from 8.8.8.8: icmp_seq=3 ttl=113 time=123 ms
+[2025-05-27 20:04:26] [OUT] 
+[2025-05-27 20:04:26] [OUT] --- 8.8.8.8 ping statistics ---
+[2025-05-27 20:04:26] [OUT] 3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+[2025-05-27 20:04:26] [OUT] rtt min/avg/max/mdev = 59.806/80.912/122.717/29.561 ms
+[2025-05-27 20:04:26] [CMD] Code de sortie: 0
+[2025-05-27 20:04:26] [INFO]   ↦ Connectivité Internet confirmée ✓
+[2025-05-27 20:04:28] [INFO] ========================================================================
+[2025-05-27 20:04:29] [INFO] ÉTAPE 3 : SYNCHRONISATION HORLOGE
+[2025-05-27 20:04:29] [INFO] ========================================================================
+[2025-05-27 20:04:29] [INFO] ◦ Synchronisation de l'horloge système...
+[2025-05-27 20:04:29] [INFO] Heure avant sync: Tue 27 May 20:04:29 CEST 2025
+[2025-05-27 20:04:29] [CMD] Exécution: timedatectl set-ntp true
+[2025-05-27 20:04:29] [CMD] Code de sortie: 0
+[2025-05-27 20:04:29] [INFO]   ↦ Synchronisation NTP...
+[2025-05-27 20:04:34] [INFO]   ↦ Horloge synchronisée ✓
+[2025-05-27 20:04:34] [INFO]   ↦ Date/Heure: 27/05/2025 20:04:34
+[2025-05-27 20:04:35] [INFO] Heure après sync: Tue 27 May 20:04:35 CEST 2025
+[2025-05-27 20:04:37] [INFO] ========================================================================
+[2025-05-27 20:04:37] [INFO] ÉTAPE 4 : MISE À JOUR DE SÉCURITÉ
+[2025-05-27 20:04:37] [INFO] ========================================================================
+[2025-05-27 20:04:37] [INFO] ◦ Préparation du système de paquets...
+[2025-05-27 20:04:37] [INFO] === NETTOYAGE APT ===
+[2025-05-27 20:04:37] [CMD] Exécution: pkill -9 apt 2>/dev/null || true
+[2025-05-27 20:04:37] [CMD] Code de sortie: 0
+[2025-05-27 20:04:37] [CMD] Exécution: pkill -9 dpkg 2>/dev/null || true
+[2025-05-27 20:04:38] [CMD] Code de sortie: 0
+[2025-05-27 20:04:38] [CMD] Exécution: rm -f /var/lib/apt/lists/lock
+[2025-05-27 20:04:38] [CMD] Code de sortie: 0
+[2025-05-27 20:04:38] [CMD] Exécution: rm -f /var/cache/apt/archives/lock
+[2025-05-27 20:04:38] [CMD] Code de sortie: 0
+[2025-05-27 20:04:38] [CMD] Exécution: rm -f /var/lib/dpkg/lock*
+[2025-05-27 20:04:38] [CMD] Code de sortie: 0
+[2025-05-27 20:04:38] [INFO] ===================
+[2025-05-27 20:04:38] [INFO] ◦ Vérification de l'intégrité du système de paquets...
+[2025-05-27 20:04:39] [INFO]   ↦ Système de paquets intact ✓
+[2025-05-27 20:04:41] [INFO] ◦ Mise à jour de la liste des paquets...
+[2025-05-27 20:04:41] [CMD] Exécution: apt-get update -y
+[2025-05-27 20:04:43] [OUT] Hit:1 http://deb.debian.org/debian bookworm InRelease
+[2025-05-27 20:04:43] [OUT] Hit:2 http://archive.raspberrypi.com/debian bookworm InRelease
+[2025-05-27 20:04:43] [OUT] Hit:3 http://deb.debian.org/debian-security bookworm-security InRelease
+[2025-05-27 20:04:43] [OUT] Hit:4 http://deb.debian.org/debian bookworm-updates InRelease
+[2025-05-27 20:04:43] [OUT] Reading package lists...
+[2025-05-27 20:04:43] [CMD] Code de sortie: 0
+[2025-05-27 20:04:43] [INFO]   ↦ Liste des paquets mise à jour ✓
+[2025-05-27 20:04:43] [INFO] ◦ Installation des mises à jour de sécurité critiques...
+[2025-05-27 20:04:44] [INFO]   ↦ Mise à jour des paquets critiques uniquement
+[2025-05-27 20:04:44] [INFO] Paquets critiques:  openssh-server openssh-client openssl libssl* sudo passwd login systemd apt dpkg libc6 libpam* ca-certificates tzdata
+[2025-05-27 20:04:44] [CMD] Exécution: DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade  openssh-server openssh-client openssl libssl* sudo passwd login systemd apt dpkg libc6 libpam* ca-certificates tzdata
+[2025-05-27 20:04:53] [OUT] Reading package lists...
+[2025-05-27 20:04:53] [OUT] Building dependency tree...
+[2025-05-27 20:04:53] [OUT] Reading state information...
+[2025-05-27 20:04:53] [OUT] openssl is already the newest version (3.0.16-1~deb12u1+rpt1).
+[2025-05-27 20:04:54] [OUT] libssl3 is already the newest version (3.0.16-1~deb12u1+rpt1).
+[2025-05-27 20:04:54] [OUT] Skipping libssl-dev, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:54] [OUT] Skipping libssl-ocaml, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:54] [OUT] Skipping libssl-ocaml-dev, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:54] [OUT] Skipping libssl-doc, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:54] [OUT] Skipping libssl-utils-clojure, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:54] [OUT] Skipping libssl-ocaml:armhf, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:54] [OUT] Skipping libssl-ocaml-dev:armhf, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:54] [OUT] Skipping libssl1.1, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:54] [OUT] Skipping libssl1.1-dbgsym, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:55] [OUT] Skipping libssl3-dbgsym, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:55] [OUT] sudo is already the newest version (1.9.13p3-1+deb12u1).
+[2025-05-27 20:04:55] [OUT] systemd is already the newest version (252.36-1~deb12u1).
+[2025-05-27 20:04:55] [OUT] apt is already the newest version (2.6.1).
+[2025-05-27 20:04:55] [OUT] dpkg is already the newest version (1.22.6~bpo12+rpt3).
+[2025-05-27 20:04:55] [OUT] libc6 is already the newest version (2.36-9+rpt2+deb12u10).
+[2025-05-27 20:04:55] [OUT] libpam0g is already the newest version (1.5.2-6+rpt2+deb12u1).
+[2025-05-27 20:04:55] [OUT] Skipping libpam-apparmor, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:55] [OUT] libpam-systemd is already the newest version (252.36-1~deb12u1).
+[2025-05-27 20:04:56] [OUT] libpam-runtime is already the newest version (1.5.2-6+rpt2+deb12u1).
+[2025-05-27 20:04:56] [OUT] libpam-modules is already the newest version (1.5.2-6+rpt2+deb12u1).
+[2025-05-27 20:04:56] [OUT] Skipping libpam-barada, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:56] [OUT] Skipping libpam-sss, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:56] [OUT] Skipping libpam-gnome-keyring, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:56] [OUT] Skipping libpam-tmpdir, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:56] [OUT] Skipping libpam-krb5, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:56] [OUT] Skipping libpam-ccreds, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:56] [OUT] Skipping libpam-mount, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:56] [OUT] Skipping libpam-mklocaluser, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:57] [OUT] Skipping libpam-python, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:57] [OUT] Skipping libpam-duo, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:57] [OUT] Skipping libpam-fprintd, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:57] [OUT] Skipping libpam0g-dev, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:57] [OUT] Skipping libpam-elogind, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:57] [OUT] Skipping libpam-ldapd, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:57] [OUT] Skipping libpam-abl, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:57] [OUT] Skipping libpam-fscrypt, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:57] [OUT] Skipping libpam-pkcs11, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:57] [OUT] Skipping libpam-google-authenticator, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:58] [OUT] Skipping libpam-kwallet-common, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:58] [OUT] Skipping libpam-kwallet5, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:58] [OUT] Skipping libpam-mount-bin, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:58] [OUT] Skipping libpam-cap, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:58] [OUT] Skipping libpam-cgroup, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:58] [OUT] Skipping libpam-afs-session, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:58] [OUT] Skipping libpam-heimdal, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:58] [OUT] Skipping libpam-alreadyloggedin, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:58] [OUT] Skipping libpam-chroot, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:59] [OUT] Skipping libpam-encfs, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:59] [OUT] Skipping libpam-freerdp2, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:59] [OUT] Skipping libpam-freerdp2-dev, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:59] [OUT] Skipping libpam-net, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:59] [OUT] Skipping libpam-pwdfile, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:59] [OUT] Skipping libpam-radius-auth, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:59] [OUT] Skipping libpam-script, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:59] [OUT] Skipping libpam-ufpidentity, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:59] [OUT] Skipping libpam-x2go, it is not installed and only upgrades are requested.
+[2025-05-27 20:04:59] [OUT] Skipping libpam-x2go-dev, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:00] [OUT] Skipping libpam-pwquality, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:00] [OUT] Skipping libpam-cgfs, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:00] [OUT] Skipping libpam-malcontent, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:00] [OUT] Skipping libpam-oath, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:00] [OUT] Skipping libpam-ocaml, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:00] [OUT] Skipping libpam-ocaml-dev, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:00] [OUT] Skipping libpam-otpw, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:00] [OUT] Skipping libpam-doc, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:00] [OUT] libpam-modules-bin is already the newest version (1.5.2-6+rpt2+deb12u1).
+[2025-05-27 20:05:01] [OUT] Skipping libpam-geoip, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:01] [OUT] Skipping libpam-krb5-migrate-heimdal, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:01] [OUT] Skipping libpam-krb5-migrate-mit, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:01] [OUT] Skipping libpam-mysql, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:01] [OUT] Skipping libpam-p11, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:01] [OUT] Skipping libpam-python-doc, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:01] [OUT] Skipping libpam-shield, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:01] [OUT] Skipping libpam-ssh-agent-auth, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:01] [OUT] Skipping libpam-u2f, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:01] [OUT] Skipping libpam-wrapper, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:02] [OUT] Skipping libpamtest0, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:02] [OUT] Skipping libpamtest0-dev, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:02] [OUT] Skipping libpam-passwdqc, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:02] [OUT] Skipping libpam-poldi, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:02] [OUT] Skipping libpam-winbind, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:02] [OUT] Skipping libpam-shishi, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:02] [OUT] Skipping libpam-slurm, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:02] [OUT] Skipping libpam-slurm-adopt, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:02] [OUT] Skipping libpam-snapper, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:02] [OUT] Skipping libpam-biometric, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:03] [OUT] Skipping libpam-yubico, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:03] [OUT] Skipping libpam-ocaml:armhf, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:03] [OUT] Skipping libpam-ocaml-dev:armhf, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:03] [OUT] Skipping libpam-zfs, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:03] [OUT] libpam-chksshpwd is already the newest version (1.5.2-6+rpt2+deb12u1).
+[2025-05-27 20:05:03] [OUT] Skipping libpam-chksshpwd-dbgsym, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:03] [OUT] Skipping libpam-cracklib, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:03] [OUT] Skipping libpam-cracklib-dbgsym, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:03] [OUT] Skipping libpam-modules-bin-dbgsym, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:04] [OUT] Skipping libpam-modules-dbgsym, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:04] [OUT] Skipping libpam-zfs-dbgsym, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:04] [OUT] Skipping libpam0g-dbgsym, it is not installed and only upgrades are requested.
+[2025-05-27 20:05:04] [OUT] ca-certificates is already the newest version (20230311).
+[2025-05-27 20:05:04] [OUT] tzdata is already the newest version (2025b-0+deb12u1).
+[2025-05-27 20:05:04] [OUT] The following additional packages will be installed:
+[2025-05-27 20:05:04] [OUT]   openssh-sftp-server ssh
+[2025-05-27 20:05:04] [OUT] Suggested packages:
+[2025-05-27 20:05:04] [OUT]   keychain libpam-ssh monkeysphere ssh-askpass molly-guard ufw
+[2025-05-27 20:05:04] [OUT] The following packages will be upgraded:
+[2025-05-27 20:05:05] [OUT]   login openssh-client openssh-server openssh-sftp-server passwd ssh
+[2025-05-27 20:05:05] [OUT] 6 upgraded, 0 newly installed, 0 to remove and 73 not upgraded.
+[2025-05-27 20:05:05] [OUT] Need to get 3,144 kB of archives.
+[2025-05-27 20:05:05] [OUT] After this operation, 2,048 B disk space will be freed.
+[2025-05-27 20:05:05] [OUT] Get:1 http://deb.debian.org/debian bookworm/main arm64 login arm64 1:4.13+dfsg1-1+deb12u1 [614 kB]
+[2025-05-27 20:05:05] [OUT] Get:2 http://deb.debian.org/debian bookworm/main arm64 passwd arm64 1:4.13+dfsg1-1+deb12u1 [946 kB]
+[2025-05-27 20:05:05] [OUT] Get:3 http://deb.debian.org/debian bookworm/main arm64 openssh-sftp-server arm64 1:9.2p1-2+deb12u6 [60.7 kB]
+[2025-05-27 20:05:05] [OUT] Get:4 http://deb.debian.org/debian bookworm/main arm64 openssh-server arm64 1:9.2p1-2+deb12u6 [413 kB]
+[2025-05-27 20:05:05] [OUT] Get:5 http://deb.debian.org/debian bookworm/main arm64 openssh-client arm64 1:9.2p1-2+deb12u6 [937 kB]
+[2025-05-27 20:05:05] [OUT] Get:6 http://deb.debian.org/debian bookworm/main arm64 ssh all 1:9.2p1-2+deb12u6 [174 kB]
+[2025-05-27 20:05:06] [OUT] apt-listchanges: Reading changelogs...
+[2025-05-27 20:05:06] [OUT] Preconfiguring packages ...
+[2025-05-27 20:05:06] [OUT] Fetched 3,144 kB in 1s (2,230 kB/s)
+[2025-05-27 20:05:06] [OUT] (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 129085 files and directories currently installed.)
+[2025-05-27 20:05:06] [OUT] Preparing to unpack .../login_1%3a4.13+dfsg1-1+deb12u1_arm64.deb ...
+[2025-05-27 20:05:06] [OUT] Unpacking login (1:4.13+dfsg1-1+deb12u1) over (1:4.13+dfsg1-1+b1) ...
+[2025-05-27 20:05:06] [OUT] Setting up login (1:4.13+dfsg1-1+deb12u1) ...
+[2025-05-27 20:05:06] [OUT] (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 129084 files and directories currently installed.)
+[2025-05-27 20:05:06] [OUT] Preparing to unpack .../passwd_1%3a4.13+dfsg1-1+deb12u1_arm64.deb ...
+[2025-05-27 20:05:07] [OUT] Unpacking passwd (1:4.13+dfsg1-1+deb12u1) over (1:4.13+dfsg1-1+b1) ...
+[2025-05-27 20:05:07] [OUT] Setting up passwd (1:4.13+dfsg1-1+deb12u1) ...
+[2025-05-27 20:05:07] [OUT] (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 129083 files and directories currently installed.)
+[2025-05-27 20:05:07] [OUT] Preparing to unpack .../openssh-sftp-server_1%3a9.2p1-2+deb12u6_arm64.deb ...
+[2025-05-27 20:05:07] [OUT] Unpacking openssh-sftp-server (1:9.2p1-2+deb12u6) over (1:9.2p1-2+deb12u5) ...
+[2025-05-27 20:05:07] [OUT] Preparing to unpack .../openssh-server_1%3a9.2p1-2+deb12u6_arm64.deb ...
+[2025-05-27 20:05:07] [OUT] Unpacking openssh-server (1:9.2p1-2+deb12u6) over (1:9.2p1-2+deb12u5) ...
+[2025-05-27 20:05:07] [OUT] Preparing to unpack .../openssh-client_1%3a9.2p1-2+deb12u6_arm64.deb ...
+[2025-05-27 20:05:07] [OUT] Unpacking openssh-client (1:9.2p1-2+deb12u6) over (1:9.2p1-2+deb12u5) ...
+[2025-05-27 20:05:07] [OUT] Preparing to unpack .../ssh_1%3a9.2p1-2+deb12u6_all.deb ...
+[2025-05-27 20:05:08] [OUT] Unpacking ssh (1:9.2p1-2+deb12u6) over (1:9.2p1-2+deb12u5) ...
+[2025-05-27 20:05:08] [OUT] Setting up openssh-client (1:9.2p1-2+deb12u6) ...
+[2025-05-27 20:05:08] [OUT] Setting up openssh-sftp-server (1:9.2p1-2+deb12u6) ...
+[2025-05-27 20:05:08] [OUT] Setting up openssh-server (1:9.2p1-2+deb12u6) ...
+[2025-05-27 20:05:08] [OUT] rescue-ssh.target is a disabled or a static unit not running, not starting it.
+[2025-05-27 20:05:08] [OUT] ssh.service is a disabled or a static unit not running, not starting it.
+[2025-05-27 20:05:08] [OUT] ssh.socket is a disabled or a static unit not running, not starting it.
+[2025-05-27 20:05:08] [OUT] Setting up ssh (1:9.2p1-2+deb12u6) ...
+[2025-05-27 20:05:08] [OUT] Processing triggers for man-db (2.11.2-2) ...
+[2025-05-27 20:05:09] [CMD] Code de sortie: 0
+[2025-05-27 20:05:09] [INFO]   ↦ Mises à jour de sécurité installées ✓
+[2025-05-27 20:05:09] [INFO] ◦ Information sur les autres mises à jour...
+[2025-05-27 20:05:09] [INFO]   ↦ 73 mises à jour disponibles au total (non installées)
+[2025-05-27 20:05:09] [INFO]   ↦ Seules les mises à jour de sécurité ont été appliquées
+[2025-05-27 20:05:12] [INFO] ========================================================================
+[2025-05-27 20:05:12] [INFO] ÉTAPE 5 : INSTALLATION DES OUTILS D'IMAGE
+[2025-05-27 20:05:12] [INFO] ========================================================================
+[2025-05-27 20:05:12] [INFO] ◦ Vérification de Python PIL/Pillow...
+[2025-05-27 20:05:12] [INFO]   ↦ Python PIL/Pillow déjà installé ✓
+[2025-05-27 20:05:12] [INFO] PIL/Pillow déjà présent
+[2025-05-27 20:05:12] [INFO] ◦ Nettoyage du système...
+[2025-05-27 20:05:12] [CMD] Exécution: apt-get autoremove -y
+[2025-05-27 20:05:13] [OUT] Reading package lists...
+[2025-05-27 20:05:13] [OUT] Building dependency tree...
+[2025-05-27 20:05:14] [OUT] Reading state information...
+[2025-05-27 20:05:14] [OUT] 0 upgraded, 0 newly installed, 0 to remove and 73 not upgraded.
+[2025-05-27 20:05:14] [CMD] Code de sortie: 0
+[2025-05-27 20:05:14] [CMD] Exécution: apt-get autoclean
+[2025-05-27 20:05:14] [OUT] Reading package lists...
+[2025-05-27 20:05:15] [OUT] Building dependency tree...
+[2025-05-27 20:05:15] [OUT] Reading state information...
+[2025-05-27 20:05:15] [CMD] Code de sortie: 0
+[2025-05-27 20:05:15] [INFO]   ↦ Système nettoyé ✓
+[2025-05-27 20:05:17] [INFO] ========================================================================
+[2025-05-27 20:05:17] [INFO] ÉTAPE 6 : CONFIGURATION DU SYSTÈME
+[2025-05-27 20:05:17] [INFO] ========================================================================
+[2025-05-27 20:05:17] [INFO] ◦ Configuration du ventilateur...
+[2025-05-27 20:05:17] [INFO]   ↦ Configuration ajoutée ✓
+[2025-05-27 20:05:17] [INFO] Configuration ventilateur ajoutée
+[2025-05-27 20:05:18] [INFO] ◦ Personnalisation de l'interface...
+[2025-05-27 20:05:18] [INFO]   ↦ Fond d'écran installé avec version ✓
+[2025-05-27 20:05:18] [INFO] Fond d'écran installé avec version v22.4
+[2025-05-27 20:05:18] [INFO]   ↦ Bureau configuré ✓
+[2025-05-27 20:05:18] [INFO] Configuration bureau LXDE appliquée
+[2025-05-27 20:05:20] [INFO] ========================================================================
+[2025-05-27 20:05:20] [INFO] ÉTAPE 7 : FINALISATION
+[2025-05-27 20:05:20] [INFO] ========================================================================
+[2025-05-27 20:05:21] [INFO] ◦ Déconnexion du réseau WiFi...
+[2025-05-27 20:05:21] [CMD] Exécution: nmcli connection down 'Max'
+[2025-05-27 20:05:21] [OUT] Connection 'Max' successfully deactivated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/2)
+[2025-05-27 20:05:21] [CMD] Code de sortie: 0
+[2025-05-27 20:05:23] [CMD] Exécution: nmcli connection delete 'Max'
+[2025-05-27 20:05:23] [OUT] Connection 'Max' (07e176b4-ae58-43e3-9fc3-b742773467c2) successfully deleted.
+[2025-05-27 20:05:23] [CMD] Code de sortie: 0
+[2025-05-27 20:05:23] [INFO]   ↦ WiFi déconnecté ✓
+[2025-05-27 20:05:23] [INFO] ◦ Mise à jour terminée avec succès !
+[2025-05-27 20:05:24] [INFO]   ↦ Version: v22.4
+[2025-05-27 20:05:24] [INFO]   ↦ Redémarrage en cours...
+[2025-05-27 20:05:24] [INFO] Script terminé avec succès
+[2025-05-27 20:05:24] [INFO] Fichier de log: /media/prod/MAXLINK/logs/update_install_20250513_021926.log
