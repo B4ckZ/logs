@@ -1,0 +1,13 @@
+
+================================================================================
+DÉMARRAGE: mqtt_install
+Description: Installation MQTT et modules
+Date: Tue 27 May 18:32:48 CEST 2025
+================================================================================
+
+[2025-05-27 18:32:48] [INFO] [mqtt_install] Script mqtt_install démarré
+[2025-05-27 18:32:49] [INFO] [mqtt_install] Fichier de tracking des modules créé
+[2025-05-27 18:33:20] [INFO] [mqtt_install] Mosquitto installé avec succès
+[2025-05-27 18:33:21] [INFO] [mqtt_install] Module mqtt_broker enregistré
+[2025-05-27 18:34:29] [ERROR] [mqtt_install] Script manquant pour MODULE_SELECTION_REQUEST: /media/prod/MAXLINK/scripts/install/modules/MODULE_SELECTION_REQUEST/MODULE_SELECTION_REQUEST_install.sh
+[2025-05-27 18:34:43] [INFO] [mqtt_install] Script mqtt_install terminé avec le code 0

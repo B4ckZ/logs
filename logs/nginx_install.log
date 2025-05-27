@@ -1,0 +1,12 @@
+
+================================================================================
+DÉMARRAGE: nginx_install
+Description: Installation Nginx et Dashboard
+Date: Tue 27 May 18:30:57 CEST 2025
+================================================================================
+
+[2025-05-27 18:30:57] [INFO] [nginx_install] Script nginx_install démarré
+[2025-05-27 18:31:41] [INFO] [nginx_install] Tentative de clonage depuis: https://github.com/B4ckZ/MaxLinK.git
+[2025-05-27 18:31:42] [INFO] [nginx_install] Clonage réussi
+[2025-05-27 18:31:58] [INFO] [nginx_install] Installation Nginx et Dashboard terminée avec toutes les corrections - Redémarrage du système
+[2025-05-27 18:32:08] [INFO] [nginx_install] Script nginx_install terminé avec le code 0

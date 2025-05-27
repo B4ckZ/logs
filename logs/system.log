@@ -1,0 +1,11 @@
+[2025-05-27 18:29:40] [INFO] [ap_install] Script ap_install démarré
+[2025-05-27 18:30:02] [INFO] [ap_install] Installation AP terminée avec toutes les corrections - Redémarrage du système
+[2025-05-27 18:30:57] [INFO] [nginx_install] Script nginx_install démarré
+[2025-05-27 18:31:41] [INFO] [nginx_install] Tentative de clonage depuis: https://github.com/B4ckZ/MaxLinK.git
+[2025-05-27 18:31:42] [INFO] [nginx_install] Clonage réussi
+[2025-05-27 18:31:58] [INFO] [nginx_install] Installation Nginx et Dashboard terminée avec toutes les corrections - Redémarrage du système
+[2025-05-27 18:32:48] [INFO] [mqtt_install] Script mqtt_install démarré
+[2025-05-27 18:32:49] [INFO] [mqtt_install] Fichier de tracking des modules créé
+[2025-05-27 18:33:20] [INFO] [mqtt_install] Mosquitto installé avec succès
+[2025-05-27 18:33:21] [INFO] [mqtt_install] Module mqtt_broker enregistré
+[2025-05-27 18:34:29] [ERROR] [mqtt_install] Script manquant pour MODULE_SELECTION_REQUEST: /media/prod/MAXLINK/scripts/install/modules/MODULE_SELECTION_REQUEST/MODULE_SELECTION_REQUEST_install.sh
