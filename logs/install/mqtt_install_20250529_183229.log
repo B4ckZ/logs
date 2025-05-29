@@ -1,0 +1,80 @@
+
+================================================================================
+DÉMARRAGE: mqtt_install
+Description: Installation MQTT Broker (Mosquitto)
+Date: Thu 29 May 18:32:29 CEST 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-29 18:32:29] [INFO] [mqtt_install] Script mqtt_install initialisé
+[2025-05-29 18:32:29] [INFO] [mqtt_install] ========== DÉBUT DE L'INSTALLATION MQTT BROKER ==========
+[2025-05-29 18:32:30] [INFO] [mqtt_install] Progression: 5% - Initialisation...
+[2025-05-29 18:32:30] [INFO] [mqtt_install] Privilèges root confirmés
+[2025-05-29 18:32:30] [INFO] [mqtt_install] Progression: 10% - Préparation du système...
+[2025-05-29 18:32:30] [INFO] [mqtt_install] Préparation du système - attente 2s
+[2025-05-29 18:32:32] [INFO] [mqtt_install] Mode AP actif détecté - désactivation temporaire
+[2025-05-29 18:32:32] [CMD] [mqtt_install] Exécution: Désactivation AP
+[2025-05-29 18:32:32] [CMD] [mqtt_install] Commande: nmcli con down 'MaxLink-NETWORK' >/dev/null 2>&1
+[2025-05-29 18:32:33] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-29 18:32:33] [INFO] [mqtt_install] Progression: 15% - Système préparé
+[2025-05-29 18:32:33] [INFO] [mqtt_install] Progression: 20% - Vérification de Mosquitto...
+[2025-05-29 18:32:33] [INFO] [mqtt_install] Installation de Mosquitto nécessaire
+[2025-05-29 18:32:33] [CMD] [mqtt_install] Exécution: Connexion WiFi
+[2025-05-29 18:32:33] [CMD] [mqtt_install] Commande: nmcli device wifi connect 'Max' password '1234567890' >/dev/null 2>&1
+[2025-05-29 18:32:38] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-29 18:32:44] [SUCCESS] [mqtt_install] Connexion WiFi établie
+[2025-05-29 18:32:44] [INFO] [mqtt_install] Progression: 30% - Téléchargement de Mosquitto...
+[2025-05-29 18:32:44] [CMD] [mqtt_install] Exécution: Mise à jour des dépôts
+[2025-05-29 18:32:44] [CMD] [mqtt_install] Commande: apt-get update -qq
+[2025-05-29 18:32:46] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-29 18:32:46] [CMD] [mqtt_install] Exécution: Installation Mosquitto
+[2025-05-29 18:32:46] [CMD] [mqtt_install] Commande: apt-get install -y mosquitto mosquitto-clients >/dev/null 2>&1
+[2025-05-29 18:32:52] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-29 18:32:52] [SUCCESS] [mqtt_install] Mosquitto installé avec succès
+[2025-05-29 18:32:52] [CMD] [mqtt_install] Exécution: Déconnexion WiFi
+[2025-05-29 18:32:52] [CMD] [mqtt_install] Commande: nmcli connection down 'Max' >/dev/null 2>&1
+[2025-05-29 18:32:53] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-29 18:32:53] [CMD] [mqtt_install] Exécution: Suppression profil WiFi
+[2025-05-29 18:32:53] [CMD] [mqtt_install] Commande: nmcli connection delete 'Max' >/dev/null 2>&1
+[2025-05-29 18:32:53] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-29 18:32:53] [INFO] [mqtt_install] Progression: 50% - Mosquitto prêt
+[2025-05-29 18:32:53] [INFO] [mqtt_install] Progression: 60% - Configuration de Mosquitto...
+[2025-05-29 18:32:53] [INFO] [mqtt_install] Configuration de l'authentification MQTT
+[2025-05-29 18:32:53] [CMD] [mqtt_install] Exécution: Création utilisateur MQTT
+[2025-05-29 18:32:53] [CMD] [mqtt_install] Commande: /usr/bin/mosquitto_passwd -b -c '/etc/mosquitto/passwords' 'maxlink' 'mqtt'
+[2025-05-29 18:32:54] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-29 18:32:54] [INFO] [mqtt_install] Utilisateur MQTT créé: maxlink
+[2025-05-29 18:32:54] [INFO] [mqtt_install] Création de la configuration Mosquitto
+[2025-05-29 18:32:54] [SUCCESS] [mqtt_install] Configuration Mosquitto créée
+[2025-05-29 18:32:54] [INFO] [mqtt_install] Ports configurés - MQTT: 1883, WebSocket: 9001
+[2025-05-29 18:32:54] [INFO] [mqtt_install] Progression: 80% - Configuration terminée
+[2025-05-29 18:32:54] [INFO] [mqtt_install] Progression: 85% - Démarrage du service...
+[2025-05-29 18:32:54] [CMD] [mqtt_install] Exécution: Activation au démarrage
+[2025-05-29 18:32:54] [CMD] [mqtt_install] Commande: systemctl enable mosquitto >/dev/null 2>&1
+[2025-05-29 18:32:55] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-29 18:32:55] [CMD] [mqtt_install] Exécution: Démarrage Mosquitto
+[2025-05-29 18:32:55] [CMD] [mqtt_install] Commande: systemctl start mosquitto
+[2025-05-29 18:32:55] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-29 18:32:56] [SUCCESS] [mqtt_install] Mosquitto démarré avec succès
+[2025-05-29 18:32:59] [SUCCESS] [mqtt_install] Test de connexion MQTT réussi
+[2025-05-29 18:32:59] [INFO] [mqtt_install] Progression: 95% - Tests terminés
+[2025-05-29 18:32:59] [INFO] [mqtt_install] Réactivation du mode AP
+[2025-05-29 18:32:59] [CMD] [mqtt_install] Exécution: Activation AP
+[2025-05-29 18:32:59] [CMD] [mqtt_install] Commande: nmcli con up 'MaxLink-NETWORK' >/dev/null 2>&1
+[2025-05-29 18:32:59] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-29 18:33:02] [INFO] [mqtt_install] Progression: 100% - Installation terminée
+[2025-05-29 18:33:03] [SUCCESS] [mqtt_install] Installation MQTT Broker terminée avec succès
+[2025-05-29 18:33:03] [INFO] [mqtt_install] Configuration finale:
+[2025-05-29 18:33:03] [INFO] [mqtt_install]   - Hôte: localhost
+[2025-05-29 18:33:03] [INFO] [mqtt_install]   - Port MQTT: 1883
+[2025-05-29 18:33:03] [INFO] [mqtt_install]   - Port WebSocket: 9001
+[2025-05-29 18:33:03] [INFO] [mqtt_install]   - Utilisateur: maxlink
+[2025-05-29 18:33:03] [INFO] [mqtt_install] Script mqtt_install terminé avec le code 0
+
+================================================================================
+FIN: mqtt_install
+Code de sortie: 0
+Durée: 34 secondes
+================================================================================
+

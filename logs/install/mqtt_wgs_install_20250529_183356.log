@@ -1,0 +1,74 @@
+
+================================================================================
+DÉMARRAGE: mqtt_wgs_install
+Description: Installation MQTT Widgets (WGS)
+Date: Thu 29 May 18:33:56 CEST 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-29 18:33:56] [INFO] [mqtt_wgs_install] Script mqtt_wgs_install initialisé
+[2025-05-29 18:33:56] [INFO] [mqtt_wgs_install] ========== DÉBUT DE L'INSTALLATION MQTT WIDGETS ==========
+[2025-05-29 18:33:57] [INFO] [mqtt_wgs_install] Progression: 5% - Initialisation...
+[2025-05-29 18:33:57] [INFO] [mqtt_wgs_install] Privilèges root confirmés
+[2025-05-29 18:34:02] [INFO] [mqtt_wgs_install] Stabilisation du système - attente 5s
+[2025-05-29 18:34:02] [INFO] [mqtt_wgs_install] Progression: 10% - Vérification du broker MQTT...
+[2025-05-29 18:34:02] [INFO] [mqtt_wgs_install] Vérification du broker MQTT
+[2025-05-29 18:34:02] [SUCCESS] [mqtt_wgs_install] Connexion MQTT fonctionnelle
+[2025-05-29 18:34:04] [INFO] [mqtt_wgs_install] Progression: 20% - Scan des widgets...
+[2025-05-29 18:34:04] [INFO] [mqtt_wgs_install] Scan du répertoire des widgets: /media/prod/MAXLINK/scripts/widgets
+[2025-05-29 18:34:04] [WARN] [mqtt_wgs_install] Widget incomplet ignoré: mqttstats
+[2025-05-29 18:34:04] [WARN] [mqtt_wgs_install]   - mqttstats_widget.json manquant
+[2025-05-29 18:34:05] [WARN] [mqtt_wgs_install]   - mqttstats_install.sh manquant
+[2025-05-29 18:34:05] [WARN] [mqtt_wgs_install]   - mqttstats_test.sh manquant
+[2025-05-29 18:34:05] [WARN] [mqtt_wgs_install]   - mqttstats_uninstall.sh manquant
+[2025-05-29 18:34:05] [WARN] [mqtt_wgs_install] Widget incomplet ignoré: servermonitoring
+[2025-05-29 18:34:05] [WARN] [mqtt_wgs_install]   - servermonitoring_test.sh manquant
+[2025-05-29 18:34:05] [WARN] [mqtt_wgs_install]   - servermonitoring_uninstall.sh manquant
+[2025-05-29 18:34:05] [WARN] [mqtt_wgs_install] Widget incomplet ignoré: wifistats
+[2025-05-29 18:34:05] [WARN] [mqtt_wgs_install]   - wifistats_widget.json manquant
+[2025-05-29 18:34:05] [WARN] [mqtt_wgs_install]   - wifistats_install.sh manquant
+[2025-05-29 18:34:06] [WARN] [mqtt_wgs_install]   - wifistats_test.sh manquant
+[2025-05-29 18:34:06] [WARN] [mqtt_wgs_install]   - wifistats_uninstall.sh manquant
+[2025-05-29 18:34:06] [WARN] [mqtt_wgs_install] Aucun widget valide trouvé
+[2025-05-29 18:34:06] [INFO] [mqtt_wgs_install] Widgets trouvés: [INFO] Scan du répertoire des widgets: /media/prod/MAXLINK/scripts/widgets [WARN] Widget incomplet ignoré: mqttstats [WARN] - mqttstats_widget.json manquant [WARN] - mqttstats_install.sh manquant [WARN] - mqttstats_test.sh manquant [WARN] - mqttstats_uninstall.sh manquant [WARN] Widget incomplet ignoré: servermonitoring [WARN] - servermonitoring_test.sh manquant [WARN] - servermonitoring_uninstall.sh manquant [WARN] Widget incomplet ignoré: wifistats [WARN] - wifistats_widget.json manquant [WARN] - wifistats_install.sh manquant [WARN] - wifistats_test.sh manquant [WARN] - wifistats_uninstall.sh manquant [WARN] Aucun widget valide trouvé ↦ Aucun widget valide trouvé ⚠
+[2025-05-29 18:34:08] [INFO] [mqtt_wgs_install] Progression: 30% - Analyse des dépendances...
+[2025-05-29 18:34:08] [INFO] [mqtt_wgs_install] Package Python manquant pour servermonitoring: paho-mqtt
+[2025-05-29 18:34:08] [INFO] [mqtt_wgs_install] Téléchargement de dépendances nécessaire
+[2025-05-29 18:34:08] [INFO] [mqtt_wgs_install] Connexion WiFi nécessaire pour les dépendances
+[2025-05-29 18:34:09] [CMD] [mqtt_wgs_install] Exécution: Désactivation AP
+[2025-05-29 18:34:09] [CMD] [mqtt_wgs_install] Commande: nmcli con down 'MaxLink-NETWORK' >/dev/null 2>&1
+[2025-05-29 18:34:09] [CMD] [mqtt_wgs_install] Code de sortie: 0
+[2025-05-29 18:34:11] [CMD] [mqtt_wgs_install] Exécution: Connexion WiFi
+[2025-05-29 18:34:12] [CMD] [mqtt_wgs_install] Commande: nmcli device wifi connect 'Max' password '1234567890' >/dev/null 2>&1
+[2025-05-29 18:34:15] [CMD] [mqtt_wgs_install] Code de sortie: 0
+[2025-05-29 18:34:21] [SUCCESS] [mqtt_wgs_install] Connexion WiFi établie - IP: 192.168.241.61
+[2025-05-29 18:34:27] [INFO] [mqtt_wgs_install] Progression: 40% - Installation des widgets...
+[2025-05-29 18:34:27] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/[INFO]/[INFO]_install.sh
+[2025-05-29 18:34:27] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: [INFO]
+[2025-05-29 18:34:29] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/Scan/Scan_install.sh
+[2025-05-29 18:34:29] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: Scan
+[2025-05-29 18:34:31] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/du/du_install.sh
+[2025-05-29 18:34:31] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: du
+[2025-05-29 18:34:33] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/répertoire/répertoire_install.sh
+[2025-05-29 18:34:34] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: répertoire
+[2025-05-29 18:34:36] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/des/des_install.sh
+[2025-05-29 18:34:36] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: des
+[2025-05-29 18:34:38] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/widgets:/widgets:_install.sh
+[2025-05-29 18:34:38] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: widgets:
+[2025-05-29 18:34:40] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets//media/prod/MAXLINK/scripts/widgets//media/prod/MAXLINK/scripts/widgets_install.sh
+[2025-05-29 18:34:40] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: /media/prod/MAXLINK/scripts/widgets
+[2025-05-29 18:34:42] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/[WARN]/[WARN]_install.sh
+[2025-05-29 18:34:42] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: [WARN]
+[2025-05-29 18:34:45] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/Widget/Widget_install.sh
+[2025-05-29 18:34:45] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: Widget
+[2025-05-29 18:34:47] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/incomplet/incomplet_install.sh
+[2025-05-29 18:34:47] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: incomplet
+[2025-05-29 18:34:49] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/ignoré:/ignoré:_install.sh
+[2025-05-29 18:34:49] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: ignoré:
+[2025-05-29 18:34:51] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/mqttstats/mqttstats_install.sh
+[2025-05-29 18:34:51] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: mqttstats
+[2025-05-29 18:34:53] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/[WARN]/[WARN]_install.sh
+[2025-05-29 18:34:53] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: [WARN]
+[2025-05-29 18:34:56] [ERROR] [mqtt_wgs_install] Script non exécutable: /media/prod/MAXLINK/scripts/widgets/-/-_install.sh
+[2025-05-29 18:34:56] [INFO] [mqtt_wgs_install] Progression: 40% - Installation: -
