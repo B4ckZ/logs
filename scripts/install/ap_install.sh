@@ -1,24 +1,25 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION DU MODE ACCESS POINT
-# Version avec système de logging unifié
+# MAXLINK - INSTALLATION DU MODE ACCESS POINT (VERSION OPTIMISÉE)
+# Utilise le cache local - Installation rapide sans connexion internet !
 # ===============================================================================
 
 # Définir le répertoire de base
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-# Source des variables et du logging unifié
+# Source des modules
 source "$SCRIPT_DIR/../common/variables.sh"
 source "$SCRIPT_DIR/../common/logging.sh"
+source "$SCRIPT_DIR/../common/packages.sh"
 
 # ===============================================================================
 # INITIALISATION
 # ===============================================================================
 
-# Initialiser le logging - catégorie "install"
-init_logging "Installation du mode Access Point" "install"
+# Initialiser le logging
+init_logging "Installation du mode Access Point (cache local)" "install"
 
 # Configuration AP par défaut
 AP_CHANNEL="6"        # Canal 2.4GHz stable
@@ -39,7 +40,7 @@ send_progress() {
 # VÉRIFICATIONS
 # ===============================================================================
 
-log_info "========== DÉBUT DE L'INSTALLATION AP =========="
+log_info "========== DÉBUT DE L'INSTALLATION AP (OPTIMISÉE) =========="
 
 echo "========================================================================"
 echo "ÉTAPE 1 : VÉRIFICATIONS"
@@ -56,7 +57,20 @@ if [ "$EUID" -ne 0 ]; then
 fi
 log_info "Privilèges root confirmés"
 
+# Vérifier le cache des paquets
+echo "◦ Vérification du cache des paquets..."
+if [ ! -d "$PACKAGE_CACHE_DIR" ] || [ ! -f "$PACKAGE_METADATA_FILE" ]; then
+    echo "  ↦ Cache des paquets non trouvé ✗"
+    echo ""
+    echo "Veuillez d'abord exécuter update_install.sh pour télécharger les paquets"
+    log_error "Cache des paquets non trouvé"
+    exit 1
+fi
+echo "  ↦ Cache des paquets disponible ✓"
+log_info "Cache des paquets trouvé"
+
 # Vérifier l'interface WiFi
+echo ""
 echo "◦ Vérification de l'interface WiFi..."
 if ! ip link show $AP_INTERFACE >/dev/null 2>&1; then
     echo "  ↦ Interface $AP_INTERFACE non trouvée ✗"
@@ -81,51 +95,38 @@ echo ""
 sleep 2
 
 # ===============================================================================
-# INSTALLATION DES PAQUETS
+# INSTALLATION DES PAQUETS DEPUIS LE CACHE
 # ===============================================================================
 
 echo "========================================================================"
-echo "ÉTAPE 2 : VÉRIFICATION DES PAQUETS"
+echo "ÉTAPE 2 : INSTALLATION DES PAQUETS"
 echo "========================================================================"
 echo ""
 
-send_progress 25 "Vérification des paquets"
+send_progress 25 "Installation des paquets"
 
-echo "◦ Vérification des paquets requis..."
-log_info "Vérification des paquets requis"
+echo "◦ Installation des paquets requis depuis le cache..."
+log_info "Installation des paquets AP depuis le cache"
 
-# Liste des paquets nécessaires
-PACKAGES_NEEDED=""
-
-# Vérifier dnsmasq
-if ! dpkg -l dnsmasq >/dev/null 2>&1; then
-    PACKAGES_NEEDED="$PACKAGES_NEEDED dnsmasq"
-    echo "  ↦ dnsmasq manquant"
-    log_info "Package manquant: dnsmasq"
+# Installer les paquets AP depuis le cache
+if install_packages_by_category "ap"; then
+    echo "  ↦ Paquets installés avec succès ✓"
+    log_success "Paquets AP installés depuis le cache"
 else
-    echo "  ↦ dnsmasq installé ✓"
-    log_info "dnsmasq déjà installé"
-fi
-
-# Installer si nécessaire
-if [ -n "$PACKAGES_NEEDED" ]; then
-    echo ""
-    echo "◦ Installation des paquets manquants..."
-    log_info "Installation des paquets: $PACKAGES_NEEDED"
+    echo "  ↦ Erreur lors de l'installation depuis le cache ⚠"
+    log_warn "Installation depuis le cache échouée"
     
-    if log_command "apt-get update -qq" "Mise à jour des dépôts"; then
-        if log_command "apt-get install -y $PACKAGES_NEEDED" "Installation des paquets"; then
-            echo "  ↦ Paquets installés ✓"
-            log_success "Paquets installés avec succès"
-        else
-            echo "  ↦ Erreur lors de l'installation ✗"
-            log_error "Échec de l'installation des paquets"
-            exit 1
-        fi
+    # Tentative de fallback
+    echo ""
+    echo "◦ Tentative d'installation alternative..."
+    if apt-get install -y dnsmasq iptables >/dev/null 2>&1; then
+        echo "  ↦ Paquets installés via apt ✓"
+        log_success "Paquets installés via apt (fallback)"
+    else
+        echo "  ↦ Installation impossible ✗"
+        log_error "Impossible d'installer les paquets requis"
+        exit 1
     fi
-else
-    echo "  ↦ Tous les paquets sont présents ✓"
-    log_info "Tous les paquets requis sont déjà présents"
 fi
 
 echo ""
@@ -142,7 +143,7 @@ echo ""
 
 send_progress 35 "Préparation du système"
 
-# Créer un resolv.conf fonctionnel AVANT de démarrer
+# Créer un resolv.conf fonctionnel
 echo "◦ Configuration du resolv.conf..."
 log_info "Configuration du resolv.conf"
 
@@ -257,7 +258,7 @@ else
     exit 1
 fi
 
-# Configuration DHCP et DNS complète
+# Configuration DHCP et DNS
 echo ""
 echo "◦ Configuration DHCP et DNS..."
 log_info "Configuration DHCP/DNS pour l'AP"
@@ -266,7 +267,7 @@ log_info "Configuration DHCP/DNS pour l'AP"
 mkdir -p /etc/NetworkManager/dnsmasq-shared.d/
 mkdir -p /etc/NetworkManager/dnsmasq.d/
 
-# Configuration principale COMPLÈTE avec toutes les corrections
+# Configuration principale COMPLÈTE
 cat > /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf << EOF
 # Configuration DHCP MaxLink AP
 interface=$AP_INTERFACE
@@ -282,7 +283,7 @@ dhcp-option=option:dns-server,$AP_IP,8.8.8.8
 dhcp-option=option:domain-name,maxlink.local
 dhcp-authoritative
 
-# Résolution DNS locale COMPLÈTE pour tous les domaines possibles
+# Résolution DNS locale
 address=/$NGINX_DASHBOARD_DOMAIN/$AP_IP
 address=/maxlink-dashboard.local/$AP_IP
 address=/maxlink.dashboard.local/$AP_IP
@@ -290,7 +291,7 @@ address=/dashboard.local/$AP_IP
 address=/maxlink.local/$AP_IP
 address=/maxlink/$AP_IP
 
-# Serveurs DNS upstream (IMPORTANT)
+# Serveurs DNS upstream
 server=8.8.8.8
 server=8.8.4.4
 server=1.1.1.1
@@ -358,6 +359,11 @@ if command -v iptables >/dev/null 2>&1; then
     # Autoriser HTTP (port 80)
     log_command "iptables -A INPUT -i $AP_INTERFACE -p tcp --dport 80 -j ACCEPT 2>/dev/null || true" "Règle HTTP"
     echo "  ↦ Port HTTP (80) ouvert ✓"
+    
+    # Autoriser MQTT (ports 1883 et 9001)
+    log_command "iptables -A INPUT -i $AP_INTERFACE -p tcp --dport 1883 -j ACCEPT 2>/dev/null || true" "Règle MQTT"
+    log_command "iptables -A INPUT -i $AP_INTERFACE -p tcp --dport 9001 -j ACCEPT 2>/dev/null || true" "Règle MQTT WebSocket"
+    echo "  ↦ Ports MQTT (1883, 9001) ouverts ✓"
     
     log_info "Règles iptables configurées avec succès"
 fi

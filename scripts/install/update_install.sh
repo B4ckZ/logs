@@ -1,24 +1,25 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V5 OPTIMISÉ
-# Version simplifiée sans popups, sans vérifications inutiles
+# MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V6 OPTIMISÉ
+# Version avec téléchargement centralisé des paquets
 # ===============================================================================
 
 # Définir le répertoire de base
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-# Source des variables et du logging unifié
+# Source des modules
 source "$SCRIPT_DIR/../common/variables.sh"
 source "$SCRIPT_DIR/../common/logging.sh"
+source "$SCRIPT_DIR/../common/packages.sh"
 
 # ===============================================================================
 # INITIALISATION
 # ===============================================================================
 
-# Initialiser le logging - catégorie "install"
-init_logging "Mise à jour système MaxLink" "install"
+# Initialiser le logging
+init_logging "Mise à jour système MaxLink avec cache de paquets" "install"
 
 # Variables pour le contrôle du processus
 AP_WAS_ACTIVE=false
@@ -46,9 +47,7 @@ add_version_to_image() {
     
     log_info "Ajout de la version $version_text sur l'image de fond"
     
-    # Si Python3-PIL est disponible, l'utiliser, sinon copier simplement
     if python3 -c "import PIL" >/dev/null 2>&1; then
-        # Script Python inline pour ajouter la version
         python3 << EOF
 import sys
 from PIL import Image, ImageDraw, ImageFont
@@ -57,23 +56,18 @@ try:
     img = Image.open("$source_image")
     draw = ImageDraw.Draw(img)
     
-    # Position en bas à droite
     margin = 50
     x = img.width - margin - 100
     y = img.height - margin - 50
     
-    # Utiliser la police par défaut
     font = ImageFont.load_default()
     
-    # Dessiner l'ombre
     draw.text((x + 2, y + 2), "$version_text", font=font, fill=(0, 0, 0, 128))
-    # Dessiner le texte
     draw.text((x, y), "$version_text", font=font, fill=(255, 255, 255, 255))
     
     img.save("$dest_image")
     print("Version ajoutée")
 except Exception as e:
-    # En cas d'erreur, copier simplement
     import shutil
     shutil.copy2("$source_image", "$dest_image")
     print(f"Copie simple: {e}")
@@ -94,7 +88,7 @@ EOF
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-log_info "========== DÉBUT DE LA MISE À JOUR SYSTÈME =========="
+log_info "========== DÉBUT DE LA MISE À JOUR SYSTÈME V6 =========="
 
 # Vérifier les privilèges root
 if [ "$EUID" -ne 0 ]; then
@@ -161,7 +155,7 @@ echo ""
 
 send_progress 15 "Connexion au réseau..."
 
-# Connexion directe au réseau configuré (pas de scan inutile)
+# Connexion directe au réseau configuré
 echo "◦ Connexion au réseau \"$WIFI_SSID\"..."
 log_info "Tentative de connexion à $WIFI_SSID"
 
@@ -291,7 +285,7 @@ else
     log_error "Échec apt-get update"
 fi
 
-send_progress 60 "Installation des mises à jour critiques..."
+send_progress 55 "Installation des mises à jour critiques..."
 
 # Installation des mises à jour de sécurité critiques uniquement
 echo ""
@@ -310,7 +304,136 @@ else
     log_warn "Certaines mises à jour ont échoué"
 fi
 
-# Nettoyage
+send_progress 65 "Téléchargement des paquets MaxLink..."
+
+# ===============================================================================
+# ÉTAPE 5 : TÉLÉCHARGEMENT CENTRALISÉ DES PAQUETS ET DU DASHBOARD
+# ===============================================================================
+
+echo ""
+echo "========================================================================"
+echo "ÉTAPE 5 : TÉLÉCHARGEMENT DES RESSOURCES MAXLINK"
+echo "========================================================================"
+echo ""
+
+# Initialiser le cache
+echo "◦ Initialisation du système de cache..."
+if init_package_cache; then
+    echo "  ↦ Cache initialisé ✓"
+else
+    echo "  ↦ Erreur d'initialisation du cache ✗"
+    log_error "Impossible d'initialiser le cache"
+fi
+
+# Vérifier si le cache est valide
+echo ""
+echo "◦ Vérification du cache existant..."
+if is_cache_valid; then
+    echo "  ↦ Cache valide, pas de téléchargement nécessaire ✓"
+    log_info "Utilisation du cache existant"
+else
+    echo "  ↦ Cache invalide ou absent, téléchargement nécessaire"
+    log_info "Téléchargement des paquets nécessaire"
+    
+    # Télécharger tous les paquets
+    echo ""
+    echo "◦ Téléchargement de tous les paquets requis..."
+    echo "  ↦ Cela peut prendre plusieurs minutes..."
+    
+    if download_all_packages; then
+        echo "  ↦ Téléchargement terminé ✓"
+        log_success "Tous les paquets téléchargés"
+    else
+        echo "  ↦ Certains paquets n'ont pas pu être téléchargés ⚠"
+        log_warn "Téléchargement partiel"
+    fi
+fi
+
+# TÉLÉCHARGEMENT DU DASHBOARD
+echo ""
+echo "◦ Téléchargement du dashboard MaxLink..."
+DASHBOARD_CACHE_DIR="/var/cache/maxlink/dashboard"
+DASHBOARD_ARCHIVE="$DASHBOARD_CACHE_DIR/dashboard.tar.gz"
+
+# Créer le répertoire de cache pour le dashboard
+mkdir -p "$DASHBOARD_CACHE_DIR"
+
+# Vérifier si le dashboard est déjà en cache et récent
+DASHBOARD_CACHE_VALID=false
+if [ -f "$DASHBOARD_ARCHIVE" ]; then
+    # Vérifier l'âge du fichier (7 jours comme pour les paquets)
+    local file_age=$(($(date +%s) - $(stat -c %Y "$DASHBOARD_ARCHIVE" 2>/dev/null || echo 0)))
+    if [ $file_age -lt $CACHE_VALIDITY_SECONDS ]; then
+        echo "  ↦ Dashboard déjà en cache et valide ✓"
+        DASHBOARD_CACHE_VALID=true
+        log_info "Dashboard en cache valide trouvé"
+    fi
+fi
+
+if [ "$DASHBOARD_CACHE_VALID" = false ]; then
+    echo "  ↦ Téléchargement depuis GitHub..."
+    log_info "Téléchargement du dashboard depuis GitHub"
+    
+    # Construire l'URL de téléchargement (archive tar.gz)
+    GITHUB_ARCHIVE_URL="${GITHUB_REPO_URL}/archive/refs/heads/${GITHUB_BRANCH}.tar.gz"
+    
+    # Télécharger avec curl ou wget
+    if command -v curl >/dev/null 2>&1; then
+        if log_command "curl -L -o '$DASHBOARD_ARCHIVE' '$GITHUB_ARCHIVE_URL'" "Téléchargement dashboard (curl)"; then
+            echo "  ↦ Dashboard téléchargé ✓"
+            log_success "Dashboard téléchargé avec curl"
+        else
+            echo "  ↦ Erreur lors du téléchargement ✗"
+            log_error "Échec du téléchargement du dashboard"
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if log_command "wget -O '$DASHBOARD_ARCHIVE' '$GITHUB_ARCHIVE_URL'" "Téléchargement dashboard (wget)"; then
+            echo "  ↦ Dashboard téléchargé ✓"
+            log_success "Dashboard téléchargé avec wget"
+        else
+            echo "  ↦ Erreur lors du téléchargement ✗"
+            log_error "Échec du téléchargement du dashboard"
+        fi
+    else
+        echo "  ↦ Ni curl ni wget disponibles ✗"
+        log_error "Aucun outil de téléchargement disponible"
+    fi
+    
+    # Vérifier que l'archive est valide
+    if [ -f "$DASHBOARD_ARCHIVE" ] && tar -tzf "$DASHBOARD_ARCHIVE" >/dev/null 2>&1; then
+        echo "  ↦ Archive dashboard valide ✓"
+        log_success "Archive dashboard valide"
+        
+        # Créer un fichier de métadonnées pour le dashboard
+        cat > "$DASHBOARD_CACHE_DIR/metadata.json" << EOF
+{
+    "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+    "version": "$MAXLINK_VERSION",
+    "branch": "$GITHUB_BRANCH",
+    "size": "$(du -h "$DASHBOARD_ARCHIVE" | cut -f1)"
+}
+EOF
+    else
+        echo "  ↦ Archive dashboard corrompue ✗"
+        log_error "Archive dashboard corrompue"
+        rm -f "$DASHBOARD_ARCHIVE"
+    fi
+fi
+
+# Afficher les statistiques du cache
+echo ""
+get_cache_stats
+
+# Statistiques du dashboard
+if [ -f "$DASHBOARD_ARCHIVE" ]; then
+    echo ""
+    echo "◦ Cache du dashboard :"
+    echo "  ↦ Fichier : $DASHBOARD_ARCHIVE"
+    echo "  ↦ Taille : $(du -h "$DASHBOARD_ARCHIVE" | cut -f1)"
+    log_info "Dashboard en cache: $(du -h "$DASHBOARD_ARCHIVE" | cut -f1)"
+fi
+
+# Nettoyage APT
 echo ""
 echo "◦ Nettoyage du système..."
 log_command "apt-get autoremove -y >/dev/null 2>&1" "APT autoremove"
@@ -322,11 +445,11 @@ echo ""
 sleep 2
 
 # ===============================================================================
-# ÉTAPE 5 : CONFIGURATION DU SYSTÈME
+# ÉTAPE 6 : CONFIGURATION DU SYSTÈME
 # ===============================================================================
 
 echo "========================================================================"
-echo "ÉTAPE 5 : CONFIGURATION DU SYSTÈME"
+echo "ÉTAPE 6 : CONFIGURATION DU SYSTÈME"
 echo "========================================================================"
 echo ""
 
@@ -402,11 +525,11 @@ echo ""
 sleep 2
 
 # ===============================================================================
-# ÉTAPE 6 : FINALISATION
+# ÉTAPE 7 : FINALISATION
 # ===============================================================================
 
 echo "========================================================================"
-echo "ÉTAPE 6 : FINALISATION"
+echo "ÉTAPE 7 : FINALISATION"
 echo "========================================================================"
 echo ""
 
@@ -434,6 +557,8 @@ send_progress 100 "Mise à jour terminée !"
 echo ""
 echo "◦ Mise à jour terminée avec succès !"
 echo "  ↦ Version: v$MAXLINK_VERSION"
+echo "  ↦ Paquets téléchargés et mis en cache"
+echo "  ↦ Les installations suivantes seront plus rapides"
 log_success "Mise à jour système terminée - Version: v$MAXLINK_VERSION"
 
 echo ""

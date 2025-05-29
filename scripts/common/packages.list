@@ -1,0 +1,25 @@
+# ===============================================================================
+# LISTE DES PAQUETS REQUIS POUR MAXLINK
+# Format: categorie:paquet1 paquet2 paquet3
+# ===============================================================================
+
+# Paquets de base (update_install.sh)
+base:git curl wget ca-certificates apt-transport-https gnupg lsb-release
+
+# Serveur Web (nginx_install.sh)
+nginx:nginx nginx-common
+
+# Broker MQTT (mqtt_install.sh)
+mqtt:mosquitto mosquitto-clients
+
+# Point d'accès WiFi (ap_install.sh)
+ap:dnsmasq iptables
+
+# Dépendances Python pour les widgets
+python:python3-psutil python3-paho-mqtt python3-pip python3-setuptools
+
+# Outils optionnels mais utiles
+tools:htop iotop net-tools dnsutils python3-pil imagemagick
+
+# Dépendances système critiques (déjà incluses dans update_install.sh)
+# system:openssh-server openssh-client openssl libssl3 sudo systemd apt dpkg libc6 libpam-modules ca-certificates tzdata

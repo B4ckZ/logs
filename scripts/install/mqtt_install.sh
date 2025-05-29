@@ -1,24 +1,25 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION MQTT BROKER (BKR)
-# Version avec système de logging unifié
+# MAXLINK - INSTALLATION MQTT BROKER (VERSION OPTIMISÉE)
+# Utilise le cache local de paquets - Installation ultra rapide !
 # ===============================================================================
 
 # Définir le répertoire de base
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-# Source des variables et du logging unifié
+# Source des modules
 source "$SCRIPT_DIR/../common/variables.sh"
 source "$SCRIPT_DIR/../common/logging.sh"
+source "$SCRIPT_DIR/../common/packages.sh"
 
 # ===============================================================================
 # INITIALISATION
 # ===============================================================================
 
-# Initialiser le logging - catégorie "install"
-init_logging "Installation MQTT Broker (Mosquitto)" "install"
+# Initialiser le logging
+init_logging "Installation MQTT Broker (cache local)" "install"
 
 # Variables MQTT
 MQTT_USER="${MQTT_USER:-maxlink}"
@@ -26,9 +27,6 @@ MQTT_PASS="${MQTT_PASS:-mqtt}"
 MQTT_PORT="${MQTT_PORT:-1883}"
 MQTT_WEBSOCKET_PORT="${MQTT_WEBSOCKET_PORT:-9001}"
 MQTT_CONFIG_DIR="/etc/mosquitto"
-
-# Variables pour la connexion WiFi
-AP_WAS_ACTIVE=false
 
 # ===============================================================================
 # FONCTIONS
@@ -49,7 +47,7 @@ wait_silently() {
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-log_info "========== DÉBUT DE L'INSTALLATION MQTT BROKER =========="
+log_info "========== DÉBUT DE L'INSTALLATION MQTT BROKER (OPTIMISÉE) =========="
 
 echo ""
 echo "========================================================================"
@@ -67,36 +65,27 @@ if [ "$EUID" -ne 0 ]; then
 fi
 log_info "Privilèges root confirmés"
 
-# ÉTAPE 1 : Préparation
-echo "ÉTAPE 1 : PRÉPARATION DU SYSTÈME"
+# ÉTAPE 1 : Vérifications
+echo "ÉTAPE 1 : VÉRIFICATIONS"
 echo "========================================================================"
 echo ""
 
-send_progress 10 "Préparation du système..."
+send_progress 10 "Vérifications..."
 
-echo "◦ Préparation du système..."
-echo "  ↦ Initialisation..."
-log_info "Préparation du système - attente 2s"
-wait_silently 2
-
-# Vérifier et désactiver le mode AP si actif
-if nmcli con show --active | grep -q "$AP_SSID"; then
-    AP_WAS_ACTIVE=true
-    log_info "Mode AP actif détecté - désactivation temporaire"
-    log_command "nmcli con down '$AP_SSID' >/dev/null 2>&1" "Désactivation AP"
-    echo "  ↦ Mode AP désactivé temporairement ✓"
+# Vérifier le cache des paquets
+echo "◦ Vérification du cache des paquets..."
+if [ ! -d "$PACKAGE_CACHE_DIR" ] || [ ! -f "$PACKAGE_METADATA_FILE" ]; then
+    echo "  ↦ Cache des paquets non trouvé ✗"
+    echo ""
+    echo "Veuillez d'abord exécuter update_install.sh pour télécharger les paquets"
+    log_error "Cache des paquets non trouvé"
+    exit 1
 fi
+echo "  ↦ Cache des paquets disponible ✓"
+log_info "Cache des paquets trouvé"
 
-send_progress 15 "Système préparé"
-
-# ÉTAPE 2 : Vérification de Mosquitto
+# Vérifier si Mosquitto est déjà installé
 echo ""
-echo "ÉTAPE 2 : VÉRIFICATION DE MOSQUITTO"
-echo "========================================================================"
-echo ""
-
-send_progress 20 "Vérification de Mosquitto..."
-
 echo "◦ Vérification de Mosquitto..."
 if dpkg -l mosquitto >/dev/null 2>&1; then
     echo "  ↦ Mosquitto déjà installé ✓"
@@ -108,60 +97,43 @@ if dpkg -l mosquitto >/dev/null 2>&1; then
 else
     echo "  ↦ Mosquitto non installé"
     log_info "Installation de Mosquitto nécessaire"
-    echo ""
-    echo "◦ Connexion au réseau WiFi pour l'installation..."
+fi
+
+send_progress 20 "Vérifications terminées"
+
+# ÉTAPE 2 : Installation depuis le cache
+echo ""
+echo "ÉTAPE 2 : INSTALLATION DE MOSQUITTO"
+echo "========================================================================"
+echo ""
+
+send_progress 30 "Installation de Mosquitto..."
+
+echo "◦ Installation de Mosquitto depuis le cache local..."
+log_info "Installation des paquets MQTT depuis le cache"
+
+# Installer les paquets MQTT depuis le cache
+if install_packages_by_category "mqtt"; then
+    echo "  ↦ Mosquitto installé avec succès ✓"
+    log_success "Mosquitto installé depuis le cache"
+else
+    echo "  ↦ Erreur lors de l'installation depuis le cache ⚠"
+    log_warn "Installation depuis le cache échouée"
     
-    # Se connecter au WiFi
-    if log_command "nmcli device wifi connect '$WIFI_SSID' password '$WIFI_PASSWORD' >/dev/null 2>&1" "Connexion WiFi"; then
-        wait_silently 5
-        
-        if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
-            echo "  ↦ Connecté au WiFi ✓"
-            log_success "Connexion WiFi établie"
-            
-            send_progress 30 "Téléchargement de Mosquitto..."
-            
-            echo ""
-            echo "◦ Installation de Mosquitto..."
-            echo "  ↦ Mise à jour des paquets..."
-            log_command "apt-get update -qq" "Mise à jour des dépôts"
-            
-            echo "  ↦ Installation en cours..."
-            if log_command "apt-get install -y mosquitto mosquitto-clients >/dev/null 2>&1" "Installation Mosquitto"; then
-                echo "  ↦ Mosquitto installé ✓"
-                log_success "Mosquitto installé avec succès"
-            else
-                echo "  ↦ Erreur lors de l'installation ✗"
-                log_error "Échec installation Mosquitto"
-                
-                # Déconnexion WiFi et réactivation AP
-                nmcli connection down "$WIFI_SSID" >/dev/null 2>&1
-                nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1
-                if [ "$AP_WAS_ACTIVE" = true ]; then
-                    nmcli con up "$AP_SSID" >/dev/null 2>&1
-                fi
-                exit 1
-            fi
-            
-            # Déconnexion WiFi
-            echo ""
-            echo "◦ Déconnexion du WiFi..."
-            log_command "nmcli connection down '$WIFI_SSID' >/dev/null 2>&1" "Déconnexion WiFi"
-            log_command "nmcli connection delete '$WIFI_SSID' >/dev/null 2>&1" "Suppression profil WiFi"
-            echo "  ↦ WiFi déconnecté ✓"
-        else
-            echo "  ↦ Impossible de se connecter au WiFi ✗"
-            log_error "Pas de connectivité Internet"
-            exit 1
-        fi
+    # Tentative de fallback
+    echo ""
+    echo "◦ Tentative d'installation alternative..."
+    if apt-get install -y mosquitto mosquitto-clients >/dev/null 2>&1; then
+        echo "  ↦ Mosquitto installé via apt ✓"
+        log_success "Mosquitto installé via apt (fallback)"
     else
-        echo "  ↦ Échec de la connexion WiFi ✗"
-        log_error "Impossible de se connecter au WiFi"
+        echo "  ↦ Installation impossible ✗"
+        log_error "Impossible d'installer Mosquitto"
         exit 1
     fi
 fi
 
-send_progress 50 "Mosquitto prêt"
+send_progress 50 "Mosquitto installé"
 
 # ÉTAPE 3 : Configuration
 echo ""
@@ -280,14 +252,19 @@ fi
 
 send_progress 95 "Tests terminés"
 
-# Réactiver le mode AP si nécessaire
-if [ "$AP_WAS_ACTIVE" = true ]; then
-    echo ""
-    echo "◦ Réactivation du mode point d'accès..."
-    log_info "Réactivation du mode AP"
-    log_command "nmcli con up '$AP_SSID' >/dev/null 2>&1" "Activation AP"
-    wait_silently 3
-    echo "  ↦ Mode AP réactivé ✓"
+# ÉTAPE 5 : Test WebSocket
+echo ""
+echo "ÉTAPE 5 : VÉRIFICATION WEBSOCKET"
+echo "========================================================================"
+echo ""
+
+echo "◦ Test du port WebSocket..."
+if nc -z localhost $MQTT_WEBSOCKET_PORT 2>/dev/null; then
+    echo "  ↦ Port WebSocket ($MQTT_WEBSOCKET_PORT) accessible ✓"
+    log_success "Port WebSocket accessible"
+else
+    echo "  ↦ Port WebSocket non accessible ⚠"
+    log_warn "Port WebSocket non accessible"
 fi
 
 send_progress 100 "Installation terminée"

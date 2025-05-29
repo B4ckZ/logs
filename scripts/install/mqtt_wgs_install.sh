@@ -1,32 +1,29 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION MQTT WIDGETS (WGS)
-# Version avec système de logging unifié
+# MAXLINK - INSTALLATION MQTT WIDGETS (VERSION OPTIMISÉE)
+# Utilise le cache local - Installation rapide et fiable !
 # ===============================================================================
 
 # Définir le répertoire de base
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-# Source des variables et du logging unifié
+# Source des modules
 source "$SCRIPT_DIR/../common/variables.sh"
 source "$SCRIPT_DIR/../common/logging.sh"
+source "$SCRIPT_DIR/../common/packages.sh"
 
 # ===============================================================================
 # INITIALISATION
 # ===============================================================================
 
-# Initialiser le logging - catégorie "install"
-init_logging "Installation MQTT Widgets (WGS)" "install"
+# Initialiser le logging
+init_logging "Installation MQTT Widgets (cache local)" "install"
 
 # Répertoire des widgets
 WIDGETS_DIR="$BASE_DIR/scripts/widgets"
 WIDGETS_TRACKING="/etc/maxlink/widgets_installed.json"
-
-# Variables pour la connexion WiFi
-AP_WAS_ACTIVE=false
-WIFI_NEEDED=false
 
 # Statistiques
 TOTAL_WIDGETS=0
@@ -72,7 +69,7 @@ check_mqtt_broker() {
     fi
 }
 
-# Scanner le répertoire des widgets
+# Scanner le répertoire des widgets (VERSION CORRIGÉE)
 scan_widgets_directory() {
     log_info "Scan du répertoire des widgets: $WIDGETS_DIR"
     
@@ -85,37 +82,39 @@ scan_widgets_directory() {
     # Trouver tous les widgets valides
     local widgets=()
     
-    for widget_dir in "$WIDGETS_DIR"/*; do
-        if [ -d "$widget_dir" ]; then
-            local widget_name=$(basename "$widget_dir")
-            
-            # Chercher les fichiers avec le nouveau nommage
-            local widget_json="$widget_dir/${widget_name}_widget.json"
-            local install_script="$widget_dir/${widget_name}_install.sh"
-            local test_script="$widget_dir/${widget_name}_test.sh"
-            local uninstall_script="$widget_dir/${widget_name}_uninstall.sh"
-            
-            # Vérifier la structure complète
-            if [ -f "$widget_json" ] && [ -f "$install_script" ] && [ -f "$test_script" ] && [ -f "$uninstall_script" ]; then
-                widgets+=("$widget_name")
-                log_info "Widget trouvé: $widget_name"
-            else
-                log_warn "Widget incomplet ignoré: $widget_name"
-                if [ ! -f "$widget_json" ]; then
-                    log_warn "  - ${widget_name}_widget.json manquant"
-                fi
-                if [ ! -f "$install_script" ]; then
-                    log_warn "  - ${widget_name}_install.sh manquant"
-                fi
-                if [ ! -f "$test_script" ]; then
-                    log_warn "  - ${widget_name}_test.sh manquant"
-                fi
-                if [ ! -f "$uninstall_script" ]; then
-                    log_warn "  - ${widget_name}_uninstall.sh manquant"
-                fi
+    # Utiliser find pour une recherche plus robuste
+    while IFS= read -r widget_dir; do
+        local widget_name=$(basename "$widget_dir")
+        
+        # Ignorer les fichiers qui ne sont pas des dossiers
+        [ ! -d "$widget_dir" ] && continue
+        
+        # Chercher les fichiers requis
+        local widget_json="$widget_dir/${widget_name}_widget.json"
+        local install_script="$widget_dir/${widget_name}_install.sh"
+        local test_script="$widget_dir/${widget_name}_test.sh"
+        local uninstall_script="$widget_dir/${widget_name}_uninstall.sh"
+        
+        # Vérifier la structure complète
+        if [ -f "$widget_json" ] && [ -f "$install_script" ] && [ -f "$test_script" ] && [ -f "$uninstall_script" ]; then
+            widgets+=("$widget_name")
+            log_info "Widget trouvé: $widget_name"
+        else
+            log_warn "Widget incomplet ignoré: $widget_name"
+            if [ ! -f "$widget_json" ]; then
+                log_warn "  - ${widget_name}_widget.json manquant"
+            fi
+            if [ ! -f "$install_script" ]; then
+                log_warn "  - ${widget_name}_install.sh manquant"
+            fi
+            if [ ! -f "$test_script" ]; then
+                log_warn "  - ${widget_name}_test.sh manquant"
+            fi
+            if [ ! -f "$uninstall_script" ]; then
+                log_warn "  - ${widget_name}_uninstall.sh manquant"
             fi
         fi
-    done
+    done < <(find "$WIDGETS_DIR" -maxdepth 1 -type d | grep -v "^$WIDGETS_DIR$")
     
     TOTAL_WIDGETS=${#widgets[@]}
     
@@ -125,7 +124,8 @@ scan_widgets_directory() {
         return 1
     fi
     
-    echo "${widgets[@]}"
+    # Retourner la liste des widgets
+    printf '%s\n' "${widgets[@]}"
     return 0
 }
 
@@ -140,53 +140,6 @@ is_widget_installed() {
     fi
     
     return 1
-}
-
-# Vérifier si des widgets nécessitent une connexion internet
-check_dependencies_need_internet() {
-    local widgets=("$@")
-    
-    for widget in "${widgets[@]}"; do
-        local widget_json="$WIDGETS_DIR/$widget/${widget}_widget.json"
-        
-        # Vérifier si le widget a des dépendances Python
-        if grep -q "python_packages" "$widget_json" 2>/dev/null; then
-            # Vérifier si les packages sont déjà installés
-            local needs_install=false
-            
-            # Extraire les packages Python du JSON
-            local packages=$(python3 -c "
-import json
-with open('$widget_json', 'r') as f:
-    data = json.load(f)
-    packages = data.get('dependencies', {}).get('python_packages', [])
-    for pkg in packages:
-        # Extraire le nom du package sans la version
-        pkg_name = pkg.split('>=')[0].split('==')[0]
-        print(pkg_name)
-")
-            
-            # Vérifier chaque package
-            while IFS= read -r package; do
-                if [ -n "$package" ]; then
-                    # Convertir le nom du package pour l'import Python
-                    local python_module=$(echo "$package" | sed 's/-/_/g' | sed 's/paho.mqtt/paho.mqtt.client/')
-                    
-                    if ! python3 -c "import $python_module" 2>/dev/null; then
-                        needs_install=true
-                        log_info "Package Python manquant pour $widget: $package"
-                        break
-                    fi
-                fi
-            done <<< "$packages"
-            
-            if [ "$needs_install" = true ]; then
-                return 0  # Internet nécessaire
-            fi
-        fi
-    done
-    
-    return 1  # Pas besoin d'internet
 }
 
 # Installer un widget
@@ -205,122 +158,53 @@ install_widget() {
         log_info "Widget $widget_name déjà installé, mise à jour"
     fi
     
+    # Rendre le script exécutable
+    chmod +x "$install_script"
+    
     # Exécuter le script d'installation
-    if [ -x "$install_script" ]; then
-        log_info "Exécution du script d'installation pour $widget_name"
-        
-        # Exécuter avec capture de la sortie
-        if bash "$install_script"; then
-            echo "  ↦ Widget $widget_name installé ✓"
-            log_success "Widget $widget_name installé avec succès"
-            ((INSTALLED_WIDGETS++))
-            return 0
-        else
-            echo "  ↦ Erreur lors de l'installation ✗"
-            log_error "Échec de l'installation du widget $widget_name"
-            ((FAILED_WIDGETS++))
-            return 1
-        fi
+    log_info "Exécution du script d'installation pour $widget_name"
+    
+    # Exécuter avec capture de la sortie
+    if bash "$install_script"; then
+        echo "  ↦ Widget $widget_name installé ✓"
+        log_success "Widget $widget_name installé avec succès"
+        ((INSTALLED_WIDGETS++))
+        return 0
     else
-        echo "  ↦ Script d'installation non exécutable ✗"
-        log_error "Script non exécutable: $install_script"
+        echo "  ↦ Erreur lors de l'installation ✗"
+        log_error "Échec de l'installation du widget $widget_name"
         ((FAILED_WIDGETS++))
         return 1
     fi
 }
 
-# Connecter au WiFi si nécessaire
-connect_wifi_if_needed() {
-    # Vérifier la connectivité internet
-    if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
-        log_info "Connectivité internet déjà disponible"
-        return 0
-    fi
+# Installer les dépendances Python depuis le cache
+install_python_dependencies() {
+    log_info "Installation des dépendances Python depuis le cache"
     
     echo ""
-    echo "◦ Connexion au réseau WiFi pour télécharger les dépendances..."
-    log_info "Connexion WiFi nécessaire pour les dépendances"
+    echo "◦ Installation des paquets Python..."
     
-    # Désactiver le mode AP temporairement
-    if nmcli con show --active | grep -q "$AP_SSID"; then
-        AP_WAS_ACTIVE=true
-        log_command "nmcli con down '$AP_SSID' >/dev/null 2>&1" "Désactivation AP"
-        wait_silently 2
-        echo "  ↦ Mode AP désactivé temporairement ✓"
-    fi
-    
-    # Se connecter directement sans scan
-    echo "  ↦ Connexion au réseau \"$WIFI_SSID\"..."
-    
-    # Supprimer l'ancienne connexion si elle existe
-    nmcli connection delete "$WIFI_SSID" 2>/dev/null || true
-    
-    # Se connecter
-    if log_command "nmcli device wifi connect '$WIFI_SSID' password '$WIFI_PASSWORD' >/dev/null 2>&1" "Connexion WiFi"; then
-        echo "  ↦ Connexion initiée ✓"
-        wait_silently 5
+    # Installer les paquets Python depuis le cache
+    if install_packages_by_category "python"; then
+        echo "  ↦ Dépendances Python installées ✓"
+        log_success "Dépendances Python installées depuis le cache"
+        return 0
+    else
+        echo "  ↦ Certaines dépendances Python n'ont pas pu être installées ⚠"
+        log_warn "Installation partielle des dépendances Python"
         
-        # Récupérer l'IP
-        IP=$(ip -4 addr show wlan0 | grep inet | awk '{print $2}' | cut -d/ -f1)
-        if [ -n "$IP" ]; then
-            echo "  ↦ Connexion établie (IP: $IP) ✓"
-            log_success "Connexion WiFi établie - IP: $IP"
-        fi
-        
-        # Test de connectivité
-        echo "  ↦ Test de connectivité..."
-        wait_silently 2
-        
-        if ping -c 3 -W 2 8.8.8.8 >/dev/null 2>&1; then
-            echo "  ↦ Connectivité Internet confirmée ✓"
-            WIFI_NEEDED=true
+        # Essayer avec apt en fallback
+        echo ""
+        echo "◦ Tentative d'installation alternative..."
+        if apt-get install -y python3-psutil python3-paho-mqtt >/dev/null 2>&1; then
+            echo "  ↦ Dépendances installées via apt ✓"
+            log_success "Dépendances Python installées via apt"
             return 0
         else
-            echo "  ↦ Pas de connectivité Internet ✗"
-            log_error "Pas de connectivité Internet"
-            
-            # Déconnexion et réactivation AP
-            nmcli connection down "$WIFI_SSID" >/dev/null 2>&1
-            nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1
-            if [ "$AP_WAS_ACTIVE" = true ]; then
-                nmcli con up "$AP_SSID" >/dev/null 2>&1
-            fi
+            log_error "Impossible d'installer les dépendances Python"
             return 1
         fi
-    else
-        echo "  ↦ Échec de la connexion ✗"
-        log_error "Échec de la connexion WiFi"
-        
-        # Réactiver l'AP si nécessaire
-        if [ "$AP_WAS_ACTIVE" = true ]; then
-            nmcli con up "$AP_SSID" >/dev/null 2>&1
-        fi
-        
-        return 1
-    fi
-}
-
-# Déconnecter du WiFi et restaurer l'AP
-disconnect_wifi_and_restore() {
-    if [ "$WIFI_NEEDED" = true ]; then
-        echo ""
-        echo "◦ Déconnexion du WiFi..."
-        log_info "Déconnexion WiFi"
-        
-        log_command "nmcli connection down '$WIFI_SSID' >/dev/null 2>&1" "Déconnexion WiFi"
-        wait_silently 2
-        log_command "nmcli connection delete '$WIFI_SSID' >/dev/null 2>&1" "Suppression profil WiFi"
-        echo "  ↦ WiFi déconnecté ✓"
-    fi
-    
-    # Réactiver le mode AP si nécessaire
-    if [ "$AP_WAS_ACTIVE" = true ]; then
-        echo ""
-        echo "◦ Réactivation du mode point d'accès..."
-        log_info "Réactivation du mode AP"
-        log_command "nmcli con up '$AP_SSID' >/dev/null 2>&1" "Activation AP"
-        wait_silently 5
-        echo "  ↦ Mode AP réactivé ✓"
     fi
 }
 
@@ -328,7 +212,7 @@ disconnect_wifi_and_restore() {
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-log_info "========== DÉBUT DE L'INSTALLATION MQTT WIDGETS =========="
+log_info "========== DÉBUT DE L'INSTALLATION MQTT WIDGETS (OPTIMISÉE) =========="
 
 echo ""
 echo "========================================================================"
@@ -348,18 +232,32 @@ log_info "Privilèges root confirmés"
 
 # Stabilisation initiale
 echo "◦ Stabilisation du système..."
-wait_silently 5
-log_info "Stabilisation du système - attente 5s"
+wait_silently 2
+log_info "Stabilisation du système"
 
-# ÉTAPE 1 : Vérification du broker MQTT
+# ÉTAPE 1 : Vérifications
 echo ""
 echo "========================================================================"
-echo "ÉTAPE 1 : VÉRIFICATION DU BROKER MQTT"
+echo "ÉTAPE 1 : VÉRIFICATIONS PRÉALABLES"
 echo "========================================================================"
 echo ""
 
-send_progress 10 "Vérification du broker MQTT..."
+send_progress 10 "Vérifications..."
 
+# Vérifier le cache des paquets
+echo "◦ Vérification du cache des paquets..."
+if [ ! -d "$PACKAGE_CACHE_DIR" ] || [ ! -f "$PACKAGE_METADATA_FILE" ]; then
+    echo "  ↦ Cache des paquets non trouvé ✗"
+    echo ""
+    echo "Veuillez d'abord exécuter update_install.sh pour télécharger les paquets"
+    log_error "Cache des paquets non trouvé"
+    exit 1
+fi
+echo "  ↦ Cache des paquets disponible ✓"
+log_info "Cache des paquets trouvé"
+
+# Vérifier le broker MQTT
+echo ""
 echo "◦ Vérification du broker MQTT..."
 if ! check_mqtt_broker; then
     exit 1
@@ -369,7 +267,7 @@ echo "  ↦ Broker MQTT actif et fonctionnel ✓"
 echo ""
 sleep 2
 
-# ÉTAPE 2 : Scan des widgets disponibles
+# ÉTAPE 2 : Scan des widgets
 echo "========================================================================"
 echo "ÉTAPE 2 : SCAN DES WIDGETS"
 echo "========================================================================"
@@ -378,7 +276,9 @@ echo ""
 send_progress 20 "Scan des widgets..."
 
 echo "◦ Recherche des widgets disponibles..."
-widgets_array=($(scan_widgets_directory))
+
+# Capturer la sortie de scan_widgets_directory dans un tableau
+mapfile -t widgets_array < <(scan_widgets_directory)
 
 if [ ${#widgets_array[@]} -eq 0 ]; then
     echo ""
@@ -403,30 +303,16 @@ log_info "Widgets trouvés: ${widgets_array[*]}"
 echo ""
 sleep 2
 
-# ÉTAPE 3 : Vérification des dépendances
+# ÉTAPE 3 : Installation des dépendances Python
 echo "========================================================================"
-echo "ÉTAPE 3 : ANALYSE DES DÉPENDANCES"
+echo "ÉTAPE 3 : INSTALLATION DES DÉPENDANCES"
 echo "========================================================================"
 echo ""
 
-send_progress 30 "Analyse des dépendances..."
+send_progress 30 "Installation des dépendances..."
 
-echo "◦ Vérification des dépendances..."
-if check_dependencies_need_internet "${widgets_array[@]}"; then
-    echo "  ↦ Des dépendances doivent être téléchargées"
-    log_info "Téléchargement de dépendances nécessaire"
-    
-    # Se connecter au WiFi
-    if ! connect_wifi_if_needed; then
-        echo ""
-        echo "Impossible de télécharger les dépendances sans connexion internet."
-        log_error "Pas de connexion internet pour les dépendances"
-        exit 1
-    fi
-else
-    echo "  ↦ Toutes les dépendances sont déjà installées ✓"
-    log_info "Toutes les dépendances déjà présentes"
-fi
+echo "◦ Installation des dépendances Python depuis le cache..."
+install_python_dependencies
 
 echo ""
 sleep 2
@@ -437,6 +323,10 @@ echo "ÉTAPE 4 : INSTALLATION DES WIDGETS"
 echo "========================================================================"
 
 send_progress 40 "Installation des widgets..."
+
+# Créer le répertoire de tracking si nécessaire
+mkdir -p "$(dirname "$WIDGETS_TRACKING")"
+[ ! -f "$WIDGETS_TRACKING" ] && echo "{}" > "$WIDGETS_TRACKING"
 
 # Calculer la progression par widget
 progress_per_widget=$((50 / TOTAL_WIDGETS))
@@ -483,8 +373,16 @@ echo ""
 echo "Services actifs: $active_services/$TOTAL_WIDGETS"
 log_info "Services actifs: $active_services/$TOTAL_WIDGETS"
 
-# Déconnexion WiFi si nécessaire
-disconnect_wifi_and_restore
+# Test MQTT rapide
+echo ""
+echo "◦ Test de réception MQTT..."
+if timeout 5 mosquitto_sub -h localhost -u maxlink -P mqtt -t "rpi/+/+/+" -C 1 >/dev/null 2>&1; then
+    echo "  ↦ Messages MQTT reçus ✓"
+    log_success "Messages MQTT reçus"
+else
+    echo "  ↦ Aucun message reçu (normal au démarrage) ⚠"
+    log_info "Aucun message MQTT reçu immédiatement"
+fi
 
 send_progress 100 "Installation terminée"
 
@@ -510,9 +408,10 @@ fi
 
 echo ""
 echo "Commandes utiles :"
-echo "  • Tester tous les widgets : for w in ${widgets_array[@]}; do $WIDGETS_DIR/\$w/\${w}_test.sh; done"
+echo "  • Tester un widget : bash $WIDGETS_DIR/<widget>/<widget>_test.sh"
 echo "  • Voir les données MQTT : mosquitto_sub -h localhost -u maxlink -P mqtt -t 'rpi/+/+/+' -v"
 echo "  • Voir les logs : journalctl -u 'maxlink-widget-*' -f"
+echo "  • Désinstaller un widget : bash $WIDGETS_DIR/<widget>/<widget>_uninstall.sh"
 echo ""
 
 log_info "Résumé final - Installés: $INSTALLED_WIDGETS/$TOTAL_WIDGETS, Actifs: $active_services"
