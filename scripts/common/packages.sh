@@ -101,32 +101,42 @@ EOF
         return 1
     fi
     
+    # IMPORTANT: Se déplacer dans le répertoire de cache
+    local CURRENT_DIR=$(pwd)
+    cd "$PACKAGE_CACHE_DIR" || {
+        log_error "Impossible d'accéder au répertoire de cache: $PACKAGE_CACHE_DIR"
+        return 1
+    }
+    
     # Télécharger chaque paquet
     local packages=$(get_required_packages)
-    local total_packages=$(echo "$packages" | wc -l)
+    local total_packages=$(echo "$packages" | grep -c ':' | grep -v '^0$' || echo 1)
     local current_package=0
     local failed_packages=""
     
-    echo "$packages" | while IFS= read -r package; do
-        [ -z "$package" ] && continue
+    echo "$packages" | while IFS=: read -r category package_list; do
+        [ -z "$package_list" ] && continue
         
-        ((current_package++))
-        local progress=$((current_package * 100 / total_packages))
-        
-        echo "◦ Téléchargement [$current_package/$total_packages]: $package"
-        log_info "Téléchargement du paquet: $package"
-        
-        # Télécharger le paquet et ses dépendances
-        if apt-get download -o Dir::Cache::archives="$PACKAGE_CACHE_DIR" \
-           $(apt-cache depends --recurse --no-recommends --no-suggests \
-           --no-conflicts --no-breaks --no-replaces --no-enhances \
-           $package 2>/dev/null | grep "^\w" | sort -u) \
-           >/dev/null 2>&1; then
-            echo "  ↦ $package téléchargé ✓"
-            log_success "Paquet téléchargé: $package"
+        for package in $package_list; do
+            [ -z "$package" ] && continue
             
-            # Mettre à jour les métadonnées
-            python3 -c "
+            ((current_package++))
+            local progress=$((current_package * 100 / total_packages))
+            
+            echo "◦ Téléchargement [$current_package/$total_packages]: $package"
+            log_info "Téléchargement du paquet: $package"
+            
+            # Télécharger le paquet et ses dépendances DANS LE RÉPERTOIRE COURANT
+            if apt-get download \
+               $(apt-cache depends --recurse --no-recommends --no-suggests \
+               --no-conflicts --no-breaks --no-replaces --no-enhances \
+               $package 2>/dev/null | grep "^\w" | sort -u) \
+               >/dev/null 2>&1; then
+                echo "  ↦ $package téléchargé ✓"
+                log_success "Paquet téléchargé: $package"
+                
+                # Mettre à jour les métadonnées
+                python3 -c "
 import json
 with open('$PACKAGE_METADATA_FILE', 'r') as f:
     data = json.load(f)
@@ -134,12 +144,16 @@ data['packages'].append('$package')
 with open('$PACKAGE_METADATA_FILE', 'w') as f:
     json.dump(data, f, indent=2)
 "
-        else
-            echo "  ↦ $package échec ✗"
-            log_error "Échec du téléchargement: $package"
-            failed_packages="$failed_packages $package"
-        fi
+            else
+                echo "  ↦ $package échec ✗"
+                log_error "Échec du téléchargement: $package"
+                failed_packages="$failed_packages $package"
+            fi
+        done
     done
+    
+    # IMPORTANT: Retourner au répertoire d'origine
+    cd "$CURRENT_DIR"
     
     # Résumé
     local downloaded_count=$(ls -1 "$PACKAGE_CACHE_DIR"/*.deb 2>/dev/null | wc -l)
@@ -197,6 +211,9 @@ install_packages_by_category() {
         return 0
     fi
     
+    # Variable pour suivre les échecs
+    local any_failed=0
+    
     # Installer chaque paquet
     for package in $packages; do
         echo "  ↦ Installation de $package..."
@@ -205,10 +222,12 @@ install_packages_by_category() {
         else
             echo "    ✗ Échec pour $package"
             log_error "Échec d'installation: $package"
+            any_failed=1
         fi
     done
     
-    return 0
+    # Retourner 1 si au moins un paquet a échoué
+    return $any_failed
 }
 
 # Nettoyer le cache

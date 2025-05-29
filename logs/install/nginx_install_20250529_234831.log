@@ -1,0 +1,22 @@
+
+================================================================================
+DÉMARRAGE: nginx_install
+Description: Installation Nginx et Dashboard (100% offline)
+Date: Thu 29 May 23:48:31 CEST 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-29 23:48:32] [INFO] [nginx_install] Script nginx_install initialisé
+[2025-05-29 23:48:32] [INFO] [nginx_install] ========== DÉBUT DE L'INSTALLATION NGINX ET DASHBOARD (100% OFFLINE) ==========
+[2025-05-29 23:48:32] [INFO] [nginx_install] Progression: 5% - Vérifications initiales...
+[2025-05-29 23:48:32] [INFO] [nginx_install] Privilèges root confirmés
+[2025-05-29 23:48:32] [ERROR] [nginx_install] Cache des paquets non trouvé
+[2025-05-29 23:48:32] [INFO] [nginx_install] Script nginx_install terminé avec le code 1
+
+================================================================================
+FIN: nginx_install
+Code de sortie: 1
+Durée: 1 secondes
+================================================================================
+

@@ -2,7 +2,7 @@
 
 # ===============================================================================
 # MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V6 OPTIMISÉ
-# Version avec téléchargement centralisé des paquets
+# Version minimaliste avec cache léger
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -12,14 +12,13 @@ BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 # Source des modules
 source "$SCRIPT_DIR/../common/variables.sh"
 source "$SCRIPT_DIR/../common/logging.sh"
-source "$SCRIPT_DIR/../common/packages.sh"
 
 # ===============================================================================
 # INITIALISATION
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Mise à jour système MaxLink avec cache de paquets" "install"
+init_logging "Mise à jour système MaxLink" "install"
 
 # Variables pour le contrôle du processus
 AP_WAS_ACTIVE=false
@@ -229,14 +228,35 @@ log_info "Synchronisation NTP"
 
 if command -v timedatectl >/dev/null 2>&1; then
     log_command "timedatectl set-ntp true" "Activation NTP"
-    wait_silently 3
-    echo "  ↦ Horloge synchronisée ✓"
+    
+    # Pause de stabilisation pour laisser le temps à NTP
+    echo "  ↦ Attente de la synchronisation NTP..."
+    log_info "Stabilisation pour synchronisation NTP - attente 10s"
+    wait_silently 10
+    
+    # Vérifier que la synchronisation est effective
+    if timedatectl status | grep -q "synchronized: yes"; then
+        echo "  ↦ Horloge synchronisée ✓"
+        log_success "Synchronisation NTP confirmée"
+    else
+        echo "  ↦ Synchronisation en cours... ⚠"
+        log_warn "Synchronisation NTP toujours en cours"
+        # Attente supplémentaire si nécessaire
+        wait_silently 5
+    fi
+    
     echo "  ↦ Date/Heure: $(date '+%d/%m/%Y %H:%M:%S')"
     log_info "Heure synchronisée: $(date)"
 else
     echo "  ↦ timedatectl non disponible ⚠"
     log_warn "timedatectl non disponible"
 fi
+
+# Pause finale pour s'assurer que le système est stabilisé
+echo ""
+echo "◦ Stabilisation du système après synchronisation..."
+wait_silently 5
+log_info "Système stabilisé après synchronisation NTP"
 
 send_progress 40 "Horloge synchronisée"
 echo ""
@@ -307,47 +327,52 @@ fi
 send_progress 65 "Téléchargement des paquets MaxLink..."
 
 # ===============================================================================
-# ÉTAPE 5 : TÉLÉCHARGEMENT CENTRALISÉ DES PAQUETS ET DU DASHBOARD
+# ÉTAPE 5 : TÉLÉCHARGEMENT MINIMAL DES PAQUETS
 # ===============================================================================
 
 echo ""
 echo "========================================================================"
-echo "ÉTAPE 5 : TÉLÉCHARGEMENT DES RESSOURCES MAXLINK"
+echo "ÉTAPE 5 : TÉLÉCHARGEMENT DES PAQUETS ESSENTIELS"
 echo "========================================================================"
 echo ""
 
-# Initialiser le cache
-echo "◦ Initialisation du système de cache..."
-if init_package_cache; then
-    echo "  ↦ Cache initialisé ✓"
-else
-    echo "  ↦ Erreur d'initialisation du cache ✗"
-    log_error "Impossible d'initialiser le cache"
-fi
+# Créer le cache
+CACHE_DIR="/var/cache/maxlink/packages"
+rm -rf "$CACHE_DIR"
+mkdir -p "$CACHE_DIR"
 
-# Vérifier si le cache est valide
+# Se déplacer dans le cache
+cd "$CACHE_DIR"
+
+echo "◦ Téléchargement des paquets essentiels..."
+
+# APPROCHE MINIMALE : Télécharger uniquement les paquets principaux
+
+# Pour AP
+echo "  ↦ Point d'accès : dnsmasq"
+apt-get download dnsmasq dnsmasq-base >/dev/null 2>&1 || true
+
+# Pour Nginx
+echo "  ↦ Serveur web : nginx"
+apt-get download nginx nginx-common >/dev/null 2>&1 || true
+
+# Pour MQTT
+echo "  ↦ Broker MQTT : mosquitto"
+apt-get download mosquitto mosquitto-clients >/dev/null 2>&1 || true
+
+# Pour Python/Widgets
+echo "  ↦ Python : psutil, paho-mqtt"
+apt-get download python3-psutil python3-paho-mqtt >/dev/null 2>&1 || true
+
+# Compter ce qu'on a
+TOTAL=$(ls -1 *.deb 2>/dev/null | wc -l)
 echo ""
-echo "◦ Vérification du cache existant..."
-if is_cache_valid; then
-    echo "  ↦ Cache valide, pas de téléchargement nécessaire ✓"
-    log_info "Utilisation du cache existant"
-else
-    echo "  ↦ Cache invalide ou absent, téléchargement nécessaire"
-    log_info "Téléchargement des paquets nécessaire"
-    
-    # Télécharger tous les paquets
-    echo ""
-    echo "◦ Téléchargement de tous les paquets requis..."
-    echo "  ↦ Cela peut prendre plusieurs minutes..."
-    
-    if download_all_packages; then
-        echo "  ↦ Téléchargement terminé ✓"
-        log_success "Tous les paquets téléchargés"
-    else
-        echo "  ↦ Certains paquets n'ont pas pu être téléchargés ⚠"
-        log_warn "Téléchargement partiel"
-    fi
-fi
+echo "◦ Téléchargement terminé"
+echo "  ↦ $TOTAL paquets téléchargés"
+echo "  ↦ Taille : $(du -sh . | cut -f1)"
+
+# Retour
+cd - >/dev/null
 
 # TÉLÉCHARGEMENT DU DASHBOARD
 echo ""
@@ -358,79 +383,46 @@ DASHBOARD_ARCHIVE="$DASHBOARD_CACHE_DIR/dashboard.tar.gz"
 # Créer le répertoire de cache pour le dashboard
 mkdir -p "$DASHBOARD_CACHE_DIR"
 
-# Vérifier si le dashboard est déjà en cache et récent
-DASHBOARD_CACHE_VALID=false
-if [ -f "$DASHBOARD_ARCHIVE" ]; then
-    # Vérifier l'âge du fichier (7 jours comme pour les paquets)
-    local file_age=$(($(date +%s) - $(stat -c %Y "$DASHBOARD_ARCHIVE" 2>/dev/null || echo 0)))
-    if [ $file_age -lt $CACHE_VALIDITY_SECONDS ]; then
-        echo "  ↦ Dashboard déjà en cache et valide ✓"
-        DASHBOARD_CACHE_VALID=true
-        log_info "Dashboard en cache valide trouvé"
+# Toujours télécharger le dashboard
+echo "  ↦ Téléchargement depuis GitHub..."
+log_info "Téléchargement du dashboard depuis GitHub"
+
+# Supprimer l'ancienne archive si elle existe
+rm -f "$DASHBOARD_ARCHIVE"
+
+# Construire l'URL de téléchargement
+GITHUB_ARCHIVE_URL="${GITHUB_REPO_URL}/archive/refs/heads/${GITHUB_BRANCH}.tar.gz"
+
+# Télécharger avec curl ou wget
+if command -v curl >/dev/null 2>&1; then
+    if log_command "curl -L -o '$DASHBOARD_ARCHIVE' '$GITHUB_ARCHIVE_URL'" "Téléchargement dashboard (curl)"; then
+        echo "  ↦ Dashboard téléchargé ✓"
+        log_success "Dashboard téléchargé avec curl"
+    else
+        echo "  ↦ Erreur lors du téléchargement ✗"
+        log_error "Échec du téléchargement du dashboard"
     fi
+elif command -v wget >/dev/null 2>&1; then
+    if log_command "wget -O '$DASHBOARD_ARCHIVE' '$GITHUB_ARCHIVE_URL'" "Téléchargement dashboard (wget)"; then
+        echo "  ↦ Dashboard téléchargé ✓"
+        log_success "Dashboard téléchargé avec wget"
+    else
+        echo "  ↦ Erreur lors du téléchargement ✗"
+        log_error "Échec du téléchargement du dashboard"
+    fi
+else
+    echo "  ↦ Ni curl ni wget disponibles ✗"
+    log_error "Aucun outil de téléchargement disponible"
 fi
 
-if [ "$DASHBOARD_CACHE_VALID" = false ]; then
-    echo "  ↦ Téléchargement depuis GitHub..."
-    log_info "Téléchargement du dashboard depuis GitHub"
-    
-    # Construire l'URL de téléchargement (archive tar.gz)
-    GITHUB_ARCHIVE_URL="${GITHUB_REPO_URL}/archive/refs/heads/${GITHUB_BRANCH}.tar.gz"
-    
-    # Télécharger avec curl ou wget
-    if command -v curl >/dev/null 2>&1; then
-        if log_command "curl -L -o '$DASHBOARD_ARCHIVE' '$GITHUB_ARCHIVE_URL'" "Téléchargement dashboard (curl)"; then
-            echo "  ↦ Dashboard téléchargé ✓"
-            log_success "Dashboard téléchargé avec curl"
-        else
-            echo "  ↦ Erreur lors du téléchargement ✗"
-            log_error "Échec du téléchargement du dashboard"
-        fi
-    elif command -v wget >/dev/null 2>&1; then
-        if log_command "wget -O '$DASHBOARD_ARCHIVE' '$GITHUB_ARCHIVE_URL'" "Téléchargement dashboard (wget)"; then
-            echo "  ↦ Dashboard téléchargé ✓"
-            log_success "Dashboard téléchargé avec wget"
-        else
-            echo "  ↦ Erreur lors du téléchargement ✗"
-            log_error "Échec du téléchargement du dashboard"
-        fi
-    else
-        echo "  ↦ Ni curl ni wget disponibles ✗"
-        log_error "Aucun outil de téléchargement disponible"
-    fi
-    
-    # Vérifier que l'archive est valide
-    if [ -f "$DASHBOARD_ARCHIVE" ] && tar -tzf "$DASHBOARD_ARCHIVE" >/dev/null 2>&1; then
-        echo "  ↦ Archive dashboard valide ✓"
-        log_success "Archive dashboard valide"
-        
-        # Créer un fichier de métadonnées pour le dashboard
-        cat > "$DASHBOARD_CACHE_DIR/metadata.json" << EOF
-{
-    "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-    "version": "$MAXLINK_VERSION",
-    "branch": "$GITHUB_BRANCH",
-    "size": "$(du -h "$DASHBOARD_ARCHIVE" | cut -f1)"
-}
-EOF
-    else
-        echo "  ↦ Archive dashboard corrompue ✗"
-        log_error "Archive dashboard corrompue"
-        rm -f "$DASHBOARD_ARCHIVE"
-    fi
-fi
-
-# Afficher les statistiques du cache
-echo ""
-get_cache_stats
-
-# Statistiques du dashboard
-if [ -f "$DASHBOARD_ARCHIVE" ]; then
-    echo ""
-    echo "◦ Cache du dashboard :"
-    echo "  ↦ Fichier : $DASHBOARD_ARCHIVE"
-    echo "  ↦ Taille : $(du -h "$DASHBOARD_ARCHIVE" | cut -f1)"
-    log_info "Dashboard en cache: $(du -h "$DASHBOARD_ARCHIVE" | cut -f1)"
+# Vérifier que l'archive est valide
+if [ -f "$DASHBOARD_ARCHIVE" ] && tar -tzf "$DASHBOARD_ARCHIVE" >/dev/null 2>&1; then
+    echo "  ↦ Archive dashboard valide ✓"
+    log_success "Archive dashboard valide"
+else
+    echo "  ↦ Archive dashboard corrompue ✗"
+    log_error "Archive dashboard corrompue"
+    rm -f "$DASHBOARD_ARCHIVE"
 fi
 
 # Nettoyage APT
@@ -557,8 +549,7 @@ send_progress 100 "Mise à jour terminée !"
 echo ""
 echo "◦ Mise à jour terminée avec succès !"
 echo "  ↦ Version: v$MAXLINK_VERSION"
-echo "  ↦ Paquets téléchargés et mis en cache"
-echo "  ↦ Les installations suivantes seront plus rapides"
+echo "  ↦ Système à jour et configuré"
 log_success "Mise à jour système terminée - Version: v$MAXLINK_VERSION"
 
 echo ""

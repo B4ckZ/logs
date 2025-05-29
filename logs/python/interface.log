@@ -1,0 +1,61 @@
+
+================================================================================
+DÉMARRAGE: interface
+Description: Interface graphique MaxLink Admin Panel
+Date: Tue May 13 02:18:40 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-13 02:18:40] [INFO] [interface] Interface MaxLink démarrée
+[2025-05-13 02:18:40] [INFO] [interface] Initialisation du gestionnaire de variables
+[2025-05-13 02:18:40] [INFO] [interface] Variables chargées: 43 variables
+[2025-05-13 02:18:40] [INFO] [interface] Variables chargées avec succès
+[2025-05-13 02:18:40] [INFO] [interface] Initialisation de l'application MaxLink
+[2025-05-13 02:18:40] [INFO] [interface] Mode root: True
+[2025-05-13 02:18:40] [INFO] [interface] Services chargés: 5
+[2025-05-13 02:18:40] [INFO] [interface] Interface créée avec succès
+[2025-05-13 02:18:49] [INFO] [interface] Exécution action: install sur Update RPI
+[2025-05-13 02:18:49] [INFO] [interface] Exécution du script: /media/prod/MAXLINK/scripts/install/update_install.sh
+[2025-05-13 02:18:49] [INFO] [interface] Démarrage du processus: /media/prod/MAXLINK/scripts/install/update_install.sh
+
+================================================================================
+DÉMARRAGE: interface
+Description: Interface graphique MaxLink Admin Panel
+Date: Thu May 29 23:47:08 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-29 23:47:08] [INFO] [interface] Interface MaxLink démarrée
+[2025-05-29 23:47:08] [INFO] [interface] Initialisation du gestionnaire de variables
+[2025-05-29 23:47:08] [INFO] [interface] Variables chargées: 43 variables
+[2025-05-29 23:47:08] [INFO] [interface] Variables chargées avec succès
+[2025-05-29 23:47:08] [INFO] [interface] Initialisation de l'application MaxLink
+[2025-05-29 23:47:08] [INFO] [interface] Mode root: True
+[2025-05-29 23:47:08] [INFO] [interface] Services chargés: 5
+[2025-05-29 23:47:08] [INFO] [interface] Interface créée avec succès
+[2025-05-29 23:47:14] [INFO] [interface] Exécution action: install sur Network AP
+[2025-05-29 23:47:14] [INFO] [interface] Exécution du script: /media/prod/MAXLINK/scripts/install/ap_install.sh
+[2025-05-29 23:47:14] [INFO] [interface] Démarrage du processus: /media/prod/MAXLINK/scripts/install/ap_install.sh
+
+================================================================================
+DÉMARRAGE: interface
+Description: Interface graphique MaxLink Admin Panel
+Date: Thu May 29 23:48:22 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-29 23:48:22] [INFO] [interface] Interface MaxLink démarrée
+[2025-05-29 23:48:22] [INFO] [interface] Initialisation du gestionnaire de variables
+[2025-05-29 23:48:22] [INFO] [interface] Variables chargées: 43 variables
+[2025-05-29 23:48:22] [INFO] [interface] Variables chargées avec succès
+[2025-05-29 23:48:22] [INFO] [interface] Initialisation de l'application MaxLink
+[2025-05-29 23:48:22] [INFO] [interface] Mode root: True
+[2025-05-29 23:48:22] [INFO] [interface] Services chargés: 5
+[2025-05-29 23:48:23] [INFO] [interface] Interface créée avec succès
+[2025-05-29 23:48:31] [INFO] [interface] Exécution action: install sur NginX Web
+[2025-05-29 23:48:31] [INFO] [interface] Exécution du script: /media/prod/MAXLINK/scripts/install/nginx_install.sh
+[2025-05-29 23:48:31] [INFO] [interface] Démarrage du processus: /media/prod/MAXLINK/scripts/install/nginx_install.sh
+[2025-05-29 23:48:32] [INFO] [interface] Script terminé avec code: 1

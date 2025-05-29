@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION DU MODE ACCESS POINT (VERSION OPTIMISÉE)
-# Utilise le cache local - Installation rapide sans connexion internet !
+# MAXLINK - INSTALLATION DU MODE ACCESS POINT (VERSION MINIMALISTE)
+# Approche simple et élégante
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -12,14 +12,13 @@ BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 # Source des modules
 source "$SCRIPT_DIR/../common/variables.sh"
 source "$SCRIPT_DIR/../common/logging.sh"
-source "$SCRIPT_DIR/../common/packages.sh"
 
 # ===============================================================================
 # INITIALISATION
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Installation du mode Access Point (cache local)" "install"
+init_logging "Installation du mode Access Point" "install"
 
 # Configuration AP par défaut
 AP_CHANNEL="6"        # Canal 2.4GHz stable
@@ -40,7 +39,7 @@ send_progress() {
 # VÉRIFICATIONS
 # ===============================================================================
 
-log_info "========== DÉBUT DE L'INSTALLATION AP (OPTIMISÉE) =========="
+log_info "========== DÉBUT DE L'INSTALLATION AP =========="
 
 echo "========================================================================"
 echo "ÉTAPE 1 : VÉRIFICATIONS"
@@ -57,20 +56,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 log_info "Privilèges root confirmés"
 
-# Vérifier le cache des paquets
-echo "◦ Vérification du cache des paquets..."
-if [ ! -d "$PACKAGE_CACHE_DIR" ] || [ ! -f "$PACKAGE_METADATA_FILE" ]; then
-    echo "  ↦ Cache des paquets non trouvé ✗"
-    echo ""
-    echo "Veuillez d'abord exécuter update_install.sh pour télécharger les paquets"
-    log_error "Cache des paquets non trouvé"
-    exit 1
-fi
-echo "  ↦ Cache des paquets disponible ✓"
-log_info "Cache des paquets trouvé"
-
 # Vérifier l'interface WiFi
-echo ""
 echo "◦ Vérification de l'interface WiFi..."
 if ! ip link show $AP_INTERFACE >/dev/null 2>&1; then
     echo "  ↦ Interface $AP_INTERFACE non trouvée ✗"
@@ -95,7 +81,7 @@ echo ""
 sleep 2
 
 # ===============================================================================
-# INSTALLATION DES PAQUETS DEPUIS LE CACHE
+# INSTALLATION DES PAQUETS
 # ===============================================================================
 
 echo "========================================================================"
@@ -105,27 +91,54 @@ echo ""
 
 send_progress 25 "Installation des paquets"
 
-echo "◦ Installation des paquets requis depuis le cache..."
-log_info "Installation des paquets AP depuis le cache"
+echo "◦ Installation des paquets requis..."
+log_info "Installation des paquets AP"
 
-# Installer les paquets AP depuis le cache
-if install_packages_by_category "ap"; then
-    echo "  ↦ Paquets installés avec succès ✓"
-    log_success "Paquets AP installés depuis le cache"
+# Vérifier ce qui est déjà installé
+PACKAGES_TO_INSTALL=""
+if ! dpkg -l dnsmasq >/dev/null 2>&1; then
+    PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL dnsmasq"
+fi
+if ! dpkg -l iptables >/dev/null 2>&1; then
+    PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL iptables"
+fi
+
+if [ -z "$PACKAGES_TO_INSTALL" ]; then
+    echo "  ↦ Tous les paquets sont déjà installés ✓"
+    log_info "Paquets déjà installés"
 else
-    echo "  ↦ Erreur lors de l'installation depuis le cache ⚠"
-    log_warn "Installation depuis le cache échouée"
+    # Essayer d'abord depuis le cache si disponible
+    CACHE_DIR="/var/cache/maxlink/packages"
+    if [ -d "$CACHE_DIR" ] && [ "$(ls -A $CACHE_DIR/*.deb 2>/dev/null)" ]; then
+        echo "  ↦ Tentative d'installation depuis le cache..."
+        cd "$CACHE_DIR"
+        dpkg -i *.deb >/dev/null 2>&1 || true
+        cd - >/dev/null
+    fi
     
-    # Tentative de fallback
-    echo ""
-    echo "◦ Tentative d'installation alternative..."
-    if apt-get install -y dnsmasq iptables >/dev/null 2>&1; then
-        echo "  ↦ Paquets installés via apt ✓"
-        log_success "Paquets installés via apt (fallback)"
+    # Vérifier ce qui manque encore
+    STILL_MISSING=""
+    if ! dpkg -l dnsmasq >/dev/null 2>&1; then
+        STILL_MISSING="$STILL_MISSING dnsmasq"
+    fi
+    if ! dpkg -l iptables >/dev/null 2>&1; then
+        STILL_MISSING="$STILL_MISSING iptables"
+    fi
+    
+    # Installer ce qui manque via apt
+    if [ -n "$STILL_MISSING" ]; then
+        echo "  ↦ Installation via apt..."
+        if apt-get install -y $STILL_MISSING >/dev/null 2>&1; then
+            echo "  ↦ Paquets installés ✓"
+            log_success "Paquets installés via apt"
+        else
+            echo "  ↦ Erreur lors de l'installation ✗"
+            log_error "Impossible d'installer les paquets"
+            exit 1
+        fi
     else
-        echo "  ↦ Installation impossible ✗"
-        log_error "Impossible d'installer les paquets requis"
-        exit 1
+        echo "  ↦ Paquets installés ✓"
+        log_success "Tous les paquets sont installés"
     fi
 fi
 
@@ -418,15 +431,6 @@ if nmcli connection show --active | grep -q "$AP_SSID"; then
     if pgrep -f "dnsmasq.*NetworkManager" > /dev/null; then
         echo "  ↦ Service DNS actif ✓"
         log_info "Service dnsmasq actif"
-        
-        # Test DNS local
-        if dig +short @127.0.0.1 $NGINX_DASHBOARD_DOMAIN >/dev/null 2>&1; then
-            echo "  ↦ Résolution DNS locale fonctionnelle ✓"
-            log_success "Résolution DNS locale fonctionnelle"
-        else
-            echo "  ↦ Résolution DNS locale non fonctionnelle ⚠"
-            log_warn "Résolution DNS locale non fonctionnelle"
-        fi
     else
         echo "  ↦ Service DNS non détecté ⚠"
         log_warn "Service dnsmasq non détecté"
