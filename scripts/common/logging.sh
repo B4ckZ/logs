@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# SYSTÈME DE LOGGING MAXLINK - VERSION OPTIMISÉE
+# SYSTÈME DE LOGGING MAXLINK - VERSION SIMPLIFIÉE
+# Un script = Un fichier log
 # ===============================================================================
 
 # Détection automatique des chemins
@@ -14,7 +15,6 @@ fi
 LOG_DIR="$BASE_DIR/logs"
 SCRIPT_NAME=$(basename "${BASH_SOURCE[1]}" .sh)
 SCRIPT_LOG="$LOG_DIR/${SCRIPT_NAME}.log"
-SYSTEM_LOG="$LOG_DIR/system.log"
 
 # Création du répertoire de logs
 mkdir -p "$LOG_DIR"
@@ -22,21 +22,10 @@ mkdir -p "$LOG_DIR"
 # Configuration
 LOG_TO_CONSOLE=${LOG_TO_CONSOLE:-true}
 LOG_TO_FILE=${LOG_TO_FILE:-true}
-MAX_LOG_SIZE=$((10 * 1024 * 1024))  # 10 MB
 
 # ===============================================================================
 # FONCTIONS DE LOGGING
 # ===============================================================================
-
-# Rotation des logs
-rotate_logs() {
-    for logfile in "$SCRIPT_LOG" "$SYSTEM_LOG"; do
-        if [ -f "$logfile" ] && [ $(stat -c%s "$logfile" 2>/dev/null || echo 0) -gt $MAX_LOG_SIZE ]; then
-            mv "$logfile" "$LOG_DIR/archived/$(basename "$logfile").$(date +%Y%m%d_%H%M%S)"
-            touch "$logfile"
-        fi
-    done
-}
 
 # Fonction de logging principale
 log() {
@@ -57,10 +46,9 @@ log() {
         esac
     fi
     
-    # Fichiers
+    # Fichier (append au fichier existant)
     if [ "$LOG_TO_FILE" = true ]; then
         echo "$log_entry" >> "$SCRIPT_LOG"
-        echo "$log_entry" >> "$SYSTEM_LOG"
     fi
 }
 
@@ -68,40 +56,16 @@ log() {
 log_info() { log "INFO" "$1" "${2:-$LOG_TO_CONSOLE}"; }
 log_warn() { log "WARN" "$1" "${2:-$LOG_TO_CONSOLE}"; }
 log_error() { log "ERROR" "$1" "${2:-$LOG_TO_CONSOLE}"; }
+log_success() { log "SUCCESS" "$1" "${2:-$LOG_TO_CONSOLE}"; }
+log_warning() { log "WARNING" "$1" "${2:-$LOG_TO_CONSOLE}"; }
 
 # ===============================================================================
 # FONCTIONS D'INITIALISATION
 # ===============================================================================
 
-# Capture d'état système (optimisée)
-capture_system_state() {
-    local state_file="$LOG_DIR/state_$(date +%Y%m%d_%H%M%S).log"
-    
-    {
-        echo "=== ÉTAT SYSTÈME MAXLINK ==="
-        echo "Date: $(date)"
-        echo "Script: $SCRIPT_NAME"
-        echo "Utilisateur: $(whoami)"
-        echo ""
-        echo "=== RÉSEAU ==="
-        echo "WiFi: $(nmcli -t -f DEVICE,STATE device | grep wlan0 || echo "wlan0:non disponible")"
-        echo "IP: $(ip -4 addr show wlan0 2>/dev/null | grep inet | awk '{print $2}' || echo "Aucune")"
-        echo ""
-        echo "=== SYSTÈME ==="
-        echo "Charge: $(uptime | awk -F'load average:' '{print $2}')"
-        echo "Mémoire: $(free -h | grep Mem | awk '{print "Total: "$2", Utilisé: "$3", Libre: "$4}')"
-        echo "Disque: $(df -h / | tail -1 | awk '{print "Total: "$2", Utilisé: "$3", Libre: "$4}')"
-    } > "$state_file"
-    
-    log_info "État système capturé: $state_file"
-}
-
 # Initialisation
 init_logging() {
     local script_description="$1"
-    
-    # Rotation des logs si nécessaire
-    rotate_logs
     
     # Header de début
     {

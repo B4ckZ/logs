@@ -518,7 +518,7 @@ else
     echo "⚠ Installation terminée avec $FAILED_WIDGETS erreur(s)"
     echo ""
     echo "Consultez les logs pour plus de détails :"
-    echo "  $LOG_DIR/widgets/"
+    echo "  $LOG_DIR/"
 fi
 
 echo ""

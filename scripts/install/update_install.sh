@@ -16,9 +16,9 @@ source "$SCRIPT_DIR/../common/variables.sh"
 # CONFIGURATION
 # ===============================================================================
 
-# Fichier de log
+# Fichier de log unique
 LOG_DIR="$BASE_DIR/logs"
-LOG_FILE="$LOG_DIR/update_install_$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="$LOG_DIR/update_install.log"
 mkdir -p "$LOG_DIR"
 
 # Fichier pour la décision utilisateur
@@ -746,7 +746,7 @@ log "INFO" "=========================================="
 # Message initial
 echo ""
 echo "Démarrage du script de mise à jour MaxLink (version allégée)..."
-echo "Les logs détaillés sont disponibles dans :"
+echo "Le log est disponible dans :"
 echo "$LOG_FILE"
 echo ""
 
