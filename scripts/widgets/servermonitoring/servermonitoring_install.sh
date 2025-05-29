@@ -24,9 +24,9 @@ WIDGET_ID="servermonitoring"
 WIDGET_NAME="Server Monitoring"
 WIDGET_VERSION="1.0.0"
 
-# Fichiers et chemins
-CONFIG_FILE="$WIDGET_DIR/widget.json"
-COLLECTOR_SCRIPT="$WIDGET_DIR/collector.py"
+# Fichiers et chemins - MISE À JOUR AVEC LE NOUVEAU NOMMAGE
+CONFIG_FILE="$WIDGET_DIR/servermonitoring_widget.json"
+COLLECTOR_SCRIPT="$WIDGET_DIR/servermonitoring_collector.py"
 SERVICE_NAME="maxlink-widget-servermonitoring"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
@@ -286,12 +286,12 @@ if [ "$EUID" -ne 0 ]; then
 fi
 log_success "Privilèges root confirmés"
 
-# Vérifier l'existence de widget.json
+# Vérifier l'existence de servermonitoring_widget.json
 if [ ! -f "$CONFIG_FILE" ]; then
-    log_error "Fichier de configuration widget.json non trouvé"
+    log_error "Fichier de configuration servermonitoring_widget.json non trouvé"
     exit 1
 fi
-log_success "Fichier widget.json trouvé"
+log_success "Fichier servermonitoring_widget.json trouvé"
 
 # Vérifier MQTT
 if ! check_mqtt_broker; then

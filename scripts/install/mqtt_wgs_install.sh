@@ -52,16 +52,16 @@ send_progress() {
 pause_system() {
     local seconds=$1
     local message=$2
-    [ -n "$message" ] && log_info "  ↦ $message..."
+    [ -n "$message" ] && log_info "  ↦ $message..." false
     sleep $seconds
 }
 
 # Vérifier si MQTT Broker est installé
 check_mqtt_broker() {
-    log_info "Vérification du broker MQTT..."
+    log_info "Vérification du broker MQTT..." false
     
     if ! systemctl is-active --quiet mosquitto; then
-        log_error "Le broker MQTT (mosquitto) n'est pas actif"
+        log_error "Le broker MQTT (mosquitto) n'est pas actif" false
         echo "  ↦ Le broker MQTT doit être installé et actif ✗"
         echo ""
         echo "Veuillez d'abord exécuter l'installation MQTT BKR"
@@ -70,10 +70,10 @@ check_mqtt_broker() {
     
     # Test de connexion
     if mosquitto_pub -h localhost -p 1883 -u "maxlink" -P "mqtt" -t "test/wgs/check" -m "test" 2>/dev/null; then
-        log_info "Connexion MQTT fonctionnelle"
+        log_info "Connexion MQTT fonctionnelle" false
         return 0
     else
-        log_error "Impossible de se connecter au broker MQTT"
+        log_error "Impossible de se connecter au broker MQTT" false
         echo "  ↦ Connexion au broker MQTT impossible ✗"
         return 1
     fi
@@ -81,10 +81,10 @@ check_mqtt_broker() {
 
 # Scanner le répertoire des widgets
 scan_widgets_directory() {
-    log_info "Scan du répertoire des widgets: $WIDGETS_DIR"
+    log_info "Scan du répertoire des widgets: $WIDGETS_DIR" false
     
     if [ ! -d "$WIDGETS_DIR" ]; then
-        log_error "Répertoire des widgets non trouvé: $WIDGETS_DIR"
+        log_error "Répertoire des widgets non trouvé: $WIDGETS_DIR" false
         echo "  ↦ Répertoire des widgets non trouvé ✗"
         return 1
     fi
@@ -95,7 +95,9 @@ scan_widgets_directory() {
     for widget_dir in "$WIDGETS_DIR"/*; do
         if [ -d "$widget_dir" ]; then
             local widget_name=$(basename "$widget_dir")
-            local widget_json="$widget_dir/widget.json"
+            
+            # MISE À JOUR : Chercher les fichiers avec le nouveau nommage
+            local widget_json="$widget_dir/${widget_name}_widget.json"
             local install_script="$widget_dir/${widget_name}_install.sh"
             local test_script="$widget_dir/${widget_name}_test.sh"
             local uninstall_script="$widget_dir/${widget_name}_uninstall.sh"
@@ -103,20 +105,20 @@ scan_widgets_directory() {
             # Vérifier la structure complète
             if [ -f "$widget_json" ] && [ -f "$install_script" ] && [ -f "$test_script" ] && [ -f "$uninstall_script" ]; then
                 widgets+=("$widget_name")
-                log_info "Widget trouvé: $widget_name"
+                log_info "Widget trouvé: $widget_name" false
             else
-                log_warning "Widget incomplet ignoré: $widget_name"
+                log_warning "Widget incomplet ignoré: $widget_name" false
                 if [ ! -f "$widget_json" ]; then
-                    log_warning "  - widget.json manquant"
+                    log_warning "  - ${widget_name}_widget.json manquant" false
                 fi
                 if [ ! -f "$install_script" ]; then
-                    log_warning "  - ${widget_name}_install.sh manquant"
+                    log_warning "  - ${widget_name}_install.sh manquant" false
                 fi
                 if [ ! -f "$test_script" ]; then
-                    log_warning "  - ${widget_name}_test.sh manquant"
+                    log_warning "  - ${widget_name}_test.sh manquant" false
                 fi
                 if [ ! -f "$uninstall_script" ]; then
-                    log_warning "  - ${widget_name}_uninstall.sh manquant"
+                    log_warning "  - ${widget_name}_uninstall.sh manquant" false
                 fi
             fi
         fi
@@ -125,7 +127,7 @@ scan_widgets_directory() {
     TOTAL_WIDGETS=${#widgets[@]}
     
     if [ $TOTAL_WIDGETS -eq 0 ]; then
-        log_warning "Aucun widget valide trouvé"
+        log_warning "Aucun widget valide trouvé" false
         echo "  ↦ Aucun widget valide trouvé ⚠"
         return 1
     fi
@@ -152,7 +154,8 @@ check_dependencies_need_internet() {
     local widgets=("$@")
     
     for widget in "${widgets[@]}"; do
-        local widget_json="$WIDGETS_DIR/$widget/widget.json"
+        # MISE À JOUR : Utiliser le nouveau nom de fichier
+        local widget_json="$WIDGETS_DIR/$widget/${widget}_widget.json"
         
         # Vérifier si le widget a des dépendances Python
         if grep -q "python_packages" "$widget_json" 2>/dev/null; then
@@ -179,7 +182,7 @@ with open('$widget_json', 'r') as f:
                     
                     if ! python3 -c "import $python_module" 2>/dev/null; then
                         needs_install=true
-                        log_info "Package Python manquant pour $widget: $package"
+                        log_info "Package Python manquant pour $widget: $package" false
                         break
                     fi
                 fi
@@ -207,28 +210,28 @@ install_widget() {
     # Vérifier si déjà installé
     if is_widget_installed "$widget_name"; then
         echo "  ↦ Widget déjà installé, mise à jour..."
-        log_info "Widget $widget_name déjà installé, mise à jour"
+        log_info "Widget $widget_name déjà installé, mise à jour" false
     fi
     
     # Exécuter le script d'installation
     if [ -x "$install_script" ]; then
-        log_info "Exécution du script d'installation pour $widget_name"
+        log_info "Exécution du script d'installation pour $widget_name" false
         
         # Exécuter avec capture de la sortie
         if bash "$install_script"; then
             echo "  ↦ Widget $widget_name installé ✓"
-            log_info "Widget $widget_name installé avec succès"
+            log_info "Widget $widget_name installé avec succès" false
             ((INSTALLED_WIDGETS++))
             return 0
         else
             echo "  ↦ Erreur lors de l'installation ✗"
-            log_error "Échec de l'installation du widget $widget_name"
+            log_error "Échec de l'installation du widget $widget_name" false
             ((FAILED_WIDGETS++))
             return 1
         fi
     else
         echo "  ↦ Script d'installation non exécutable ✗"
-        log_error "Script non exécutable: $install_script"
+        log_error "Script non exécutable: $install_script" false
         ((FAILED_WIDGETS++))
         return 1
     fi
@@ -238,7 +241,7 @@ install_widget() {
 connect_wifi_if_needed() {
     # Vérifier la connectivité internet
     if ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
-        log_info "Connectivité internet déjà disponible"
+        log_info "Connectivité internet déjà disponible" false
         return 0
     fi
     
@@ -265,7 +268,7 @@ connect_wifi_if_needed() {
         echo "  ↦ Réseau trouvé (Signal: ${SIGNAL:-N/A} dBm) ✓"
     else
         echo "  ↦ Réseau \"$WIFI_SSID\" non trouvé ✗"
-        log_error "Réseau $WIFI_SSID non trouvé"
+        log_error "Réseau $WIFI_SSID non trouvé" false
         
         # Réactiver l'AP si nécessaire
         if [ "$AP_WAS_ACTIVE" = true ]; then
@@ -287,10 +290,10 @@ connect_wifi_if_needed() {
         IP=$(ip -4 addr show wlan0 | grep inet | awk '{print $2}' | cut -d/ -f1)
         if [ -n "$IP" ]; then
             echo "  ↦ Connexion établie (IP: $IP) ✓"
-            log_info "IP obtenue: $IP"
+            log_info "IP obtenue: $IP" false
         else
             echo "  ↦ Connexion établie mais pas d'IP ⚠"
-            log_warning "Pas d'IP obtenue"
+            log_warning "Pas d'IP obtenue" false
         fi
         
         # Test de connectivité
@@ -303,7 +306,7 @@ connect_wifi_if_needed() {
             return 0
         else
             echo "  ↦ Pas de connectivité Internet ✗"
-            log_error "Pas de connectivité Internet"
+            log_error "Pas de connectivité Internet" false
             
             # Déconnexion
             nmcli connection down "$WIFI_SSID" >/dev/null 2>&1
@@ -317,7 +320,7 @@ connect_wifi_if_needed() {
         fi
     else
         echo "  ↦ Échec de la connexion ✗"
-        log_error "Échec de la connexion WiFi"
+        log_error "Échec de la connexion WiFi" false
         
         # Réactiver l'AP si nécessaire
         if [ "$AP_WAS_ACTIVE" = true ]; then

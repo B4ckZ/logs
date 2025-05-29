@@ -51,7 +51,7 @@ class SystemMetricsCollector:
         }
         
     def load_config(self, config_file):
-        """Charge la configuration depuis widget.json"""
+        """Charge la configuration depuis servermonitoring_widget.json"""
         try:
             with open(config_file, 'r') as f:
                 return json.load(f)
@@ -259,9 +259,9 @@ class SystemMetricsCollector:
             logger.info("Collecteur arrêté")
 
 if __name__ == "__main__":
-    # Chemin vers widget.json
+    # Chemin vers servermonitoring_widget.json
     widget_dir = os.path.dirname(os.path.abspath(__file__))
-    config_file = os.path.join(widget_dir, "widget.json")
+    config_file = os.path.join(widget_dir, "servermonitoring_widget.json")
     
     if not os.path.exists(config_file):
         logger.error(f"Fichier de configuration non trouvé: {config_file}")
