@@ -44,7 +44,7 @@ AP_DHCP_END="192.168.4.100"
 # ===============================================================================
 
 # Configuration du dépôt GitHub pour le dashboard
-GITHUB_REPO_URL="https://github.com/B4ckZ/MaxLinK"
+GITHUB_REPO_URL="https://github.com/B4ckZ/MaxLink"
 GITHUB_BRANCH="main"
 GITHUB_DASHBOARD_DIR="DashBoardV1"
 # Token GitHub (laisser vide si dépôt public)
