@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V6 OPTIMISÉ
-# Version minimaliste avec cache léger
+# MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V7 AVEC CACHE COMPLET
+# Version utilisant le système de cache centralisé
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -12,13 +12,15 @@ BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 # Source des modules
 source "$SCRIPT_DIR/../common/variables.sh"
 source "$SCRIPT_DIR/../common/logging.sh"
+source "$SCRIPT_DIR/../common/packages.sh"
+source "$SCRIPT_DIR/../common/wifi_helper.sh"
 
 # ===============================================================================
 # INITIALISATION
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Mise à jour système MaxLink" "install"
+init_logging "Mise à jour système MaxLink avec cache complet" "install"
 
 # Variables pour le contrôle du processus
 AP_WAS_ACTIVE=false
@@ -87,7 +89,7 @@ EOF
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-log_info "========== DÉBUT DE LA MISE À JOUR SYSTÈME V6 =========="
+log_info "========== DÉBUT DE LA MISE À JOUR SYSTÈME V7 =========="
 
 # Vérifier les privilèges root
 if [ "$EUID" -ne 0 ]; then
@@ -97,7 +99,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # ===============================================================================
-# ÉTAPE 1 : PRÉPARATION ET CONNEXION WIFI
+# ÉTAPE 1 : PRÉPARATION DU SYSTÈME
 # ===============================================================================
 
 echo "========================================================================"
@@ -113,16 +115,8 @@ echo "  ↦ Initialisation des services réseau..."
 log_info "Stabilisation du système - attente 5s"
 wait_silently 5
 
-# Vérifier et désactiver le mode AP si actif
-if nmcli con show --active | grep -q "$AP_SSID"; then
-    echo ""
-    echo "◦ Mode point d'accès détecté..."
-    AP_WAS_ACTIVE=true
-    log_info "Mode AP actif détecté - désactivation temporaire"
-    log_command "nmcli con down '$AP_SSID' >/dev/null 2>&1" "Désactivation AP"
-    wait_silently 2
-    echo "  ↦ Mode AP désactivé temporairement ✓"
-fi
+# Sauvegarder l'état réseau actuel
+save_network_state
 
 # Vérifier l'interface WiFi
 echo ""
@@ -144,7 +138,7 @@ echo ""
 sleep 2
 
 # ===============================================================================
-# ÉTAPE 2 : CONNEXION AU RÉSEAU
+# ÉTAPE 2 : CONNEXION INITIALE
 # ===============================================================================
 
 echo "========================================================================"
@@ -154,57 +148,10 @@ echo ""
 
 send_progress 15 "Connexion au réseau..."
 
-# Connexion directe au réseau configuré
-echo "◦ Connexion au réseau \"$WIFI_SSID\"..."
-log_info "Tentative de connexion à $WIFI_SSID"
-
-# Supprimer l'ancienne connexion si elle existe
-log_command "nmcli connection delete '$WIFI_SSID' 2>/dev/null || true" "Suppression ancienne connexion"
-
-# Se connecter directement
-if log_command "nmcli device wifi connect '$WIFI_SSID' password '$WIFI_PASSWORD' >/dev/null 2>&1" "Connexion WiFi"; then
-    echo "  ↦ Connexion initiée ✓"
-    echo "  ↦ Obtention de l'adresse IP..."
-    wait_silently 5
-    
-    IP=$(ip -4 addr show wlan0 | grep inet | awk '{print $2}' | cut -d/ -f1)
-    if [ -n "$IP" ]; then
-        echo "  ↦ Connexion établie (IP: $IP) ✓"
-        log_success "Connexion établie - IP: $IP"
-    else
-        echo "  ↦ Connexion établie mais pas d'IP ⚠"
-        log_warn "Pas d'IP obtenue"
-    fi
-else
-    echo "  ↦ Échec de la connexion ✗"
-    log_error "Échec de la connexion WiFi"
-    
-    # Réactiver l'AP si nécessaire et sortir
-    if [ "$AP_WAS_ACTIVE" = true ]; then
-        nmcli con up "$AP_SSID" >/dev/null 2>&1
-    fi
-    exit 1
-fi
-
-# Test de connectivité
-echo ""
-echo "◦ Test de connectivité..."
-echo "  ↦ Vérification de la connexion Internet..."
-wait_silently 2
-
-if log_command "ping -c 3 -W 2 8.8.8.8 >/dev/null 2>&1" "Test connectivité"; then
-    echo "  ↦ Connectivité Internet confirmée ✓"
-    log_success "Connectivité Internet OK"
-else
-    echo "  ↦ Pas de connectivité Internet ✗"
-    log_error "Pas de connectivité Internet"
-    
-    # Déconnexion et réactivation AP si nécessaire
-    nmcli connection down "$WIFI_SSID" >/dev/null 2>&1
-    nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1
-    if [ "$AP_WAS_ACTIVE" = true ]; then
-        nmcli con up "$AP_SSID" >/dev/null 2>&1
-    fi
+# Établir la connexion internet
+if ! ensure_internet_connection; then
+    echo "  ↦ Impossible d'établir la connexion ✗"
+    log_error "Échec de la connexion réseau"
     exit 1
 fi
 
@@ -229,19 +176,16 @@ log_info "Synchronisation NTP"
 if command -v timedatectl >/dev/null 2>&1; then
     log_command "timedatectl set-ntp true" "Activation NTP"
     
-    # Pause de stabilisation pour laisser le temps à NTP
     echo "  ↦ Attente de la synchronisation NTP..."
     log_info "Stabilisation pour synchronisation NTP - attente 10s"
     wait_silently 10
     
-    # Vérifier que la synchronisation est effective
     if timedatectl status | grep -q "synchronized: yes"; then
         echo "  ↦ Horloge synchronisée ✓"
         log_success "Synchronisation NTP confirmée"
     else
         echo "  ↦ Synchronisation en cours... ⚠"
         log_warn "Synchronisation NTP toujours en cours"
-        # Attente supplémentaire si nécessaire
         wait_silently 5
     fi
     
@@ -251,12 +195,6 @@ else
     echo "  ↦ timedatectl non disponible ⚠"
     log_warn "timedatectl non disponible"
 fi
-
-# Pause finale pour s'assurer que le système est stabilisé
-echo ""
-echo "◦ Stabilisation du système après synchronisation..."
-wait_silently 5
-log_info "Système stabilisé après synchronisation NTP"
 
 send_progress 40 "Horloge synchronisée"
 echo ""
@@ -282,18 +220,6 @@ log_command "pkill -9 dpkg 2>/dev/null || true" "Kill processus DPKG"
 log_command "rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock*" "Suppression verrous"
 
 wait_silently 2
-
-# Vérifier l'intégrité du système de paquets
-echo ""
-echo "◦ Vérification de l'intégrité du système de paquets..."
-if ! dpkg --configure -a >/dev/null 2>&1; then
-    echo "  ↦ Réparation des paquets en cours..."
-    log_warn "Problèmes de dépendances détectés"
-    log_command "apt-get install -f -y" "Réparation automatique"
-else
-    echo "  ↦ Système de paquets intact ✓"
-    log_info "Système de paquets OK"
-fi
 
 # Mise à jour des dépôts
 echo ""
@@ -324,55 +250,47 @@ else
     log_warn "Certaines mises à jour ont échoué"
 fi
 
-send_progress 65 "Téléchargement des paquets MaxLink..."
+send_progress 65 "Création du cache de paquets..."
 
 # ===============================================================================
-# ÉTAPE 5 : TÉLÉCHARGEMENT MINIMAL DES PAQUETS
+# ÉTAPE 5 : CRÉATION DU CACHE COMPLET
 # ===============================================================================
 
 echo ""
 echo "========================================================================"
-echo "ÉTAPE 5 : TÉLÉCHARGEMENT DES PAQUETS ESSENTIELS"
+echo "ÉTAPE 5 : CRÉATION DU CACHE DE PAQUETS"
 echo "========================================================================"
 echo ""
 
-# Créer le cache
-CACHE_DIR="/var/cache/maxlink/packages"
-rm -rf "$CACHE_DIR"
-mkdir -p "$CACHE_DIR"
+echo "◦ Initialisation du système de cache..."
+log_info "Initialisation du cache de paquets"
 
-# Se déplacer dans le cache
-cd "$CACHE_DIR"
+# Initialiser le cache
+if init_package_cache; then
+    echo "  ↦ Cache initialisé ✓"
+    log_success "Cache initialisé avec succès"
+else
+    echo "  ↦ Erreur d'initialisation du cache ✗"
+    log_error "Échec de l'initialisation du cache"
+fi
 
-echo "◦ Téléchargement des paquets essentiels..."
-
-# APPROCHE MINIMALE : Télécharger uniquement les paquets principaux
-
-# Pour AP
-echo "  ↦ Point d'accès : dnsmasq"
-apt-get download dnsmasq dnsmasq-base >/dev/null 2>&1 || true
-
-# Pour Nginx
-echo "  ↦ Serveur web : nginx"
-apt-get download nginx nginx-common >/dev/null 2>&1 || true
-
-# Pour MQTT
-echo "  ↦ Broker MQTT : mosquitto"
-apt-get download mosquitto mosquitto-clients >/dev/null 2>&1 || true
-
-# Pour Python/Widgets
-echo "  ↦ Python : psutil, paho-mqtt"
-apt-get download python3-psutil python3-paho-mqtt >/dev/null 2>&1 || true
-
-# Compter ce qu'on a
-TOTAL=$(ls -1 *.deb 2>/dev/null | wc -l)
+# Télécharger tous les paquets définis dans packages.list
 echo ""
-echo "◦ Téléchargement terminé"
-echo "  ↦ $TOTAL paquets téléchargés"
-echo "  ↦ Taille : $(du -sh . | cut -f1)"
+echo "◦ Téléchargement de tous les paquets MaxLink..."
+echo "  ↦ Cette opération peut prendre quelques minutes..."
 
-# Retour
-cd - >/dev/null
+if download_all_packages; then
+    echo ""
+    echo "  ↦ Cache de paquets créé avec succès ✓"
+    log_success "Tous les paquets ont été téléchargés"
+    
+    # Afficher les statistiques
+    get_cache_stats
+else
+    echo ""
+    echo "  ↦ Certains paquets n'ont pas pu être téléchargés ⚠"
+    log_warn "Cache créé partiellement"
+fi
 
 # TÉLÉCHARGEMENT DU DASHBOARD
 echo ""
@@ -383,7 +301,6 @@ DASHBOARD_ARCHIVE="$DASHBOARD_CACHE_DIR/dashboard.tar.gz"
 # Créer le répertoire de cache pour le dashboard
 mkdir -p "$DASHBOARD_CACHE_DIR"
 
-# Toujours télécharger le dashboard
 echo "  ↦ Téléchargement depuis GitHub..."
 log_info "Téléchargement du dashboard depuis GitHub"
 
@@ -419,6 +336,16 @@ fi
 if [ -f "$DASHBOARD_ARCHIVE" ] && tar -tzf "$DASHBOARD_ARCHIVE" >/dev/null 2>&1; then
     echo "  ↦ Archive dashboard valide ✓"
     log_success "Archive dashboard valide"
+    
+    # Créer aussi les métadonnées pour le dashboard
+    cat > "$DASHBOARD_CACHE_DIR/metadata.json" << EOF
+{
+    "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+    "version": "$MAXLINK_VERSION",
+    "branch": "$GITHUB_BRANCH",
+    "url": "$GITHUB_ARCHIVE_URL"
+}
+EOF
 else
     echo "  ↦ Archive dashboard corrompue ✗"
     log_error "Archive dashboard corrompue"
@@ -432,7 +359,7 @@ log_command "apt-get autoremove -y >/dev/null 2>&1" "APT autoremove"
 log_command "apt-get autoclean >/dev/null 2>&1" "APT autoclean"
 echo "  ↦ Système nettoyé ✓"
 
-send_progress 75 "Mises à jour terminées"
+send_progress 75 "Cache créé"
 echo ""
 sleep 2
 
@@ -527,22 +454,10 @@ echo ""
 
 send_progress 95 "Finalisation..."
 
-# Déconnexion WiFi
-echo "◦ Déconnexion du réseau WiFi..."
-log_command "nmcli connection down '$WIFI_SSID' >/dev/null 2>&1" "Déconnexion WiFi"
-wait_silently 2
-log_command "nmcli connection delete '$WIFI_SSID' >/dev/null 2>&1" "Suppression profil WiFi"
-echo "  ↦ WiFi déconnecté ✓"
-
-# Réactiver le mode AP si nécessaire
-if [ "$AP_WAS_ACTIVE" = true ]; then
-    echo ""
-    echo "◦ Réactivation du mode point d'accès..."
-    log_info "Réactivation du mode AP"
-    log_command "nmcli con up '$AP_SSID' >/dev/null 2>&1 || true" "Activation AP"
-    wait_silently 3
-    echo "  ↦ Mode AP réactivé ✓"
-fi
+# Restaurer l'état réseau
+echo "◦ Restauration de l'état réseau..."
+restore_network_state
+echo "  ↦ État réseau restauré ✓"
 
 send_progress 100 "Mise à jour terminée !"
 
@@ -550,7 +465,13 @@ echo ""
 echo "◦ Mise à jour terminée avec succès !"
 echo "  ↦ Version: v$MAXLINK_VERSION"
 echo "  ↦ Système à jour et configuré"
+echo "  ↦ Cache de paquets créé pour installation offline"
 log_success "Mise à jour système terminée - Version: v$MAXLINK_VERSION"
+
+# Afficher le résumé du cache
+echo ""
+echo "◦ Résumé du cache créé :"
+get_cache_stats
 
 echo ""
 echo "  ↦ Redémarrage dans 10 secondes..."

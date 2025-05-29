@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION DU MODE ACCESS POINT (VERSION MINIMALISTE)
-# Approche simple et élégante
+# MAXLINK - INSTALLATION DU MODE ACCESS POINT (VERSION HYBRIDE)
+# Utilise le nouveau système wifi_helper pour installation flexible
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -12,13 +12,15 @@ BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 # Source des modules
 source "$SCRIPT_DIR/../common/variables.sh"
 source "$SCRIPT_DIR/../common/logging.sh"
+source "$SCRIPT_DIR/../common/packages.sh"
+source "$SCRIPT_DIR/../common/wifi_helper.sh"
 
 # ===============================================================================
 # INITIALISATION
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Installation du mode Access Point" "install"
+init_logging "Installation du mode Access Point (hybride)" "install"
 
 # Configuration AP par défaut
 AP_CHANNEL="6"        # Canal 2.4GHz stable
@@ -91,55 +93,15 @@ echo ""
 
 send_progress 25 "Installation des paquets"
 
-echo "◦ Installation des paquets requis..."
-log_info "Installation des paquets AP"
-
-# Vérifier ce qui est déjà installé
-PACKAGES_TO_INSTALL=""
-if ! dpkg -l dnsmasq >/dev/null 2>&1; then
-    PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL dnsmasq"
-fi
-if ! dpkg -l iptables >/dev/null 2>&1; then
-    PACKAGES_TO_INSTALL="$PACKAGES_TO_INSTALL iptables"
-fi
-
-if [ -z "$PACKAGES_TO_INSTALL" ]; then
-    echo "  ↦ Tous les paquets sont déjà installés ✓"
-    log_info "Paquets déjà installés"
+# Utiliser la fonction hybride pour installer les paquets AP
+if hybrid_package_install "Point d'accès" "dnsmasq iptables"; then
+    echo ""
+    log_success "Tous les paquets AP installés"
 else
-    # Essayer d'abord depuis le cache si disponible
-    CACHE_DIR="/var/cache/maxlink/packages"
-    if [ -d "$CACHE_DIR" ] && [ "$(ls -A $CACHE_DIR/*.deb 2>/dev/null)" ]; then
-        echo "  ↦ Tentative d'installation depuis le cache..."
-        cd "$CACHE_DIR"
-        dpkg -i *.deb >/dev/null 2>&1 || true
-        cd - >/dev/null
-    fi
-    
-    # Vérifier ce qui manque encore
-    STILL_MISSING=""
-    if ! dpkg -l dnsmasq >/dev/null 2>&1; then
-        STILL_MISSING="$STILL_MISSING dnsmasq"
-    fi
-    if ! dpkg -l iptables >/dev/null 2>&1; then
-        STILL_MISSING="$STILL_MISSING iptables"
-    fi
-    
-    # Installer ce qui manque via apt
-    if [ -n "$STILL_MISSING" ]; then
-        echo "  ↦ Installation via apt..."
-        if apt-get install -y $STILL_MISSING >/dev/null 2>&1; then
-            echo "  ↦ Paquets installés ✓"
-            log_success "Paquets installés via apt"
-        else
-            echo "  ↦ Erreur lors de l'installation ✗"
-            log_error "Impossible d'installer les paquets"
-            exit 1
-        fi
-    else
-        echo "  ↦ Paquets installés ✓"
-        log_success "Tous les paquets sont installés"
-    fi
+    echo ""
+    echo "  ↦ Échec de l'installation des paquets ✗"
+    log_error "Impossible d'installer les paquets requis"
+    exit 1
 fi
 
 echo ""

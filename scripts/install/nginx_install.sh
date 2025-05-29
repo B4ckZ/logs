@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION NGINX ET DASHBOARD (VERSION ULTRA-OPTIMISÉE)
-# 100% OFFLINE - Aucune connexion internet nécessaire !
+# MAXLINK - INSTALLATION NGINX ET DASHBOARD (VERSION HYBRIDE)
+# Installation flexible avec cache local ou téléchargement automatique
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -13,13 +13,14 @@ BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 source "$SCRIPT_DIR/../common/variables.sh"
 source "$SCRIPT_DIR/../common/logging.sh"
 source "$SCRIPT_DIR/../common/packages.sh"
+source "$SCRIPT_DIR/../common/wifi_helper.sh"
 
 # ===============================================================================
 # INITIALISATION
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Installation Nginx et Dashboard (100% offline)" "install"
+init_logging "Installation Nginx et Dashboard (hybride)" "install"
 
 # Variables du cache dashboard
 DASHBOARD_CACHE_DIR="/var/cache/maxlink/dashboard"
@@ -38,6 +39,86 @@ send_progress() {
 # Attente simple
 wait_silently() {
     sleep "$1"
+}
+
+# Télécharger le dashboard si nécessaire
+download_dashboard_if_needed() {
+    log_info "Vérification du cache dashboard"
+    
+    # Si l'archive existe et est valide
+    if [ -f "$DASHBOARD_ARCHIVE" ] && tar -tzf "$DASHBOARD_ARCHIVE" >/dev/null 2>&1; then
+        echo "  ↦ Dashboard déjà en cache ✓"
+        log_info "Dashboard trouvé dans le cache"
+        return 0
+    fi
+    
+    echo "  ↦ Dashboard manquant, téléchargement nécessaire..."
+    log_info "Dashboard non trouvé dans le cache, téléchargement nécessaire"
+    
+    # S'assurer d'avoir internet
+    if ! ensure_internet_connection; then
+        echo "  ↦ Impossible d'établir la connexion ✗"
+        log_error "Pas de connexion pour télécharger le dashboard"
+        return 1
+    fi
+    
+    # Créer le répertoire
+    mkdir -p "$DASHBOARD_CACHE_DIR"
+    
+    # Télécharger
+    echo "  ↦ Téléchargement depuis GitHub..."
+    GITHUB_ARCHIVE_URL="${GITHUB_REPO_URL}/archive/refs/heads/${GITHUB_BRANCH}.tar.gz"
+    
+    if command -v curl >/dev/null 2>&1; then
+        if curl -L -o "$DASHBOARD_ARCHIVE" "$GITHUB_ARCHIVE_URL" >/dev/null 2>&1; then
+            echo "  ↦ Dashboard téléchargé ✓"
+            log_success "Dashboard téléchargé avec curl"
+        else
+            echo "  ↦ Échec du téléchargement ✗"
+            log_error "Échec du téléchargement avec curl"
+            restore_network_state
+            return 1
+        fi
+    elif command -v wget >/dev/null 2>&1; then
+        if wget -O "$DASHBOARD_ARCHIVE" "$GITHUB_ARCHIVE_URL" >/dev/null 2>&1; then
+            echo "  ↦ Dashboard téléchargé ✓"
+            log_success "Dashboard téléchargé avec wget"
+        else
+            echo "  ↦ Échec du téléchargement ✗"
+            log_error "Échec du téléchargement avec wget"
+            restore_network_state
+            return 1
+        fi
+    else
+        echo "  ↦ Aucun outil de téléchargement disponible ✗"
+        log_error "Ni curl ni wget disponibles"
+        restore_network_state
+        return 1
+    fi
+    
+    # Vérifier l'archive
+    if tar -tzf "$DASHBOARD_ARCHIVE" >/dev/null 2>&1; then
+        echo "  ↦ Archive valide ✓"
+        log_success "Archive dashboard valide"
+        
+        # Créer les métadonnées
+        cat > "$DASHBOARD_CACHE_DIR/metadata.json" << EOF
+{
+    "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+    "version": "$MAXLINK_VERSION",
+    "branch": "$GITHUB_BRANCH",
+    "url": "$GITHUB_ARCHIVE_URL"
+}
+EOF
+        restore_network_state
+        return 0
+    else
+        echo "  ↦ Archive corrompue ✗"
+        log_error "Archive dashboard corrompue"
+        rm -f "$DASHBOARD_ARCHIVE"
+        restore_network_state
+        return 1
+    fi
 }
 
 # Fonction pour mettre à jour la configuration DNS si AP existe
@@ -78,7 +159,7 @@ update_dns_if_ap_exists() {
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-log_info "========== DÉBUT DE L'INSTALLATION NGINX ET DASHBOARD (100% OFFLINE) =========="
+log_info "========== DÉBUT DE L'INSTALLATION NGINX ET DASHBOARD (HYBRIDE) =========="
 
 echo "========================================================================"
 echo "ÉTAPE 1 : VÉRIFICATIONS"
@@ -95,37 +176,15 @@ if [ "$EUID" -ne 0 ]; then
 fi
 log_info "Privilèges root confirmés"
 
-# Vérifier le cache des paquets
-echo "◦ Vérification du cache des paquets..."
-if [ ! -d "$PACKAGE_CACHE_DIR" ] || [ ! -f "$PACKAGE_METADATA_FILE" ]; then
-    echo "  ↦ Cache des paquets non trouvé ✗"
-    echo ""
-    echo "Veuillez d'abord exécuter update_install.sh pour télécharger les paquets"
-    log_error "Cache des paquets non trouvé"
-    exit 1
-fi
-echo "  ↦ Cache des paquets disponible ✓"
-log_info "Cache des paquets trouvé"
-
-# Vérifier le cache du dashboard
+echo "  ↦ Privilèges root confirmés ✓"
 echo ""
-echo "◦ Vérification du cache du dashboard..."
-if [ ! -f "$DASHBOARD_ARCHIVE" ]; then
-    echo "  ↦ Cache du dashboard non trouvé ✗"
-    echo ""
-    echo "Veuillez d'abord exécuter update_install.sh pour télécharger le dashboard"
-    log_error "Cache du dashboard non trouvé"
-    exit 1
-fi
-echo "  ↦ Cache du dashboard disponible ✓"
-log_info "Cache du dashboard trouvé"
 
 send_progress 10 "Vérifications terminées"
 echo ""
 sleep 2
 
 # ===============================================================================
-# ÉTAPE 2 : INSTALLATION DE NGINX DEPUIS LE CACHE
+# ÉTAPE 2 : INSTALLATION DE NGINX
 # ===============================================================================
 
 echo "========================================================================"
@@ -135,28 +194,15 @@ echo ""
 
 send_progress 20 "Installation de Nginx..."
 
-echo "◦ Installation de Nginx depuis le cache local..."
-log_info "Installation de Nginx depuis le cache"
-
-# Installer les paquets nginx depuis le cache
-if install_packages_by_category "nginx"; then
-    echo "  ↦ Nginx installé avec succès ✓"
-    log_success "Nginx installé depuis le cache"
-else
-    echo "  ↦ Erreur lors de l'installation ✗"
-    log_error "Échec de l'installation de Nginx"
-    
-    # Tentative de fallback avec apt-get
+# Utiliser la fonction hybride pour installer Nginx
+if hybrid_package_install "Nginx" "nginx nginx-common"; then
     echo ""
-    echo "◦ Tentative d'installation alternative..."
-    if apt-get install -y nginx >/dev/null 2>&1; then
-        echo "  ↦ Nginx installé via apt ✓"
-        log_success "Nginx installé via apt (fallback)"
-    else
-        echo "  ↦ Installation impossible ✗"
-        log_error "Impossible d'installer Nginx"
-        exit 1
-    fi
+    log_success "Nginx installé avec succès"
+else
+    echo ""
+    echo "  ↦ Échec de l'installation de Nginx ✗"
+    log_error "Impossible d'installer Nginx"
+    exit 1
 fi
 
 # Arrêter Nginx pour la configuration
@@ -170,7 +216,7 @@ echo ""
 sleep 2
 
 # ===============================================================================
-# ÉTAPE 3 : INSTALLATION DU DASHBOARD DEPUIS LE CACHE
+# ÉTAPE 3 : INSTALLATION DU DASHBOARD
 # ===============================================================================
 
 echo "========================================================================"
@@ -180,8 +226,17 @@ echo ""
 
 send_progress 40 "Installation du dashboard..."
 
+# Vérifier/télécharger le dashboard
+echo "◦ Vérification du dashboard..."
+if ! download_dashboard_if_needed; then
+    echo "  ↦ Impossible d'obtenir le dashboard ✗"
+    log_error "Échec de l'obtention du dashboard"
+    exit 1
+fi
+
 # Vérifier si le dashboard existe déjà
 if [ -d "$NGINX_DASHBOARD_DIR" ]; then
+    echo ""
     echo "◦ Dashboard existant détecté..."
     echo "  ↦ Sauvegarde de l'ancienne version..."
     log_info "Dashboard existant détecté - création sauvegarde"
@@ -196,7 +251,7 @@ fi
 
 # Extraire le dashboard depuis le cache
 echo ""
-echo "◦ Extraction du dashboard depuis le cache..."
+echo "◦ Extraction du dashboard..."
 TEMP_DIR="/tmp/maxlink-dashboard-$(date +%s)"
 mkdir -p "$TEMP_DIR"
 log_info "Répertoire temporaire: $TEMP_DIR"
@@ -206,11 +261,10 @@ if log_command "tar -xzf '$DASHBOARD_ARCHIVE' -C '$TEMP_DIR'" "Extraction archiv
     echo "  ↦ Archive extraite ✓"
     log_success "Archive extraite avec succès"
     
-    # Trouver le dossier extrait (format: MaxLinK-main ou similaire)
+    # Trouver le dossier extrait
     EXTRACTED_DIR=$(find "$TEMP_DIR" -maxdepth 1 -type d -name "*MaxLinK*" -o -name "*maxlink*" | head -1)
     
     if [ -z "$EXTRACTED_DIR" ]; then
-        # Si pas trouvé, prendre le premier dossier
         EXTRACTED_DIR=$(find "$TEMP_DIR" -maxdepth 1 -type d ! -path "$TEMP_DIR" | head -1)
     fi
     
@@ -225,23 +279,9 @@ if log_command "tar -xzf '$DASHBOARD_ARCHIVE' -C '$TEMP_DIR'" "Extraction archiv
         log_command "cp -r '$EXTRACTED_DIR/$GITHUB_DASHBOARD_DIR' '$NGINX_DASHBOARD_DIR'" "Copie dashboard"
         echo "  ↦ Dashboard installé ✓"
         log_success "Dashboard installé avec succès"
-        
-        if [ -d "$BACKUP_DIR" ]; then
-            echo "  ↦ Mise à jour effectuée (ancienne version sauvegardée)"
-            log_info "Mise à jour du dashboard effectuée"
-        fi
     else
         echo "  ↦ Dossier dashboard non trouvé dans l'archive ✗"
         log_error "Dossier $GITHUB_DASHBOARD_DIR non trouvé dans l'archive"
-        
-        # Restaurer la sauvegarde si elle existe
-        if [ -d "$BACKUP_DIR" ]; then
-            echo "  ↦ Restauration de la sauvegarde..."
-            mv "$BACKUP_DIR" "$NGINX_DASHBOARD_DIR"
-            echo "  ↦ Dashboard restauré ✓"
-            log_info "Dashboard restauré depuis sauvegarde"
-        fi
-        
         rm -rf "$TEMP_DIR"
         exit 1
     fi

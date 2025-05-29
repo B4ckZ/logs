@@ -27,6 +27,7 @@ echo "========================================================================"
 echo ""
 
 # ÉTAPE 1 : CONFIGURATION DE LA SESSION
+echo "========================================================================"
 echo "ÉTAPE 1 : CONFIGURATION DE LA SESSION"
 echo "------------------------------------------------------------------------"
 echo ""
@@ -54,8 +55,9 @@ echo "  ↦ Session root configurée ✓"
 echo ""
 
 # ÉTAPE 2 : CRÉATION DE LA STRUCTURE
+echo "========================================================================"
 echo "ÉTAPE 2 : CRÉATION DE LA STRUCTURE DES DOSSIERS"
-echo "------------------------------------------------------------------------"
+echo "========================================================================"
 echo ""
 
 echo "◦ Création des répertoires..."
@@ -63,7 +65,6 @@ echo "◦ Création des répertoires..."
 # Créer les répertoires nécessaires
 mkdir -p "$SCRIPT_DIR/logs/archived"
 mkdir -p "$SCRIPT_DIR/scripts/install"
-mkdir -p "$SCRIPT_DIR/scripts/start"
 mkdir -p "$SCRIPT_DIR/scripts/test"
 mkdir -p "$SCRIPT_DIR/scripts/uninstall"
 mkdir -p "$SCRIPT_DIR/scripts/common"
@@ -81,6 +82,7 @@ echo "  ↦ Scripts exécutables ✓"
 echo ""
 
 # ÉTAPE 3 : INFORMATIONS SYSTÈME
+echo "========================================================================"
 echo "ÉTAPE 3 : VÉRIFICATION DU SYSTÈME"
 echo "------------------------------------------------------------------------"
 echo ""
@@ -106,6 +108,7 @@ echo ""
 sleep 2
 
 # ÉTAPE 4 : LANCEMENT DE L'INTERFACE
+echo "========================================================================"
 echo "ÉTAPE 4 : LANCEMENT DE L'INTERFACE"
 echo "------------------------------------------------------------------------"
 echo ""
