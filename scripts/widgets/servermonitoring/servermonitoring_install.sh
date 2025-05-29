@@ -2,7 +2,7 @@
 
 # ===============================================================================
 # WIDGET SERVER MONITORING - SCRIPT D'INSTALLATION
-# Widget pour collecter et envoyer les métriques système via MQTT
+# Version avec système de logging unifié
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -12,65 +12,39 @@ WIDGETS_DIR="$(dirname "$WIDGET_DIR")"
 SCRIPTS_DIR="$(dirname "$WIDGETS_DIR")"
 BASE_DIR="$(dirname "$SCRIPTS_DIR")"
 
-# Source des variables centralisées
+# Source des variables et du logging unifié
 source "$BASE_DIR/scripts/common/variables.sh"
+source "$BASE_DIR/scripts/common/logging.sh"
 
 # ===============================================================================
-# CONFIGURATION
+# INITIALISATION
 # ===============================================================================
+
+# Initialiser le logging - catégorie "widgets" car c'est un widget
+init_logging "Installation widget Server Monitoring" "widgets"
 
 # Informations du widget
 WIDGET_ID="servermonitoring"
 WIDGET_NAME="Server Monitoring"
 WIDGET_VERSION="1.0.0"
 
-# Fichiers et chemins - MISE À JOUR AVEC LE NOUVEAU NOMMAGE
+# Fichiers et chemins
 CONFIG_FILE="$WIDGET_DIR/servermonitoring_widget.json"
 COLLECTOR_SCRIPT="$WIDGET_DIR/servermonitoring_collector.py"
 SERVICE_NAME="maxlink-widget-servermonitoring"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-
-# Logs - Nouveau système simplifié
-LOG_DIR="$BASE_DIR/logs"
-LOG_FILE="$LOG_DIR/servermonitoring_install.log"
-mkdir -p "$LOG_DIR"
 
 # Fichier de tracking
 WIDGETS_TRACKING="/etc/maxlink/widgets_installed.json"
 mkdir -p "$(dirname "$WIDGETS_TRACKING")"
 
 # ===============================================================================
-# FONCTIONS DE LOGGING
-# ===============================================================================
-
-# Logger dans le fichier seulement
-log() {
-    local level=$1
-    local message=$2
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
-}
-
-# Logger et afficher
-log_and_show() {
-    local level=$1
-    local message=$2
-    echo "$message"
-    log "$level" "$message"
-}
-
-log_info() { log_and_show "INFO" "$1"; }
-log_error() { log_and_show "ERROR" "$1"; }
-log_success() { log_and_show "SUCCESS" "$1"; }
-log_warning() { log_and_show "WARNING" "$1"; }
-
-# ===============================================================================
-# FONCTIONS UTILITAIRES
+# FONCTIONS
 # ===============================================================================
 
 # Vérifier si MQTT est installé et actif
 check_mqtt_broker() {
-    log "INFO" "Vérification du broker MQTT..."
+    log_info "Vérification du broker MQTT"
     
     # Vérifier si Mosquitto est installé
     if ! dpkg -l mosquitto >/dev/null 2>&1; then
@@ -80,7 +54,7 @@ check_mqtt_broker() {
     
     # Vérifier si le service est actif
     if ! systemctl is-active --quiet mosquitto; then
-        log_warning "Mosquitto n'est pas actif, tentative de démarrage..."
+        log_warn "Mosquitto n'est pas actif, tentative de démarrage"
         if systemctl start mosquitto; then
             log_success "Mosquitto démarré"
         else
@@ -101,14 +75,14 @@ check_mqtt_broker() {
             return 1
         fi
     else
-        log_warning "mosquitto_pub non disponible, impossible de tester la connexion"
+        log_warn "mosquitto_pub non disponible, impossible de tester la connexion"
         return 0
     fi
 }
 
 # Vérifier les dépendances Python
 check_python_dependencies() {
-    log "INFO" "Vérification des dépendances Python..."
+    log_info "Vérification des dépendances Python"
     
     # Vérifier Python3
     if ! command -v python3 >/dev/null 2>&1; then
@@ -117,7 +91,7 @@ check_python_dependencies() {
     fi
     
     local python_version=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-    log "INFO" "Python version: $python_version"
+    log_info "Python version: $python_version"
     
     # Vérifier les modules
     local missing_modules=()
@@ -131,7 +105,7 @@ check_python_dependencies() {
     fi
     
     if [ ${#missing_modules[@]} -gt 0 ]; then
-        log_warning "Modules Python manquants: ${missing_modules[*]}"
+        log_warn "Modules Python manquants: ${missing_modules[*]}"
         return 1
     else
         log_success "Toutes les dépendances Python sont présentes"
@@ -141,21 +115,22 @@ check_python_dependencies() {
 
 # Installer les dépendances manquantes
 install_dependencies() {
-    log "INFO" "Installation des dépendances..."
+    log_info "Installation des dépendances"
     
     # Se connecter au WiFi si nécessaire
     local wifi_connected=false
     if ! ping -c 1 -W 2 8.8.8.8 >/dev/null 2>&1; then
-        log_info "Connexion au réseau WiFi pour télécharger les dépendances..."
+        echo "◦ Connexion au réseau WiFi pour télécharger les dépendances..."
+        log_info "Connexion WiFi nécessaire pour les dépendances"
         
         # Désactiver le mode AP temporairement
         if nmcli con show --active | grep -q "$AP_SSID"; then
-            nmcli con down "$AP_SSID" >/dev/null 2>&1
-            log "INFO" "Mode AP désactivé temporairement"
+            log_command "nmcli con down '$AP_SSID' >/dev/null 2>&1" "Désactivation AP"
+            log_info "Mode AP désactivé temporairement"
         fi
         
         # Se connecter au WiFi
-        if nmcli device wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" >/dev/null 2>&1; then
+        if log_command "nmcli device wifi connect '$WIFI_SSID' password '$WIFI_PASSWORD' >/dev/null 2>&1" "Connexion WiFi"; then
             wifi_connected=true
             log_success "Connecté au WiFi"
             sleep 5
@@ -166,9 +141,11 @@ install_dependencies() {
     fi
     
     # Installer les paquets Python
-    log_info "Installation des paquets Python..."
+    echo "◦ Installation des paquets Python..."
+    log_info "Installation python3-psutil et python3-paho-mqtt"
     
-    if apt-get update -qq && apt-get install -y python3-psutil python3-paho-mqtt; then
+    if log_command "apt-get update -qq" "Mise à jour des dépôts" && \
+       log_command "apt-get install -y python3-psutil python3-paho-mqtt" "Installation paquets Python"; then
         log_success "Paquets Python installés"
     else
         log_error "Erreur lors de l'installation des paquets"
@@ -177,13 +154,13 @@ install_dependencies() {
     
     # Se déconnecter du WiFi si on s'est connecté
     if [ "$wifi_connected" = true ]; then
-        nmcli connection down "$WIFI_SSID" >/dev/null 2>&1
-        nmcli connection delete "$WIFI_SSID" >/dev/null 2>&1
-        log "INFO" "Déconnecté du WiFi"
+        log_command "nmcli connection down '$WIFI_SSID' >/dev/null 2>&1" "Déconnexion WiFi"
+        log_command "nmcli connection delete '$WIFI_SSID' >/dev/null 2>&1" "Suppression profil WiFi"
+        log_info "Déconnecté du WiFi"
         
         # Réactiver le mode AP
-        nmcli con up "$AP_SSID" >/dev/null 2>&1
-        log "INFO" "Mode AP réactivé"
+        log_command "nmcli con up '$AP_SSID' >/dev/null 2>&1" "Réactivation AP"
+        log_info "Mode AP réactivé"
     fi
     
     return 0
@@ -191,7 +168,7 @@ install_dependencies() {
 
 # Créer le service systemd
 create_systemd_service() {
-    log "INFO" "Création du service systemd..."
+    log_info "Création du service systemd"
     
     cat > "$SERVICE_FILE" << EOF
 [Unit]
@@ -222,12 +199,12 @@ NoNewPrivileges=true
 WantedBy=multi-user.target
 EOF
 
-    log_success "Service systemd créé"
+    log_success "Service systemd créé: $SERVICE_FILE"
 }
 
 # Enregistrer le widget comme installé
 register_widget_installation() {
-    log "INFO" "Enregistrement du widget..."
+    log_info "Enregistrement du widget dans le tracking"
     
     # Créer le fichier s'il n'existe pas
     if [ ! -f "$WIDGETS_TRACKING" ]; then
@@ -262,150 +239,164 @@ with open('$WIDGETS_TRACKING', 'w') as f:
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-# Header de début
-{
-    echo ""
-    echo "$(printf '=%.0s' {1..80})"
-    echo "DÉMARRAGE: servermonitoring_install"
-    echo "Date: $(date)"
-    echo "$(printf '=%.0s' {1..80})"
-    echo ""
-} >> "$LOG_FILE"
+log_info "========== DÉBUT DE L'INSTALLATION WIDGET SERVER MONITORING =========="
+log_info "Version: $WIDGET_VERSION"
+log_info "Répertoire: $WIDGET_DIR"
 
-log "INFO" "Installation du widget: $WIDGET_NAME v$WIDGET_VERSION"
-log "INFO" "Répertoire du widget: $WIDGET_DIR"
-
-# Étape 1: Vérifications préalables
-log_info ""
-log_info "=== ÉTAPE 1: VÉRIFICATIONS PRÉALABLES ==="
+echo ""
+echo "=== ÉTAPE 1: VÉRIFICATIONS PRÉALABLES ==="
+echo ""
 
 # Vérifier les privilèges root
 if [ "$EUID" -ne 0 ]; then
-    log_error "Ce script doit être exécuté avec des privilèges root"
+    echo "  ↦ Ce script doit être exécuté avec des privilèges root ✗"
+    log_error "Privilèges root requis - EUID: $EUID"
     exit 1
 fi
-log_success "Privilèges root confirmés"
+echo "  ↦ Privilèges root confirmés ✓"
+log_info "Privilèges root confirmés"
 
 # Vérifier l'existence de servermonitoring_widget.json
 if [ ! -f "$CONFIG_FILE" ]; then
-    log_error "Fichier de configuration servermonitoring_widget.json non trouvé"
+    echo "  ↦ Fichier de configuration non trouvé ✗"
+    log_error "Fichier manquant: $CONFIG_FILE"
     exit 1
 fi
-log_success "Fichier servermonitoring_widget.json trouvé"
+echo "  ↦ Fichier servermonitoring_widget.json trouvé ✓"
+log_info "Fichier de configuration trouvé"
 
 # Vérifier MQTT
+echo ""
+echo "◦ Vérification du broker MQTT..."
 if ! check_mqtt_broker; then
-    log_error "Le broker MQTT doit être installé et actif avant d'installer ce widget"
+    echo "  ↦ Le broker MQTT doit être installé et actif ✗"
+    echo ""
+    echo "Veuillez d'abord installer MQTT avec le script mqtt_install.sh"
     exit 1
 fi
+echo "  ↦ Broker MQTT fonctionnel ✓"
 
-# Étape 2: Dépendances
-log_info ""
-log_info "=== ÉTAPE 2: GESTION DES DÉPENDANCES ==="
+echo ""
+echo "=== ÉTAPE 2: GESTION DES DÉPENDANCES ==="
+echo ""
 
+echo "◦ Vérification des dépendances Python..."
 if ! check_python_dependencies; then
-    log_info "Installation des dépendances nécessaires..."
+    echo "  ↦ Installation des dépendances nécessaires..."
     if ! install_dependencies; then
-        log_error "Impossible d'installer les dépendances"
+        echo "  ↦ Impossible d'installer les dépendances ✗"
+        log_error "Échec de l'installation des dépendances"
         exit 1
     fi
     
     # Revérifier après installation
     if ! check_python_dependencies; then
-        log_error "Les dépendances n'ont pas pu être installées correctement"
+        echo "  ↦ Les dépendances n'ont pas pu être installées correctement ✗"
+        log_error "Dépendances toujours manquantes après installation"
         exit 1
     fi
 fi
+echo "  ↦ Dépendances Python OK ✓"
 
-# Étape 3: Création des composants
-log_info ""
-log_info "=== ÉTAPE 3: CRÉATION DES COMPOSANTS ==="
+echo ""
+echo "=== ÉTAPE 3: CRÉATION DES COMPOSANTS ==="
+echo ""
 
-# Le script collecteur existe déjà, pas besoin de le créer
+# Le script collecteur existe déjà
 if [ ! -f "$COLLECTOR_SCRIPT" ]; then
-    log_error "Script collecteur manquant: $COLLECTOR_SCRIPT"
+    echo "  ↦ Script collecteur manquant ✗"
+    log_error "Script manquant: $COLLECTOR_SCRIPT"
     exit 1
 fi
 chmod +x "$COLLECTOR_SCRIPT"
-log_success "Script collecteur configuré"
+echo "  ↦ Script collecteur configuré ✓"
+log_info "Script collecteur: $COLLECTOR_SCRIPT"
 
 # Créer le service systemd
+echo "◦ Création du service systemd..."
 create_systemd_service
+echo "  ↦ Service systemd créé ✓"
 
-# Étape 4: Activation du service
-log_info ""
-log_info "=== ÉTAPE 4: ACTIVATION DU SERVICE ==="
+echo ""
+echo "=== ÉTAPE 4: ACTIVATION DU SERVICE ==="
+echo ""
 
 # Recharger systemd
-systemctl daemon-reload
-log_success "Configuration systemd rechargée"
+log_command "systemctl daemon-reload" "Rechargement systemd"
+echo "  ↦ Configuration systemd rechargée ✓"
 
 # Activer le service
-if systemctl enable "$SERVICE_NAME"; then
-    log_success "Service activé au démarrage"
+echo "◦ Activation du service..."
+if log_command "systemctl enable '$SERVICE_NAME'" "Activation au démarrage"; then
+    echo "  ↦ Service activé au démarrage ✓"
 else
-    log_error "Impossible d'activer le service"
+    echo "  ↦ Impossible d'activer le service ✗"
+    log_error "Échec de l'activation du service"
     exit 1
 fi
 
 # Démarrer le service
-if systemctl start "$SERVICE_NAME"; then
-    log_success "Service démarré"
+echo "◦ Démarrage du service..."
+if log_command "systemctl start '$SERVICE_NAME'" "Démarrage du service"; then
+    echo "  ↦ Service démarré ✓"
+    log_success "Service démarré avec succès"
 else
-    log_error "Impossible de démarrer le service"
+    echo "  ↦ Impossible de démarrer le service ✗"
+    log_error "Échec du démarrage du service"
     exit 1
 fi
 
 # Vérifier le statut
 sleep 2
 if systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo "  ↦ Service actif et fonctionnel ✓"
     log_success "Service actif et fonctionnel"
 else
-    log_error "Le service ne fonctionne pas correctement"
-    log "INFO" "Voir les logs: journalctl -u $SERVICE_NAME -n 50"
+    echo "  ↦ Le service ne fonctionne pas correctement ✗"
+    log_error "Service non fonctionnel"
+    echo ""
+    echo "Voir les logs avec: journalctl -u $SERVICE_NAME -n 50"
     exit 1
 fi
 
-# Étape 5: Finalisation
-log_info ""
-log_info "=== ÉTAPE 5: FINALISATION ==="
+echo ""
+echo "=== ÉTAPE 5: FINALISATION ==="
+echo ""
 
 # Enregistrer l'installation
 register_widget_installation
 
 # Test rapide
-log_info "Test de publication MQTT..."
+echo "◦ Test de publication MQTT..."
 if mosquitto_sub -h localhost -p 1883 -u maxlink -P mqtt -t "rpi/system/cpu/+" -C 1 -W 5 >/dev/null 2>&1; then
-    log_success "Messages MQTT reçus correctement"
+    echo "  ↦ Messages MQTT reçus correctement ✓"
+    log_success "Test MQTT réussi"
 else
-    log_warning "Aucun message reçu, le collecteur peut prendre quelques secondes pour démarrer"
+    echo "  ↦ Aucun message reçu (le collecteur peut prendre quelques secondes) ⚠"
+    log_warn "Aucun message MQTT reçu immédiatement"
 fi
 
 # Résumé
-log_info ""
-log "INFO" "=========================================="
-log_success "Installation terminée avec succès !"
-log "INFO" "=========================================="
-log "INFO" "Widget: $WIDGET_NAME v$WIDGET_VERSION"
-log "INFO" "Service: $SERVICE_NAME"
-log "INFO" "Status: $(systemctl is-active $SERVICE_NAME)"
-log "INFO" ""
-log "INFO" "Commandes utiles:"
-log "INFO" "  - Voir les logs: journalctl -u $SERVICE_NAME -f"
-log "INFO" "  - Voir les logs du collecteur: tail -f $LOG_DIR/servermonitoring.log"
-log "INFO" "  - Tester: mosquitto_sub -h localhost -u maxlink -P mqtt -t 'rpi/system/+/+' -v"
-log "INFO" "  - Arrêter: systemctl stop $SERVICE_NAME"
-log "INFO" "  - Redémarrer: systemctl restart $SERVICE_NAME"
-log "INFO" ""
-log "INFO" "Le widget devrait maintenant envoyer des données au dashboard !"
+echo ""
+echo "=========================================="
+echo "Installation terminée avec succès !"
+echo "=========================================="
+echo ""
+echo "Widget: $WIDGET_NAME v$WIDGET_VERSION"
+echo "Service: $SERVICE_NAME"
+echo "Status: $(systemctl is-active $SERVICE_NAME)"
+echo ""
+echo "Commandes utiles:"
+echo "  • Logs du service : journalctl -u $SERVICE_NAME -f"
+echo "  • Logs du collecteur : tail -f $LOG_WIDGETS/servermonitoring_collector.log"
+echo "  • Test MQTT : mosquitto_sub -h localhost -u maxlink -P mqtt -t 'rpi/system/+/+' -v"
+echo "  • Arrêter : systemctl stop $SERVICE_NAME"
+echo "  • Redémarrer : systemctl restart $SERVICE_NAME"
+echo ""
+echo "Le widget envoie maintenant des données au dashboard !"
+echo ""
 
-# Footer de fin
-{
-    echo ""
-    echo "$(printf '=%.0s' {1..80})"
-    echo "FIN: servermonitoring_install - Code: 0"
-    echo "$(printf '=%.0s' {1..80})"
-    echo ""
-} >> "$LOG_FILE"
+log_success "Installation widget Server Monitoring terminée avec succès"
+log_info "Service: $SERVICE_NAME actif"
 
 exit 0

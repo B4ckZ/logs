@@ -7,6 +7,47 @@ import threading
 from datetime import datetime
 import re
 import json
+import logging
+from pathlib import Path
+
+# ===============================================================================
+# CONFIGURATION DU LOGGING UNIFIÉ
+# ===============================================================================
+
+# Configuration du logging pour correspondre au système bash
+base_dir = Path(__file__).resolve().parent
+log_dir = base_dir / "logs" / "python"
+log_dir.mkdir(parents=True, exist_ok=True)
+
+# Nom du script pour le logging
+script_name = "interface"
+log_file = log_dir / f"{script_name}.log"
+
+# Format identique aux scripts bash : [timestamp] [level] [script] message
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] [%(levelname)s] [interface] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.FileHandler(log_file, mode='a', encoding='utf-8'),
+        logging.StreamHandler()  # Console aussi
+    ]
+)
+logger = logging.getLogger('interface')
+
+# Header de démarrage dans le log
+def log_startup():
+    with open(log_file, 'a') as f:
+        f.write("\n")
+        f.write("="*80 + "\n")
+        f.write(f"DÉMARRAGE: {script_name}\n")
+        f.write(f"Description: Interface graphique MaxLink Admin Panel\n")
+        f.write(f"Date: {datetime.now().strftime('%c')}\n")
+        f.write(f"Utilisateur: {os.environ.get('USER', 'unknown')}\n")
+        f.write(f"Répertoire: {os.getcwd()}\n")
+        f.write("="*80 + "\n")
+        f.write("\n")
+    logger.info("Interface MaxLink démarrée")
 
 # ===============================================================================
 # CONFIGURATION
@@ -35,6 +76,7 @@ class StyledConfirmDialog:
     
     def __init__(self, parent, title, message):
         self.result = False
+        logger.debug(f"Création dialogue: {title}")
         
         # Créer la fenêtre
         self.dialog = tk.Toplevel(parent)
@@ -137,10 +179,12 @@ class StyledConfirmDialog:
     
     def on_yes(self):
         self.result = True
+        logger.debug("Dialogue: réponse OUI")
         self.dialog.destroy()
     
     def on_no(self):
         self.result = False
+        logger.debug("Dialogue: réponse NON")
         self.dialog.destroy()
     
     def show(self):
@@ -158,6 +202,7 @@ class VariablesManager:
     def __init__(self, base_path):
         self.base_path = base_path
         self.variables = {}
+        logger.info("Initialisation du gestionnaire de variables")
         self.load_variables()
     
     def load_variables(self):
@@ -165,6 +210,7 @@ class VariablesManager:
         variables_file = os.path.join(self.base_path, "scripts", "common", "variables.sh")
         
         if not os.path.exists(variables_file):
+            logger.error(f"Fichier variables.sh non trouvé: {variables_file}")
             raise FileNotFoundError(f"Fichier variables.sh non trouvé: {variables_file}")
         
         try:
@@ -178,25 +224,26 @@ class VariablesManager:
                     if line.startswith('export') or line.startswith('function') or '()' in line:
                         continue
                     
-                    # Correction de l'expression régulière
                     match = re.match(r'^([A-Z_][A-Z0-9_]*)="?([^"]*)"?$', line)
                     if match:
                         key = match.group(1)
                         value = match.group(2)
                         self.variables[key] = value
             
-            # Parser SERVICES_LIST - MISE À JOUR pour inclure MQTT WGS
-            # Ajouter MQTT WGS à la liste des services
+            # Parser SERVICES_LIST
             services = [
                 "update:Update RPI:active",
                 "ap:Network AP:active",
                 "nginx:NginX Web:inactive",
                 "mqtt:MQTT BKR:inactive",
-                "mqtt_wgs:MQTT WGS:inactive"  # Nouveau service ajouté
+                "mqtt_wgs:MQTT WGS:inactive"
             ]
             self.variables['SERVICES_LIST'] = services
+            
+            logger.info(f"Variables chargées: {len(self.variables)} variables")
                 
         except Exception as e:
+            logger.error(f"Erreur lors du chargement de variables.sh: {e}")
             raise Exception(f"Erreur lors du chargement de variables.sh: {e}")
     
     def get(self, key, default=None):
@@ -235,6 +282,8 @@ class MaxLinkApp:
         self.root = root
         self.variables = variables
         
+        logger.info("Initialisation de l'application MaxLink")
+        
         # Chemins
         self.base_path = os.path.dirname(os.path.abspath(__file__))
         
@@ -248,12 +297,14 @@ class MaxLinkApp:
         
         # Vérifier le mode root
         self.root_mode = self.check_root_mode()
+        logger.info(f"Mode root: {self.root_mode}")
         
         # Charger les services
         self.services = self.variables.get_services_list()
         self.selected_service = self.services[0] if self.services else None
+        logger.info(f"Services chargés: {len(self.services)}")
         
-        # Variables de progression (simplifiées)
+        # Variables de progression
         self.progress_value = 0
         self.progress_max = 100
         
@@ -294,7 +345,7 @@ class MaxLinkApp:
         services_frame = tk.Frame(self.left_frame, bg=COLORS["nord1"], padx=20, pady=20)
         services_frame.pack(fill="both", expand=True)
         
-        # Titre services (sans l'indicateur de privilèges qui est déplacé)
+        # Titre services
         services_title = tk.Label(
             services_frame,
             text="Services Disponibles",
@@ -322,7 +373,7 @@ class MaxLinkApp:
         console_frame = tk.Frame(right_frame, bg=COLORS["nord1"], padx=20, pady=20)
         console_frame.pack(fill="both", expand=True)
         
-        # Titre console avec indicateur de privilèges sur la même ligne
+        # Titre console avec indicateur de privilèges
         console_title_frame = tk.Frame(console_frame, bg=COLORS["nord1"])
         console_title_frame.pack(fill="x", pady=(0, 10))
         
@@ -335,7 +386,7 @@ class MaxLinkApp:
         )
         console_title.pack(side="left")
         
-        # Indicateur de privilèges à droite du titre
+        # Indicateur de privilèges
         privilege_text = "Mode Privilégié: ACTIF" if self.root_mode else "Mode Privilégié: INACTIF"
         privilege_color = COLORS["nord14"] if self.root_mode else COLORS["nord11"]
         
@@ -357,7 +408,7 @@ class MaxLinkApp:
         )
         self.console.pack(fill="both", expand=True)
         
-        # Barre de progression (simplifiée)
+        # Barre de progression
         self.create_progress_bar(right_frame)
         
         # Message d'accueil
@@ -372,7 +423,7 @@ class MaxLinkApp:
         self.progress_frame = tk.Frame(parent, bg=COLORS["nord1"], padx=20, pady=20)
         self.progress_frame.pack(fill="x", side="bottom")
         
-        # Canvas pour la barre de progression seulement
+        # Canvas pour la barre de progression
         self.progress_canvas = tk.Canvas(
             self.progress_frame,
             height=30,
@@ -450,6 +501,7 @@ class MaxLinkApp:
         """Sélectionne un service"""
         self.selected_service = service
         self.update_selection()
+        logger.debug(f"Service sélectionné: {service['name']}")
     
     def update_selection(self):
         """Met à jour l'affichage de la sélection"""
@@ -469,7 +521,7 @@ class MaxLinkApp:
         self.progress_frame.pack_forget()
     
     def update_progress_bar(self, value=None):
-        """Met à jour la barre de progression (version simplifiée)"""
+        """Met à jour la barre de progression"""
         if value is not None:
             self.progress_value = value
         
@@ -509,8 +561,11 @@ class MaxLinkApp:
         if not self.selected_service:
             return
         
+        logger.info(f"Exécution action: {action} sur {self.selected_service['name']}")
+        
         # Vérifier les privilèges
         if not self.root_mode:
+            logger.warning("Tentative d'exécution sans privilèges root")
             messagebox.showerror(
                 "Privilèges insuffisants",
                 "Cette interface doit être lancée avec sudo.\n\n"
@@ -523,15 +578,18 @@ class MaxLinkApp:
         
         # Confirmation pour désinstallation
         if action == "uninstall":
-            if not messagebox.askyesno(
+            dialog = StyledConfirmDialog(
+                self.root,
                 "Confirmation",
-                f"Désinstaller {service['name']} ?\n\n"
-                "Cette action est irréversible."
-            ):
+                f"Désinstaller {service['name']} ?\n\nCette action est irréversible."
+            )
+            if not dialog.show():
+                logger.info("Désinstallation annulée par l'utilisateur")
                 return
         
         # Script à exécuter
         script_path = f"scripts/{action}/{service_id}_{action}.sh"
+        full_script_path = os.path.join(self.base_path, script_path)
         
         # Note spéciale pour "Tester"
         if action == "test":
@@ -545,46 +603,31 @@ Script: {script_path}
 
 """)
         
+        logger.info(f"Exécution du script: {full_script_path}")
         self.show_progress_bar()
         
         # Exécuter en arrière-plan
         self.current_thread = threading.Thread(
             target=self.execute_script, 
-            args=(script_path, service, action), 
+            args=(full_script_path, service, action), 
             daemon=True
         )
         self.current_thread.start()
     
-    def handle_update_confirmation(self, message):
-        """Gère la demande de confirmation pour les mises à jour"""
-        # Extraire le message
-        clean_message = message.replace("CONFIRM_UPDATE:", "")
-        
-        # Afficher la popup stylisée
-        dialog = StyledConfirmDialog(self.root, "Confirmation", clean_message)
-        result = dialog.show()
-        
-        # Écrire la réponse dans le fichier temporaire
-        choice_file = "/tmp/maxlink_update_choice"
-        with open(choice_file, 'w') as f:
-            f.write("yes" if result else "no")
-        
-        # Afficher dans la console
-        self.update_console(f"→ Réponse utilisateur: {'OUI' if result else 'NON'}\n")
-    
     def execute_script(self, script_path, service, action):
         """Exécute un script bash"""
         try:
-            full_path = os.path.join(self.base_path, script_path)
-            
-            if not os.path.exists(full_path):
+            if not os.path.exists(script_path):
                 self.update_console(f"ERREUR: Script non trouvé: {script_path}\n")
+                logger.error(f"Script non trouvé: {script_path}")
                 self.hide_progress_bar()
                 return
             
+            logger.info(f"Démarrage du processus: {script_path}")
+            
             # Exécuter le script
             self.current_process = subprocess.Popen(
-                ["bash", full_path],
+                ["bash", script_path],
                 stdout=subprocess.PIPE, 
                 stderr=subprocess.PIPE, 
                 text=True, 
@@ -594,15 +637,11 @@ Script: {script_path}
             # Lire la sortie en temps réel
             for line in iter(self.current_process.stdout.readline, ''):
                 if line:
-                    # Détecter les demandes de confirmation
-                    if line.startswith("CONFIRM_UPDATE:"):
-                        self.root.after(0, self.handle_update_confirmation, line.strip())
                     # Détecter les mises à jour de progression
-                    elif "PROGRESS:" in line:
+                    if "PROGRESS:" in line:
                         progress_match = re.search(r'PROGRESS:(\d+):(.+)', line)
                         if progress_match:
                             progress_value = int(progress_match.group(1))
-                            # Ignorer le texte de progression, on veut juste la valeur
                             self.root.after(0, self.update_progress_bar, progress_value)
                     else:
                         self.update_console(line)
@@ -614,6 +653,7 @@ Script: {script_path}
             
             # Attendre la fin
             return_code = self.current_process.wait()
+            logger.info(f"Script terminé avec code: {return_code}")
             
             # Masquer la progression
             self.root.after(0, self.hide_progress_bar)
@@ -627,24 +667,19 @@ Code de sortie: {return_code}
 
 """)
             
-            # Afficher le chemin du log si c'est un script update
-            if action == "install" and service["id"] == "update":
-                log_pattern = os.path.join(self.base_path, "logs", "update_install_*.log")
-                import glob
-                logs = sorted(glob.glob(log_pattern))
-                if logs:
-                    self.update_console(f"Fichier de log détaillé: {logs[-1]}\n\n")
-            
             # Mettre à jour le statut si succès
             if return_code == 0:
                 if action in ["install", "test"]:
                     service["status"] = "active"
                     self.update_status_indicator(service, True)
+                    logger.info(f"Service {service['name']} activé")
                 elif action == "uninstall":
                     service["status"] = "inactive"
                     self.update_status_indicator(service, False)
+                    logger.info(f"Service {service['name']} désactivé")
             
         except Exception as e:
+            logger.error(f"Erreur lors de l'exécution: {str(e)}")
             self.update_console(f"ERREUR: {str(e)}\n", error=True)
             self.root.after(0, self.hide_progress_bar)
         finally:
@@ -680,12 +715,17 @@ Code de sortie: {return_code}
 # ===============================================================================
 
 if __name__ == "__main__":
+    # Log de démarrage
+    log_startup()
+    
     # Valider la configuration
     base_path = os.path.dirname(os.path.abspath(__file__))
     
     try:
         variables = VariablesManager(base_path)
+        logger.info("Variables chargées avec succès")
     except Exception as e:
+        logger.error(f"Erreur fatale: {e}")
         print(f"\nERREUR: {e}")
         print("Vérifiez le fichier scripts/common/variables.sh")
         sys.exit(1)
@@ -694,7 +734,19 @@ if __name__ == "__main__":
     try:
         root = tk.Tk()
         app = MaxLinkApp(root, variables)
+        logger.info("Interface créée avec succès")
         root.mainloop()
     except Exception as e:
+        logger.error(f"Erreur lors du démarrage de l'interface: {e}")
         print(f"\nErreur lors du démarrage: {e}")
         sys.exit(2)
+    finally:
+        # Footer de fin dans le log
+        with open(log_file, 'a') as f:
+            f.write("\n")
+            f.write("="*80 + "\n")
+            f.write(f"FIN: {script_name}\n")
+            f.write(f"Date: {datetime.now().strftime('%c')}\n")
+            f.write("="*80 + "\n")
+            f.write("\n")
+        logger.info("Interface fermée")
