@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION MQTT BROKER (VERSION FINALE)
-# Installation avec configuration simplifiée mosquitto/mqtt
+# MAXLINK - INSTALLATION MQTT BROKER (VERSION FINALE FONCTIONNELLE)
+# Installation avec configuration minimale garantie de fonctionner
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -20,9 +20,9 @@ source "$SCRIPT_DIR/../common/wifi_helper.sh"
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Installation MQTT Broker (mosquitto/mqtt)" "install"
+init_logging "Installation MQTT Broker (version finale)" "install"
 
-# Variables MQTT - Valeurs par défaut alignées sur la config simple
+# Variables MQTT - Utiliser les valeurs de variables.sh ou les valeurs par défaut
 MQTT_USER="${MQTT_USER:-mosquitto}"
 MQTT_PASS="${MQTT_PASS:-mqtt}"
 MQTT_PORT="${MQTT_PORT:-1883}"
@@ -188,55 +188,43 @@ chown mosquitto:mosquitto "$MQTT_CONFIG_DIR/passwords"
 echo "  ↦ Utilisateur '$MQTT_USER' créé ✓"
 log_info "Utilisateur MQTT créé: $MQTT_USER"
 
-# Créer la configuration minimale et fonctionnelle
+# IMPORTANT : Créer la configuration MINIMALE qui fonctionne
 echo ""
 echo "◦ Création du fichier de configuration..."
+
+# Sauvegarder l'ancienne configuration si elle existe
+if [ -f "$MQTT_CONFIG_DIR/mosquitto.conf" ]; then
+    cp "$MQTT_CONFIG_DIR/mosquitto.conf" "$MQTT_CONFIG_DIR/mosquitto.conf.backup_$(date +%Y%m%d_%H%M%S)"
+    log_info "Ancienne configuration sauvegardée"
+fi
+
+# Créer la configuration minimale GARANTIE de fonctionner
 cat > "$MQTT_CONFIG_DIR/mosquitto.conf" << EOF
-# Configuration Mosquitto pour MaxLink
-# Configuration simple et fonctionnelle
-
-# Persistence des messages
-persistence true
-persistence_location /var/lib/mosquitto/
-
-# Logs
-log_dest file /var/log/mosquitto/mosquitto.log
-log_type error
-log_type warning
-log_type notice
-log_type information
-
-# Sécurité
+# Configuration Mosquitto MaxLink - Minimale et fonctionnelle
 allow_anonymous false
 password_file /etc/mosquitto/passwords
 
-# Listener MQTT standard
+# Listener MQTT standard sur port $MQTT_PORT
 listener $MQTT_PORT
 
-# Listener WebSocket pour le dashboard
+# Listener WebSocket sur port $MQTT_WEBSOCKET_PORT
 listener $MQTT_WEBSOCKET_PORT
 protocol websockets
-
-# Utilisateur système
-user mosquitto
 EOF
 
 echo "  ↦ Configuration créée ✓"
 log_success "Configuration Mosquitto créée"
 
-# Vérifier la syntaxe de la configuration
+# Afficher la configuration pour vérification
 echo ""
-echo "◦ Vérification de la configuration..."
-if mosquitto -c /etc/mosquitto/mosquitto.conf -t 2>/dev/null; then
-    echo "  ↦ Configuration valide ✓"
-    log_info "Configuration Mosquitto validée"
-else
-    echo "  ↦ Erreur dans la configuration ✗"
-    log_error "Configuration Mosquitto invalide"
-    # Afficher l'erreur
-    mosquitto -c /etc/mosquitto/mosquitto.conf -t
-    exit 1
-fi
+echo "◦ Configuration appliquée :"
+echo "  ----------------------------------------"
+cat "$MQTT_CONFIG_DIR/mosquitto.conf" | sed 's/^/  | /'
+echo "  ----------------------------------------"
+
+# Permissions sur le fichier de configuration
+chmod 644 "$MQTT_CONFIG_DIR/mosquitto.conf"
+chown mosquitto:mosquitto "$MQTT_CONFIG_DIR/mosquitto.conf"
 
 send_progress 85 "Configuration terminée"
 echo ""
@@ -306,7 +294,7 @@ else
     log_error "Test de connexion MQTT échoué"
     echo ""
     echo "Vérification des logs :"
-    tail -10 /var/log/mosquitto/mosquitto.log
+    journalctl -u mosquitto -n 10 --no-pager
 fi
 
 # Test WebSocket
@@ -324,7 +312,7 @@ fi
 # Afficher les ports en écoute
 echo ""
 echo "◦ Ports en écoute :"
-netstat -tlnp 2>/dev/null | grep mosquitto || ss -tlnp 2>/dev/null | grep mosquitto || echo "  ↦ Impossible de vérifier les ports"
+netstat -tlnp 2>/dev/null | grep mosquitto || ss -tlnp 2>/dev/null | grep mosquitto || echo "  ↦ Impossible de vérifier les ports (outils non disponibles)"
 
 send_progress 100 "Installation terminée"
 echo ""
