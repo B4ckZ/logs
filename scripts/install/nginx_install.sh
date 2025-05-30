@@ -261,22 +261,32 @@ if log_command "tar -xzf '$DASHBOARD_ARCHIVE' -C '$TEMP_DIR'" "Extraction archiv
     echo "  ↦ Archive extraite ✓"
     log_success "Archive extraite avec succès"
     
-    # Trouver le dossier extrait
-    EXTRACTED_DIR=$(find "$TEMP_DIR" -maxdepth 1 -type d -name "*MaxLinK*" -o -name "*maxlink*" | head -1)
+    # GitHub crée une archive avec un dossier racine, le trouver
+    EXTRACTED_DIR=$(find "$TEMP_DIR" -maxdepth 1 -type d ! -path "$TEMP_DIR" | head -1)
     
     if [ -z "$EXTRACTED_DIR" ]; then
-        EXTRACTED_DIR=$(find "$TEMP_DIR" -maxdepth 1 -type d ! -path "$TEMP_DIR" | head -1)
+        echo "  ↦ Erreur: aucun dossier trouvé après extraction ✗"
+        log_error "Aucun dossier trouvé dans l'archive"
+        rm -rf "$TEMP_DIR"
+        exit 1
     fi
     
-    if [ -d "$EXTRACTED_DIR/$GITHUB_DASHBOARD_DIR" ]; then
+    # Log pour debug
+    log_info "Dossier racine de l'archive: $EXTRACTED_DIR"
+    
+    # Chercher DashBoardV1 dans le dossier extrait
+    DASHBOARD_PATH="$EXTRACTED_DIR/$GITHUB_DASHBOARD_DIR"
+    log_info "Recherche du dashboard dans: $DASHBOARD_PATH"
+    
+    if [ -d "$DASHBOARD_PATH" ]; then
         echo "  ↦ Dossier dashboard trouvé ✓"
-        log_info "Dossier dashboard trouvé: $EXTRACTED_DIR/$GITHUB_DASHBOARD_DIR"
+        log_info "Dossier dashboard trouvé: $DASHBOARD_PATH"
         
         # Créer le répertoire parent si nécessaire
         mkdir -p "$(dirname "$NGINX_DASHBOARD_DIR")"
         
         # Copier le dashboard
-        log_command "cp -r '$EXTRACTED_DIR/$GITHUB_DASHBOARD_DIR' '$NGINX_DASHBOARD_DIR'" "Copie dashboard"
+        log_command "cp -r '$DASHBOARD_PATH' '$NGINX_DASHBOARD_DIR'" "Copie dashboard"
         echo "  ↦ Dashboard installé ✓"
         log_success "Dashboard installé avec succès"
     else

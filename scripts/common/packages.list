@@ -10,7 +10,7 @@ base:git curl wget ca-certificates apt-transport-https gnupg lsb-release
 nginx:nginx nginx-common
 
 # Broker MQTT (mqtt_install.sh)
-mqtt:mosquitto mosquitto-clients
+mqtt:mosquitto mosquitto-clients libdlt2 libdlt-daemon
 
 # Point d'accès WiFi (ap_install.sh)
 ap:dnsmasq iptables

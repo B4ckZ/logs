@@ -1,0 +1,99 @@
+
+================================================================================
+DÉMARRAGE: mqtt_install
+Description: Installation MQTT Broker (hybride)
+Date: Fri 30 May 22:16:46 CEST 2025
+Utilisateur: root
+Répertoire: 
+================================================================================
+
+[2025-05-30 22:16:46] [INFO] [mqtt_install] Script mqtt_install initialisé
+[2025-05-30 22:16:46] [INFO] [mqtt_install] ========== DÉBUT DE L'INSTALLATION MQTT BROKER (HYBRIDE) ==========
+[2025-05-30 22:16:46] [INFO] [mqtt_install] Progression: 5% - Initialisation...
+[2025-05-30 22:16:46] [INFO] [mqtt_install] Privilèges root confirmés
+[2025-05-30 22:16:47] [INFO] [mqtt_install] Progression: 10% - Vérifications...
+[2025-05-30 22:16:47] [INFO] [mqtt_install] Mosquitto déjà présent
+[2025-05-30 22:16:47] [CMD] [mqtt_install] Exécution: Arrêt Mosquitto
+[2025-05-30 22:16:47] [CMD] [mqtt_install] Commande: systemctl stop mosquitto >/dev/null 2>&1
+[2025-05-30 22:16:47] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-30 22:16:47] [INFO] [mqtt_install] Progression: 20% - Vérifications terminées
+[2025-05-30 22:16:47] [INFO] [mqtt_install] Progression: 30% - Installation de Mosquitto...
+[2025-05-30 22:16:47] [INFO] [mqtt_install] Installation hybride de Mosquitto
+[2025-05-30 22:16:47] [INFO] [mqtt_install] Mosquitto déjà installé
+[2025-05-30 22:16:48] [SUCCESS] [mqtt_install] Mosquitto installé avec succès
+[2025-05-30 22:16:48] [INFO] [mqtt_install] Utilisateur mosquitto déjà présent
+[2025-05-30 22:16:48] [INFO] [mqtt_install] Installation de libdlt-daemon nécessaire
+[2025-05-30 22:16:48] [INFO] [mqtt_install] Installation hybride de libdlt
+[2025-05-30 22:16:48] [INFO] [mqtt_install] Tentative d'installation depuis le cache
+[2025-05-30 22:16:48] [INFO] [mqtt_install] Paquets toujours manquants:  libdlt-daemon
+[2025-05-30 22:16:48] [INFO] [mqtt_install] Téléchargement des paquets:  libdlt-daemon
+[2025-05-30 22:16:48] [INFO] [mqtt_install] Vérification et établissement de la connexion internet
+[2025-05-30 22:16:49] [INFO] [mqtt_install] Sauvegarde de l'état réseau actuel
+[2025-05-30 22:16:49] [INFO] [mqtt_install] Mode AP actif détecté
+[2025-05-30 22:16:49] [INFO] [mqtt_install] Déjà connecté au WiFi Max
+[2025-05-30 22:16:49] [DEBUG] [mqtt_install] Vérification de la connectivité internet
+[2025-05-30 22:16:49] [DEBUG] [mqtt_install] Pas de connectivité internet
+[2025-05-30 22:16:49] [INFO] [mqtt_install] Connexion automatique requise pour télécharger les paquets
+[2025-05-30 22:16:49] [INFO] [mqtt_install] Désactivation temporaire de l'AP
+[2025-05-30 22:16:52] [INFO] [mqtt_install] Tentative de connexion à Max
+[2025-05-30 22:16:56] [SUCCESS] [mqtt_install] Connexion WiFi établie
+[2025-05-30 22:17:01] [DEBUG] [mqtt_install] Vérification de la connectivité internet
+[2025-05-30 22:17:01] [DEBUG] [mqtt_install] Connectivité internet OK
+[2025-05-30 22:17:01] [SUCCESS] [mqtt_install] Connectivité internet confirmée
+[2025-05-30 22:17:04] [ERROR] [mqtt_install] Échec de l'installation des paquets
+[2025-05-30 22:17:04] [INFO] [mqtt_install] Restauration de l'état réseau
+[2025-05-30 22:17:04] [INFO] [mqtt_install] Réactivation du mode AP
+[2025-05-30 22:17:10] [ERROR] [mqtt_install] Échec de l'installation de libdlt
+[2025-05-30 22:17:11] [WARN] [mqtt_install] Impossible d'installer libdlt, tentative sans...
+[2025-05-30 22:17:11] [INFO] [mqtt_install] Progression: 50% - Mosquitto installé
+[2025-05-30 22:17:11] [INFO] [mqtt_install] Progression: 60% - Configuration de Mosquitto...
+[2025-05-30 22:17:11] [INFO] [mqtt_install] Configuration de l'authentification MQTT
+[2025-05-30 22:17:11] [CMD] [mqtt_install] Exécution: Création utilisateur MQTT
+[2025-05-30 22:17:11] [CMD] [mqtt_install] Commande: /usr/bin/mosquitto_passwd -b -c '/etc/mosquitto/passwords' 'maxlink' 'mqtt'
+[2025-05-30 22:17:11] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-30 22:17:11] [INFO] [mqtt_install] Utilisateur MQTT créé: maxlink
+[2025-05-30 22:17:11] [INFO] [mqtt_install] Création de la configuration Mosquitto
+[2025-05-30 22:17:12] [SUCCESS] [mqtt_install] Configuration Mosquitto créée
+[2025-05-30 22:17:12] [INFO] [mqtt_install] Ports configurés - MQTT: 1883, WebSocket: 9001
+[2025-05-30 22:17:12] [INFO] [mqtt_install] Progression: 80% - Configuration terminée
+[2025-05-30 22:17:12] [INFO] [mqtt_install] Progression: 85% - Démarrage du service...
+[2025-05-30 22:17:12] [CMD] [mqtt_install] Exécution: Activation au démarrage
+[2025-05-30 22:17:12] [CMD] [mqtt_install] Commande: systemctl enable mosquitto >/dev/null 2>&1
+[2025-05-30 22:17:12] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-30 22:17:12] [CMD] [mqtt_install] Exécution: Démarrage Mosquitto
+[2025-05-30 22:17:13] [CMD] [mqtt_install] Commande: systemctl start mosquitto
+[2025-05-30 22:17:13] [OUT] [mqtt_install] Job for mosquitto.service failed because the control process exited with error code.
+[2025-05-30 22:17:13] [OUT] [mqtt_install] See "systemctl status mosquitto.service" and "journalctl -xeu mosquitto.service" for details.
+[2025-05-30 22:17:13] [CMD] [mqtt_install] Code de sortie: 1
+[2025-05-30 22:17:13] [ERROR] [mqtt_install] Mosquitto n'a pas pu démarrer
+[2025-05-30 22:17:13] [CMD] [mqtt_install] Exécution: Journal Mosquitto
+[2025-05-30 22:17:13] [CMD] [mqtt_install] Commande: journalctl -u mosquitto -n 20 --no-pager
+[2025-05-30 22:17:13] [OUT] [mqtt_install] May 30 22:15:33 raspberrypi systemd[1]: Failed to start mosquitto.service - Mosquitto MQTT Broker.
+[2025-05-30 22:17:13] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: Starting mosquitto.service - Mosquitto MQTT Broker...
+[2025-05-30 22:17:14] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi mosquitto[3754]: /usr/sbin/mosquitto: error while loading shared libraries: libdlt.so.2: cannot open shared object file: No such file or directory
+[2025-05-30 22:17:14] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: mosquitto.service: Main process exited, code=exited, status=127/n/a
+[2025-05-30 22:17:14] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: mosquitto.service: Failed with result 'exit-code'.
+[2025-05-30 22:17:14] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: Failed to start mosquitto.service - Mosquitto MQTT Broker.
+[2025-05-30 22:17:14] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: mosquitto.service: Scheduled restart job, restart counter is at 1.
+[2025-05-30 22:17:14] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: Stopped mosquitto.service - Mosquitto MQTT Broker.
+[2025-05-30 22:17:14] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: Starting mosquitto.service - Mosquitto MQTT Broker...
+[2025-05-30 22:17:14] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi mosquitto[3763]: /usr/sbin/mosquitto: error while loading shared libraries: libdlt.so.2: cannot open shared object file: No such file or directory
+[2025-05-30 22:17:14] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: mosquitto.service: Main process exited, code=exited, status=127/n/a
+[2025-05-30 22:17:14] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: mosquitto.service: Failed with result 'exit-code'.
+[2025-05-30 22:17:15] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: Failed to start mosquitto.service - Mosquitto MQTT Broker.
+[2025-05-30 22:17:15] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: mosquitto.service: Scheduled restart job, restart counter is at 2.
+[2025-05-30 22:17:15] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: Stopped mosquitto.service - Mosquitto MQTT Broker.
+[2025-05-30 22:17:15] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: Starting mosquitto.service - Mosquitto MQTT Broker...
+[2025-05-30 22:17:15] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi mosquitto[3771]: /usr/sbin/mosquitto: error while loading shared libraries: libdlt.so.2: cannot open shared object file: No such file or directory
+[2025-05-30 22:17:15] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: mosquitto.service: Main process exited, code=exited, status=127/n/a
+[2025-05-30 22:17:15] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: mosquitto.service: Failed with result 'exit-code'.
+[2025-05-30 22:17:15] [OUT] [mqtt_install] May 30 22:17:13 raspberrypi systemd[1]: Failed to start mosquitto.service - Mosquitto MQTT Broker.
+[2025-05-30 22:17:15] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-30 22:17:16] [INFO] [mqtt_install] Script mqtt_install terminé avec le code 1
+
+================================================================================
+FIN: mqtt_install
+Code de sortie: 1
+Durée: 30 secondes
+================================================================================
+

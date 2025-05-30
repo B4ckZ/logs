@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION MQTT BROKER (VERSION OPTIMISÉE)
-# Utilise le cache local de paquets - Installation ultra rapide !
+# MAXLINK - INSTALLATION MQTT BROKER (VERSION HYBRIDE)
+# Installation flexible avec cache local ou téléchargement automatique
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -13,13 +13,14 @@ BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 source "$SCRIPT_DIR/../common/variables.sh"
 source "$SCRIPT_DIR/../common/logging.sh"
 source "$SCRIPT_DIR/../common/packages.sh"
+source "$SCRIPT_DIR/../common/wifi_helper.sh"
 
 # ===============================================================================
 # INITIALISATION
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Installation MQTT Broker (cache local)" "install"
+init_logging "Installation MQTT Broker (hybride)" "install"
 
 # Variables MQTT
 MQTT_USER="${MQTT_USER:-maxlink}"
@@ -47,7 +48,7 @@ wait_silently() {
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-log_info "========== DÉBUT DE L'INSTALLATION MQTT BROKER (OPTIMISÉE) =========="
+log_info "========== DÉBUT DE L'INSTALLATION MQTT BROKER (HYBRIDE) =========="
 
 echo ""
 echo "========================================================================"
@@ -72,20 +73,7 @@ echo ""
 
 send_progress 10 "Vérifications..."
 
-# Vérifier le cache des paquets
-echo "◦ Vérification du cache des paquets..."
-if [ ! -d "$PACKAGE_CACHE_DIR" ] || [ ! -f "$PACKAGE_METADATA_FILE" ]; then
-    echo "  ↦ Cache des paquets non trouvé ✗"
-    echo ""
-    echo "Veuillez d'abord exécuter update_install.sh pour télécharger les paquets"
-    log_error "Cache des paquets non trouvé"
-    exit 1
-fi
-echo "  ↦ Cache des paquets disponible ✓"
-log_info "Cache des paquets trouvé"
-
 # Vérifier si Mosquitto est déjà installé
-echo ""
 echo "◦ Vérification de Mosquitto..."
 if dpkg -l mosquitto >/dev/null 2>&1; then
     echo "  ↦ Mosquitto déjà installé ✓"
@@ -101,7 +89,7 @@ fi
 
 send_progress 20 "Vérifications terminées"
 
-# ÉTAPE 2 : Installation depuis le cache
+# ÉTAPE 2 : Installation de Mosquitto
 echo ""
 echo "ÉTAPE 2 : INSTALLATION DE MOSQUITTO"
 echo "========================================================================"
@@ -109,28 +97,63 @@ echo ""
 
 send_progress 30 "Installation de Mosquitto..."
 
-echo "◦ Installation de Mosquitto depuis le cache local..."
-log_info "Installation des paquets MQTT depuis le cache"
-
-# Installer les paquets MQTT depuis le cache
-if install_packages_by_category "mqtt"; then
-    echo "  ↦ Mosquitto installé avec succès ✓"
-    log_success "Mosquitto installé depuis le cache"
-else
-    echo "  ↦ Erreur lors de l'installation depuis le cache ⚠"
-    log_warn "Installation depuis le cache échouée"
-    
-    # Tentative de fallback
+# Utiliser la fonction hybride pour installer Mosquitto
+if hybrid_package_install "Mosquitto" "mosquitto mosquitto-clients"; then
     echo ""
-    echo "◦ Tentative d'installation alternative..."
-    if apt-get install -y mosquitto mosquitto-clients >/dev/null 2>&1; then
-        echo "  ↦ Mosquitto installé via apt ✓"
-        log_success "Mosquitto installé via apt (fallback)"
+    log_success "Mosquitto installé avec succès"
+else
+    echo ""
+    echo "  ↦ Échec de l'installation de Mosquitto ✗"
+    log_error "Impossible d'installer Mosquitto"
+    exit 1
+fi
+
+# Vérifier/créer l'utilisateur mosquitto si nécessaire
+echo ""
+echo "◦ Vérification de l'utilisateur système mosquitto..."
+if ! id mosquitto >/dev/null 2>&1; then
+    echo "  ↦ Création de l'utilisateur mosquitto..."
+    log_info "Création de l'utilisateur système mosquitto"
+    
+    # Créer l'utilisateur système mosquitto
+    useradd --system --no-create-home --shell /usr/sbin/nologin mosquitto
+    
+    # Créer les répertoires nécessaires
+    mkdir -p /var/lib/mosquitto /var/log/mosquitto
+    chown mosquitto:mosquitto /var/lib/mosquitto /var/log/mosquitto
+    chmod 755 /var/lib/mosquitto /var/log/mosquitto
+    
+    echo "  ↦ Utilisateur mosquitto créé ✓"
+    log_success "Utilisateur système mosquitto créé"
+    
+    # Attendre que le système prenne en compte les changements
+    wait_silently 2
+else
+    echo "  ↦ Utilisateur mosquitto existe déjà ✓"
+    log_info "Utilisateur mosquitto déjà présent"
+fi
+
+# Vérifier les dépendances manquantes (libdlt)
+echo ""
+echo "◦ Vérification des dépendances système..."
+if ! ldconfig -p | grep -q libdlt.so.2; then
+    echo "  ↦ Installation de la bibliothèque libdlt manquante..."
+    log_info "Installation de libdlt-daemon nécessaire"
+    
+    # Installer la dépendance manquante
+    if hybrid_package_install "libdlt" "libdlt2 libdlt-daemon"; then
+        echo "  ↦ Dépendances installées ✓"
+        log_success "libdlt installée"
+        
+        # Mettre à jour le cache des bibliothèques
+        ldconfig
+        wait_silently 2
     else
-        echo "  ↦ Installation impossible ✗"
-        log_error "Impossible d'installer Mosquitto"
-        exit 1
+        log_warn "Impossible d'installer libdlt, tentative sans..."
     fi
+else
+    echo "  ↦ Dépendances système OK ✓"
+    log_info "Toutes les dépendances sont présentes"
 fi
 
 send_progress 50 "Mosquitto installé"
