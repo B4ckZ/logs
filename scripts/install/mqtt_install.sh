@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION MQTT BROKER (VERSION HYBRIDE)
-# Installation flexible avec cache local ou téléchargement automatique
+# MAXLINK - INSTALLATION MQTT BROKER (VERSION FINALE)
+# Installation avec configuration simplifiée mosquitto/mqtt
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -20,10 +20,10 @@ source "$SCRIPT_DIR/../common/wifi_helper.sh"
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Installation MQTT Broker (hybride)" "install"
+init_logging "Installation MQTT Broker (mosquitto/mqtt)" "install"
 
-# Variables MQTT
-MQTT_USER="${MQTT_USER:-maxlink}"
+# Variables MQTT - Valeurs par défaut alignées sur la config simple
+MQTT_USER="${MQTT_USER:-mosquitto}"
 MQTT_PASS="${MQTT_PASS:-mqtt}"
 MQTT_PORT="${MQTT_PORT:-1883}"
 MQTT_WEBSOCKET_PORT="${MQTT_WEBSOCKET_PORT:-9001}"
@@ -48,12 +48,14 @@ wait_silently() {
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-log_info "========== DÉBUT DE L'INSTALLATION MQTT BROKER (HYBRIDE) =========="
+log_info "========== DÉBUT DE L'INSTALLATION MQTT BROKER =========="
 
 echo ""
 echo "========================================================================"
 echo "INSTALLATION DU BROKER MQTT (MOSQUITTO)"
 echo "========================================================================"
+echo ""
+echo "Configuration : utilisateur '$MQTT_USER' / mot de passe '$MQTT_PASS'"
 echo ""
 
 send_progress 5 "Initialisation..."
@@ -66,110 +68,119 @@ if [ "$EUID" -ne 0 ]; then
 fi
 log_info "Privilèges root confirmés"
 
-# ÉTAPE 1 : Vérifications
-echo "ÉTAPE 1 : VÉRIFICATIONS"
+# ÉTAPE 1 : Nettoyage et préparation
+echo "ÉTAPE 1 : PRÉPARATION DU SYSTÈME"
 echo "========================================================================"
 echo ""
 
-send_progress 10 "Vérifications..."
+send_progress 10 "Préparation du système..."
 
-# Vérifier si Mosquitto est déjà installé
-echo "◦ Vérification de Mosquitto..."
-if dpkg -l mosquitto >/dev/null 2>&1; then
-    echo "  ↦ Mosquitto déjà installé ✓"
-    log_info "Mosquitto déjà présent"
-    
-    # Arrêter le service pour reconfiguration
-    log_command "systemctl stop mosquitto >/dev/null 2>&1" "Arrêt Mosquitto"
-    echo "  ↦ Service arrêté pour reconfiguration"
-else
-    echo "  ↦ Mosquitto non installé"
-    log_info "Installation de Mosquitto nécessaire"
+# Arrêter mosquitto s'il est en cours
+if systemctl is-active --quiet mosquitto 2>/dev/null; then
+    echo "◦ Arrêt du service Mosquitto existant..."
+    systemctl stop mosquitto
+    echo "  ↦ Service arrêté ✓"
+    log_info "Service Mosquitto arrêté"
 fi
 
-send_progress 20 "Vérifications terminées"
+# Nettoyer les verrous APT si nécessaire
+echo "◦ Nettoyage du système de paquets..."
+rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock* 2>/dev/null
+dpkg --configure -a >/dev/null 2>&1
+echo "  ↦ Système de paquets prêt ✓"
+log_info "Système de paquets nettoyé"
 
-# ÉTAPE 2 : Installation de Mosquitto
+send_progress 20 "Système préparé"
 echo ""
-echo "ÉTAPE 2 : INSTALLATION DE MOSQUITTO"
+sleep 2
+
+# ÉTAPE 2 : Installation des paquets
+echo "========================================================================"
+echo "ÉTAPE 2 : INSTALLATION DES PAQUETS"
 echo "========================================================================"
 echo ""
 
 send_progress 30 "Installation de Mosquitto..."
 
-# Utiliser la fonction hybride pour installer Mosquitto
-if hybrid_package_install "Mosquitto" "mosquitto mosquitto-clients"; then
+# Utiliser la fonction hybride pour installer tous les paquets nécessaires
+if hybrid_package_install "Mosquitto et dépendances" "libmosquitto1 libdlt2 mosquitto mosquitto-clients"; then
     echo ""
-    log_success "Mosquitto installé avec succès"
+    log_success "Tous les paquets installés avec succès"
 else
     echo ""
-    echo "  ↦ Échec de l'installation de Mosquitto ✗"
-    log_error "Impossible d'installer Mosquitto"
+    echo "  ↦ Certains paquets n'ont pas pu être installés ✗"
+    log_error "Installation incomplète des paquets"
+    
+    # Essayer de corriger
+    echo ""
+    echo "◦ Tentative de correction des dépendances..."
+    apt-get install -f -y >/dev/null 2>&1
+    echo "  ↦ Correction appliquée"
+fi
+
+# Vérifier que mosquitto est bien installé
+if ! command -v mosquitto >/dev/null 2>&1; then
+    echo "  ↦ Mosquitto n'est pas installé correctement ✗"
+    log_error "Mosquitto non trouvé après installation"
     exit 1
 fi
 
-# Vérifier/créer l'utilisateur mosquitto si nécessaire
-echo ""
-echo "◦ Vérification de l'utilisateur système mosquitto..."
-if ! id mosquitto >/dev/null 2>&1; then
-    echo "  ↦ Création de l'utilisateur mosquitto..."
-    log_info "Création de l'utilisateur système mosquitto"
-    
-    # Créer l'utilisateur système mosquitto
-    useradd --system --no-create-home --shell /usr/sbin/nologin mosquitto
-    
-    # Créer les répertoires nécessaires
-    mkdir -p /var/lib/mosquitto /var/log/mosquitto
-    chown mosquitto:mosquitto /var/lib/mosquitto /var/log/mosquitto
-    chmod 755 /var/lib/mosquitto /var/log/mosquitto
-    
-    echo "  ↦ Utilisateur mosquitto créé ✓"
-    log_success "Utilisateur système mosquitto créé"
-    
-    # Attendre que le système prenne en compte les changements
-    wait_silently 2
-else
-    echo "  ↦ Utilisateur mosquitto existe déjà ✓"
-    log_info "Utilisateur mosquitto déjà présent"
-fi
+echo "  ↦ Mosquitto installé ✓"
+log_info "Mosquitto installé avec succès"
 
-# Vérifier les dépendances manquantes (libdlt)
+send_progress 50 "Paquets installés"
 echo ""
-echo "◦ Vérification des dépendances système..."
-if ! ldconfig -p | grep -q libdlt.so.2; then
-    echo "  ↦ Installation de la bibliothèque libdlt manquante..."
-    log_info "Installation de libdlt-daemon nécessaire"
-    
-    # Installer la dépendance manquante
-    if hybrid_package_install "libdlt" "libdlt2 libdlt-daemon"; then
-        echo "  ↦ Dépendances installées ✓"
-        log_success "libdlt installée"
-        
-        # Mettre à jour le cache des bibliothèques
-        ldconfig
-        wait_silently 2
-    else
-        log_warn "Impossible d'installer libdlt, tentative sans..."
-    fi
-else
-    echo "  ↦ Dépendances système OK ✓"
-    log_info "Toutes les dépendances sont présentes"
-fi
+sleep 2
 
-send_progress 50 "Mosquitto installé"
-
-# ÉTAPE 3 : Configuration
-echo ""
-echo "ÉTAPE 3 : CONFIGURATION DE MOSQUITTO"
+# ÉTAPE 3 : Configuration système
+echo "========================================================================"
+echo "ÉTAPE 3 : CONFIGURATION SYSTÈME"
 echo "========================================================================"
 echo ""
 
-send_progress 60 "Configuration de Mosquitto..."
+send_progress 60 "Configuration du système..."
 
-echo "◦ Configuration de l'authentification..."
-log_info "Configuration de l'authentification MQTT"
+# Créer l'utilisateur système mosquitto si nécessaire
+echo "◦ Vérification de l'utilisateur système..."
+if ! id mosquitto >/dev/null 2>&1; then
+    echo "  ↦ Création de l'utilisateur système mosquitto..."
+    useradd --system --no-create-home --shell /usr/sbin/nologin mosquitto
+    echo "  ↦ Utilisateur système créé ✓"
+    log_info "Utilisateur système mosquitto créé"
+else
+    echo "  ↦ Utilisateur système existant ✓"
+fi
+
+# Créer les répertoires nécessaires
+echo ""
+echo "◦ Création des répertoires..."
+mkdir -p /var/lib/mosquitto /var/log/mosquitto /var/run/mosquitto
+chown -R mosquitto:mosquitto /var/lib/mosquitto /var/log/mosquitto /var/run/mosquitto
+chmod 755 /var/lib/mosquitto /var/log/mosquitto /var/run/mosquitto
+echo "  ↦ Répertoires créés et permissions appliquées ✓"
+log_info "Répertoires Mosquitto créés"
+
+# Mettre à jour le cache des bibliothèques
+echo ""
+echo "◦ Mise à jour du cache des bibliothèques..."
+ldconfig
+echo "  ↦ Cache des bibliothèques mis à jour ✓"
+log_info "ldconfig exécuté"
+
+send_progress 70 "Système configuré"
+echo ""
+sleep 2
+
+# ÉTAPE 4 : Configuration Mosquitto
+echo "========================================================================"
+echo "ÉTAPE 4 : CONFIGURATION DE MOSQUITTO"
+echo "========================================================================"
+echo ""
+
+send_progress 75 "Configuration de Mosquitto..."
 
 # Créer le fichier de mots de passe
+echo "◦ Création de l'utilisateur MQTT..."
 rm -f "$MQTT_CONFIG_DIR/passwords"
 log_command "/usr/bin/mosquitto_passwd -b -c '$MQTT_CONFIG_DIR/passwords' '$MQTT_USER' '$MQTT_PASS'" "Création utilisateur MQTT"
 chmod 600 "$MQTT_CONFIG_DIR/passwords"
@@ -177,150 +188,171 @@ chown mosquitto:mosquitto "$MQTT_CONFIG_DIR/passwords"
 echo "  ↦ Utilisateur '$MQTT_USER' créé ✓"
 log_info "Utilisateur MQTT créé: $MQTT_USER"
 
-# Configuration principale
+# Créer la configuration minimale et fonctionnelle
 echo ""
-echo "◦ Création de la configuration..."
-log_info "Création de la configuration Mosquitto"
-
+echo "◦ Création du fichier de configuration..."
 cat > "$MQTT_CONFIG_DIR/mosquitto.conf" << EOF
 # Configuration Mosquitto pour MaxLink
-# Généré le $(date)
+# Configuration simple et fonctionnelle
 
-# Fichiers système
-pid_file /var/run/mosquitto/mosquitto.pid
+# Persistence des messages
 persistence true
 persistence_location /var/lib/mosquitto/
+
+# Logs
 log_dest file /var/log/mosquitto/mosquitto.log
+log_type error
+log_type warning
+log_type notice
+log_type information
 
-# Authentification
+# Sécurité
 allow_anonymous false
-password_file $MQTT_CONFIG_DIR/passwords
+password_file /etc/mosquitto/passwords
 
-# Listener standard MQTT
+# Listener MQTT standard
 listener $MQTT_PORT
-protocol mqtt
 
 # Listener WebSocket pour le dashboard
 listener $MQTT_WEBSOCKET_PORT
 protocol websockets
 
-# Configuration des logs
-log_type error
-log_type warning
-log_type notice
-log_type information
-connection_messages true
-log_timestamp true
-
-# Limites de connexion
-max_connections -1
-max_inflight_messages 20
-max_queued_messages 100
-
-# Keep alive
-keepalive_interval 60
+# Utilisateur système
+user mosquitto
 EOF
 
 echo "  ↦ Configuration créée ✓"
-echo "  ↦ Port MQTT: $MQTT_PORT"
-echo "  ↦ Port WebSocket: $MQTT_WEBSOCKET_PORT"
 log_success "Configuration Mosquitto créée"
-log_info "Ports configurés - MQTT: $MQTT_PORT, WebSocket: $MQTT_WEBSOCKET_PORT"
 
-send_progress 80 "Configuration terminée"
-
-# ÉTAPE 4 : Démarrage du service
+# Vérifier la syntaxe de la configuration
 echo ""
-echo "ÉTAPE 4 : DÉMARRAGE DU SERVICE"
+echo "◦ Vérification de la configuration..."
+if mosquitto -c /etc/mosquitto/mosquitto.conf -t 2>/dev/null; then
+    echo "  ↦ Configuration valide ✓"
+    log_info "Configuration Mosquitto validée"
+else
+    echo "  ↦ Erreur dans la configuration ✗"
+    log_error "Configuration Mosquitto invalide"
+    # Afficher l'erreur
+    mosquitto -c /etc/mosquitto/mosquitto.conf -t
+    exit 1
+fi
+
+send_progress 85 "Configuration terminée"
+echo ""
+sleep 2
+
+# ÉTAPE 5 : Démarrage du service
+echo "========================================================================"
+echo "ÉTAPE 5 : DÉMARRAGE DU SERVICE"
 echo "========================================================================"
 echo ""
 
-send_progress 85 "Démarrage du service..."
+send_progress 90 "Démarrage du service..."
 
-echo "◦ Activation du service..."
+# Activer le service au démarrage
+echo "◦ Activation du service au démarrage..."
 log_command "systemctl enable mosquitto >/dev/null 2>&1" "Activation au démarrage"
-echo "  ↦ Service activé au démarrage ✓"
+echo "  ↦ Service activé ✓"
 
+# Démarrer le service
 echo ""
 echo "◦ Démarrage de Mosquitto..."
 if log_command "systemctl start mosquitto" "Démarrage Mosquitto"; then
     echo "  ↦ Mosquitto démarré ✓"
     log_success "Mosquitto démarré avec succès"
+    
+    # Attendre que le service soit complètement démarré
+    wait_silently 3
+    
+    # Vérifier que le service est actif
+    if systemctl is-active --quiet mosquitto; then
+        echo "  ↦ Service actif et fonctionnel ✓"
+        log_info "Service Mosquitto actif"
+    else
+        echo "  ↦ Le service n'est pas actif ✗"
+        log_error "Service Mosquitto non actif après démarrage"
+        journalctl -u mosquitto -n 20 --no-pager
+        exit 1
+    fi
 else
     echo "  ↦ Erreur au démarrage ✗"
     log_error "Mosquitto n'a pas pu démarrer"
-    
-    # Afficher les logs pour debug
     echo ""
     echo "Dernières lignes du journal :"
     journalctl -u mosquitto -n 20 --no-pager
-    log_command "journalctl -u mosquitto -n 20 --no-pager" "Journal Mosquitto"
-    
     exit 1
 fi
 
-# Attendre que le service soit complètement démarré
-wait_silently 3
-
-# Test de connexion
+send_progress 95 "Service démarré"
 echo ""
-echo "◦ Test de connexion..."
-if mosquitto_pub -h localhost -p $MQTT_PORT -u "$MQTT_USER" -P "$MQTT_PASS" -t "test/broker/install" -m "Installation réussie" 2>/dev/null; then
-    echo "  ↦ Connexion réussie ✓"
-    log_success "Test de connexion MQTT réussi"
-else
-    echo "  ↦ Connexion échouée ✗"
-    log_error "Test de connexion MQTT échoué"
-fi
+sleep 2
 
-send_progress 95 "Tests terminés"
-
-# ÉTAPE 5 : Test WebSocket
-echo ""
-echo "ÉTAPE 5 : VÉRIFICATION WEBSOCKET"
+# ÉTAPE 6 : Tests de connexion
+echo "========================================================================"
+echo "ÉTAPE 6 : TESTS DE CONNEXION"
 echo "========================================================================"
 echo ""
 
-echo "◦ Test du port WebSocket..."
+send_progress 98 "Tests de connexion..."
+
+# Test MQTT standard
+echo "◦ Test de connexion MQTT (port $MQTT_PORT)..."
+if mosquitto_pub -h localhost -p $MQTT_PORT -u "$MQTT_USER" -P "$MQTT_PASS" -t "test/installation" -m "MaxLink MQTT OK" 2>/dev/null; then
+    echo "  ↦ Connexion MQTT réussie ✓"
+    log_success "Test de connexion MQTT réussi"
+else
+    echo "  ↦ Connexion MQTT échouée ✗"
+    log_error "Test de connexion MQTT échoué"
+    echo ""
+    echo "Vérification des logs :"
+    tail -10 /var/log/mosquitto/mosquitto.log
+fi
+
+# Test WebSocket
+echo ""
+echo "◦ Test du port WebSocket ($MQTT_WEBSOCKET_PORT)..."
 if nc -z localhost $MQTT_WEBSOCKET_PORT 2>/dev/null; then
-    echo "  ↦ Port WebSocket ($MQTT_WEBSOCKET_PORT) accessible ✓"
+    echo "  ↦ Port WebSocket accessible ✓"
     log_success "Port WebSocket accessible"
 else
     echo "  ↦ Port WebSocket non accessible ⚠"
-    log_warn "Port WebSocket non accessible"
+    log_warn "Port WebSocket non accessible immédiatement"
+    echo "  ↦ Le port peut prendre quelques secondes pour s'ouvrir"
 fi
 
-send_progress 100 "Installation terminée"
+# Afficher les ports en écoute
+echo ""
+echo "◦ Ports en écoute :"
+netstat -tlnp 2>/dev/null | grep mosquitto || ss -tlnp 2>/dev/null | grep mosquitto || echo "  ↦ Impossible de vérifier les ports"
 
-# RÉSUMÉ
+send_progress 100 "Installation terminée"
 echo ""
+sleep 2
+
+# RÉSUMÉ FINAL
 echo "========================================================================"
-echo "INSTALLATION TERMINÉE"
+echo "INSTALLATION TERMINÉE AVEC SUCCÈS !"
 echo "========================================================================"
 echo ""
-echo "◦ Broker MQTT installé et configuré avec succès !"
+echo "◦ Broker MQTT Mosquitto installé et configuré"
 echo ""
-echo "Informations de connexion :"
-echo "  • Hôte        : localhost (ou l'IP du Raspberry Pi)"
-echo "  • Port MQTT   : $MQTT_PORT"
+echo "◦ Informations de connexion :"
+echo "  • Serveur      : localhost (ou IP du Raspberry Pi)"
+echo "  • Port MQTT    : $MQTT_PORT"
 echo "  • Port WebSocket : $MQTT_WEBSOCKET_PORT"
-echo "  • Utilisateur : $MQTT_USER"
-echo "  • Mot de passe: $MQTT_PASS"
+echo "  • Utilisateur  : $MQTT_USER"
+echo "  • Mot de passe : $MQTT_PASS"
 echo ""
-echo "Commandes utiles :"
-echo "  • État du service : systemctl status mosquitto"
+echo "◦ Commandes utiles :"
+echo "  • État : systemctl status mosquitto"
 echo "  • Logs : journalctl -u mosquitto -f"
-echo "  • Test publication : mosquitto_pub -h localhost -u $MQTT_USER -P $MQTT_PASS -t 'test' -m 'Hello'"
-echo "  • Test souscription : mosquitto_sub -h localhost -u $MQTT_USER -P $MQTT_PASS -t '#' -v"
+echo "  • Test : mosquitto_sub -h localhost -u $MQTT_USER -P $MQTT_PASS -t '#' -v"
 echo ""
-echo "Prochaine étape : Installer les widgets avec MQTT WGS"
+echo "◦ Prochaine étape : Installer les widgets avec mqtt_wgs_install.sh"
 echo ""
 
 log_success "Installation MQTT Broker terminée avec succès"
-log_info "Configuration finale:"
-log_info "  - Hôte: localhost"
-log_info "  - Port MQTT: $MQTT_PORT"
-log_info "  - Port WebSocket: $MQTT_WEBSOCKET_PORT"
-log_info "  - Utilisateur: $MQTT_USER"
+log_info "Configuration: $MQTT_USER/$MQTT_PASS sur ports $MQTT_PORT et $MQTT_WEBSOCKET_PORT"
 
 exit 0

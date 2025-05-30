@@ -51,6 +51,16 @@ GITHUB_DASHBOARD_DIR="DashBoardV1"
 GITHUB_TOKEN=""
 
 # ===============================================================================
+# CONFIGURATION MQTT
+# ===============================================================================
+
+# Configuration du broker MQTT
+MQTT_USER="mosquitto"
+MQTT_PASS="mqtt"
+MQTT_PORT="1883"
+MQTT_WEBSOCKET_PORT="9001"
+
+# ===============================================================================
 # CONFIGURATION NGINX
 # ===============================================================================
 
@@ -86,8 +96,8 @@ DESKTOP_SHADOW_COLOR="#000000"
 SERVICES_LIST=(
     "update:Update RPI:active"
     "ap:Network AP:active" 
-    "nginx:NginX Web:inactive"
-    "mqtt:MQTT BKR:inactive"
+    "nginx:NginX Web:active"
+    "mqtt:MQTT BKR:active"
 )
 
 # ===============================================================================
@@ -203,6 +213,7 @@ export LOG_TO_CONSOLE_DEFAULT LOG_TO_FILE_DEFAULT
 export NETWORK_TIMEOUT PING_COUNT APT_RETRY_MAX_ATTEMPTS APT_RETRY_DELAY
 export DISPLAY_DELAY_STARTUP DISPLAY_DELAY_BETWEEN_STEPS
 export FAN_TEMP_MIN FAN_TEMP_ACTIVATE FAN_TEMP_MAX
+export MQTT_USER MQTT_PASS MQTT_PORT MQTT_WEBSOCKET_PORT
 
 # Valider la configuration
 if ! validate_config; then
