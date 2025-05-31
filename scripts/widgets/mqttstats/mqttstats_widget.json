@@ -1,0 +1,85 @@
+{
+  "widget": {
+    "id": "mqttstats",
+    "name": "MQTT Statistics",
+    "version": "2.0.0",
+    "description": "Collecte et affiche les statistiques du broker MQTT via les topics système $SYS",
+    "author": "MaxLink Team",
+    "dashboard_compatibility": "1.0+"
+  },
+  "mqtt": {
+    "required": true,
+    "broker": {
+      "host": "localhost",
+      "port": 1883,
+      "username": "mosquitto",
+      "password": "mqtt"
+    },
+    "topics": {
+      "publish": [
+        {
+          "topic": "rpi/network/mqtt/stats",
+          "description": "Statistiques principales du broker MQTT",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"messages_received\": 15234, \"messages_sent\": 8712, \"clients_connected\": 5, \"uptime_seconds\": 86400, \"latency_ms\": 12}"
+        },
+        {
+          "topic": "rpi/network/mqtt/topics",
+          "description": "Liste des topics MQTT actifs",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"topics\": [\"sensor/temp\", \"device/status\"], \"count\": 2}"
+        }
+      ],
+      "subscribe": [
+        {
+          "topic": "$SYS/broker/clients/connected",
+          "description": "Nombre de clients connectés",
+          "format": "integer"
+        },
+        {
+          "topic": "$SYS/broker/messages/received",
+          "description": "Nombre total de messages reçus",
+          "format": "integer"
+        },
+        {
+          "topic": "$SYS/broker/messages/sent",
+          "description": "Nombre total de messages envoyés",
+          "format": "integer"
+        },
+        {
+          "topic": "$SYS/broker/uptime",
+          "description": "Temps de fonctionnement du broker",
+          "format": "string",
+          "example": "365420 seconds"
+        },
+        {
+          "topic": "#",
+          "description": "Tous les topics pour détecter l'activité",
+          "format": "any"
+        }
+      ]
+    }
+  },
+  "collector": {
+    "enabled": true,
+    "script": "mqttstats_collector.py",
+    "service_name": "maxlink-widget-mqttstats",
+    "service_description": "MaxLink MQTT Statistics Collector",
+    "update_intervals": {
+      "default": 10
+    },
+    "features": {
+      "sys_topics": true,
+      "topic_monitoring": true,
+      "latency_check": true
+    }
+  },
+  "dependencies": {
+    "python_packages": [
+      "paho-mqtt"
+    ],
+    "system_packages": [],
+    "services": ["mosquitto"],
+    "python_version": ">=3.7"
+  }
+}

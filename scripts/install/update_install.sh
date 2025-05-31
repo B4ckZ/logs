@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V9 AVEC SSH ET PERMISSIONS FILEZILLA
-# Version finale avec configuration complète pour développement
+# MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V10 AVEC GESTION DES UTILISATEURS SFTP
+# Version avec configuration multi-utilisateurs FileZilla/SFTP
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -20,7 +20,7 @@ source "$SCRIPT_DIR/../common/wifi_helper.sh"
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Mise à jour système MaxLink V9 - Configuration complète" "install"
+init_logging "Mise à jour système MaxLink V10 - Configuration multi-utilisateurs" "install"
 
 # Variables pour le contrôle du processus
 AP_WAS_ACTIVE=false
@@ -342,10 +342,10 @@ EOF
     fi
 }
 
-# Configuration SSH et permissions pour développement
-configure_ssh_and_permissions() {
-    echo "◦ Configuration SSH et permissions complètes pour développement..."
-    log_info "Configuration SSH et permissions FileZilla avec accès complet"
+# Configuration SSH et gestion des utilisateurs SFTP
+configure_ssh_and_users() {
+    echo "◦ Configuration SSH et création des utilisateurs FileZilla/SFTP..."
+    log_info "Configuration SSH et gestion des utilisateurs SFTP"
     
     # Activer SSH si nécessaire
     if ! systemctl is-active --quiet ssh; then
@@ -357,90 +357,148 @@ configure_ssh_and_permissions() {
         echo "  ↦ Service SSH déjà actif ✓"
     fi
     
-    # Configuration des permissions COMPLÈTES pour éviter tout problème
     echo ""
-    echo "◦ Application des permissions complètes..."
+    echo "◦ Création des utilisateurs FileZilla/SFTP..."
     
-    # 1. Dashboard - Propriétaire = utilisateur effectif avec permissions complètes
-    # Note: Le dashboard n'existe pas encore à ce stade, sera créé par nginx_install.sh
-    
-    # 2. Dossier MaxLink complet - Accès total
-    if [ -d "$BASE_DIR" ]; then
-        echo "  ↦ Configuration du dossier MaxLink avec accès complet..."
-        log_command "chown -R $EFFECTIVE_USER:$EFFECTIVE_USER $BASE_DIR" "Propriétaire MaxLink"
-        log_command "find $BASE_DIR -type d -exec chmod 777 {} \;" "Permissions dossiers 777"
-        log_command "find $BASE_DIR -type f -exec chmod 666 {} \;" "Permissions fichiers 666"
-        log_command "find $BASE_DIR -name '*.sh' -exec chmod 777 {} \;" "Scripts bash exécutables"
-        log_command "find $BASE_DIR -name '*.py' -exec chmod 777 {} \;" "Scripts python exécutables"
-        echo "    • MaxLink : accès complet ✓"
+    # 1. Créer le super admin FileZilla
+    if ! id "$SFTP_ADMIN_USER" &>/dev/null; then
+        echo "  ↦ Création du super admin : $SFTP_ADMIN_USER"
+        log_command "useradd -m -s /bin/bash '$SFTP_ADMIN_USER'" "Création utilisateur $SFTP_ADMIN_USER"
+        echo "$SFTP_ADMIN_USER:$SFTP_ADMIN_PASS" | chpasswd
+        log_command "usermod -aG sudo '$SFTP_ADMIN_USER'" "Ajout au groupe sudo"
+        echo "    • $SFTP_ADMIN_DESC ✓"
+        log_success "Super admin $SFTP_ADMIN_USER créé avec succès"
+    else
+        echo "  ↦ Utilisateur $SFTP_ADMIN_USER existe déjà ✓"
+        log_info "Utilisateur $SFTP_ADMIN_USER déjà existant"
     fi
     
-    # 3. Préparer les groupes pour Nginx (qui sera installé plus tard)
-    # Ajouter l'utilisateur au groupe www-data pour compatibilité future
-    if ! groups $EFFECTIVE_USER | grep -q www-data; then
-        log_command "usermod -a -G www-data $EFFECTIVE_USER" "Ajout au groupe www-data"
-        NEED_LOGOUT=true
-    fi
+    # 2. Créer les utilisateurs limités depuis la liste
+    echo ""
+    echo "◦ Création des utilisateurs limités..."
     
-    # 4. Créer un script pour configurer les permissions du dashboard après son installation
-    cat > "$EFFECTIVE_USER_HOME/setup_dashboard_permissions.sh" << 'EOF'
-#!/bin/bash
-# Script pour configurer les permissions du dashboard après installation de Nginx
-
-if [ -d "/var/www/maxlink-dashboard" ]; then
-    echo "Configuration des permissions du dashboard..."
-    sudo chown -R $USER:$USER /var/www/maxlink-dashboard
-    sudo find /var/www/maxlink-dashboard -type d -exec chmod 777 {} \;
-    sudo find /var/www/maxlink-dashboard -type f -exec chmod 666 {} \;
+    for user_config in "${SFTP_LIMITED_USERS[@]}"; do
+        IFS=':' read -r username password directory description <<< "$user_config"
+        
+        if ! id "$username" &>/dev/null; then
+            echo "  ↦ Création de l'utilisateur limité : $username"
+            
+            # Créer l'utilisateur avec un shell restreint
+            log_command "useradd -m -s /usr/sbin/nologin '$username'" "Création utilisateur $username"
+            echo "$username:$password" | chpasswd
+            
+            # Créer le dossier de téléchargement
+            mkdir -p "$directory"
+            
+            # Préparer la structure pour chroot
+            # Le home doit appartenir à root pour le chroot SSH
+            chown root:root "/home/$username"
+            chmod 755 "/home/$username"
+            
+            # Créer le dossier downloads dans le home
+            local download_subdir="$(basename "$directory")"
+            mkdir -p "/home/$username/$download_subdir"
+            chown "$username:$username" "/home/$username/$download_subdir"
+            chmod 755 "/home/$username/$download_subdir"
+            
+            echo "    • $description ✓"
+            log_success "Utilisateur limité $username créé avec succès"
+        else
+            echo "  ↦ Utilisateur $username existe déjà ✓"
+            log_info "Utilisateur $username déjà existant"
+        fi
+    done
     
-    # Créer le lien symbolique
-    if [ ! -L "$HOME/dashboard" ]; then
-        ln -s /var/www/maxlink-dashboard "$HOME/dashboard"
-        echo "  ✓ Raccourci ~/dashboard créé"
-    fi
+    # 3. Configurer SSH pour le chroot des utilisateurs limités
+    echo ""
+    echo "◦ Configuration du chroot SSH pour les utilisateurs limités..."
+    configure_ssh_chroot
     
-    echo "  ✓ Permissions du dashboard configurées avec accès complet"
-else
-    echo "Dashboard non trouvé. Installez d'abord Nginx."
-fi
-EOF
+    # 4. Afficher les informations de connexion
+    echo ""
+    echo "========================================================================"
+    echo "INFORMATIONS DE CONNEXION FILEZILLA/SFTP"
+    echo "========================================================================"
     
-    chmod +x "$EFFECTIVE_USER_HOME/setup_dashboard_permissions.sh"
-    chown $EFFECTIVE_USER:$EFFECTIVE_USER "$EFFECTIVE_USER_HOME/setup_dashboard_permissions.sh"
-    
-    # 5. Créer le lien vers les widgets dans le home
-    if [ ! -L "$EFFECTIVE_USER_HOME/widgets" ]; then
-        ln -s "$BASE_DIR/scripts/widgets" "$EFFECTIVE_USER_HOME/widgets"
-        chown -h $EFFECTIVE_USER:$EFFECTIVE_USER "$EFFECTIVE_USER_HOME/widgets"
-        echo "  ↦ Raccourci ~/widgets créé ✓"
-    fi
-    
-    # Afficher les informations de connexion
     local ip_address=$(hostname -I | awk '{print $1}')
+    
     echo ""
-    echo "◦ Informations de connexion FileZilla :"
+    echo "◦ Configuration FileZilla :"
     echo "  • Protocole : SFTP - SSH File Transfer Protocol"
     echo "  • Hôte : $ip_address"
     echo "  • Port : 22"
-    echo "  • Utilisateur : $EFFECTIVE_USER"
     echo ""
-    echo "◦ Raccourcis disponibles :"
-    echo "  • ~/widgets → $BASE_DIR/scripts/widgets"
-    echo "  • ~/dashboard → (disponible après installation de Nginx)"
-    echo ""
-    echo "◦ Permissions : Accès complet en lecture/écriture ✓"
-    echo ""
-    echo "◦ Note : Après l'installation de Nginx, exécutez :"
-    echo "  ~/setup_dashboard_permissions.sh"
     
-    log_success "Configuration SSH et permissions complètes terminée"
+    echo "◦ Compte Super Admin :"
+    echo "  • Utilisateur : $SFTP_ADMIN_USER"
+    echo "  • Mot de passe : $SFTP_ADMIN_PASS"
+    echo "  • Accès : Complet au système"
+    echo ""
+    
+    echo "◦ Comptes limités :"
+    for user_config in "${SFTP_LIMITED_USERS[@]}"; do
+        IFS=':' read -r username password directory description <<< "$user_config"
+        echo "  • Utilisateur : $username"
+        echo "    Mot de passe : $password"
+        echo "    Dossier : $directory"
+        echo "    Description : $description"
+        echo ""
+    done
+    
+    echo "========================================================================"
+    
+    log_success "Configuration SSH et utilisateurs SFTP terminée"
+}
+
+# Configuration du chroot SSH
+configure_ssh_chroot() {
+    local sshd_config="/etc/ssh/sshd_config"
+    local config_updated=false
+    
+    # Sauvegarder la configuration originale
+    if [ ! -f "${sshd_config}.maxlink_backup" ]; then
+        cp "$sshd_config" "${sshd_config}.maxlink_backup"
+        log_info "Sauvegarde de la configuration SSH originale"
+    fi
+    
+    # Vérifier et ajouter la configuration pour chaque utilisateur limité
+    for user_config in "${SFTP_LIMITED_USERS[@]}"; do
+        IFS=':' read -r username password directory description <<< "$user_config"
+        
+        if ! grep -q "Match User $username" "$sshd_config"; then
+            cat >> "$sshd_config" << EOF
+
+# Configuration chroot pour $username - $description
+Match User $username
+    ChrootDirectory /home/%u
+    ForceCommand internal-sftp
+    AllowTcpForwarding no
+    X11Forwarding no
+    PasswordAuthentication yes
+EOF
+            config_updated=true
+            echo "  ↦ Configuration chroot ajoutée pour $username ✓"
+            log_info "Configuration SSH chroot ajoutée pour $username"
+        fi
+    done
+    
+    # Redémarrer SSH si la configuration a été modifiée
+    if [ "$config_updated" = true ]; then
+        echo "  ↦ Redémarrage du service SSH..."
+        log_command "systemctl restart ssh" "Redémarrage SSH"
+        echo "  ↦ Service SSH redémarré avec la nouvelle configuration ✓"
+        log_success "Configuration SSH mise à jour et service redémarré"
+    else
+        echo "  ↦ Configuration SSH déjà à jour ✓"
+        log_info "Configuration SSH déjà à jour"
+    fi
 }
 
 # ===============================================================================
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-log_info "========== DÉBUT DE LA MISE À JOUR SYSTÈME V9 =========="
+log_info "========== DÉBUT DE LA MISE À JOUR SYSTÈME V10 =========="
 
 # Vérifier les privilèges root
 if [ "$EUID" -ne 0 ]; then
@@ -814,20 +872,31 @@ EOF
     log_success "Configuration bureau LXDE appliquée"
 fi
 
-# Configuration SSH et permissions
+send_progress 85 "Configuration des utilisateurs..."
+
+# ===============================================================================
+# ÉTAPE 7 : CONFIGURATION SSH ET UTILISATEURS
+# ===============================================================================
+
 echo ""
-configure_ssh_and_permissions
+echo "========================================================================"
+echo "ÉTAPE 7 : CONFIGURATION SSH ET UTILISATEURS SFTP"
+echo "========================================================================"
+echo ""
+
+# Configuration SSH et création des utilisateurs
+configure_ssh_and_users
 
 send_progress 90 "Configuration terminée"
 echo ""
 sleep 2
 
 # ===============================================================================
-# ÉTAPE 7 : FINALISATION
+# ÉTAPE 8 : FINALISATION
 # ===============================================================================
 
 echo "========================================================================"
-echo "ÉTAPE 7 : FINALISATION"
+echo "ÉTAPE 8 : FINALISATION"
 echo "========================================================================"
 echo ""
 
@@ -853,22 +922,13 @@ echo "◦ Mise à jour terminée avec succès !"
 echo "  ↦ Version: v$MAXLINK_VERSION"
 echo "  ↦ Système à jour et configuré"
 echo "  ↦ Cache de paquets créé pour installation offline"
-echo "  ↦ SSH activé pour développement"
+echo "  ↦ SSH activé avec utilisateurs SFTP configurés"
 log_success "Mise à jour système terminée - Version: v$MAXLINK_VERSION"
 
 # Afficher le résumé du cache
 echo ""
 echo "◦ Résumé du cache créé :"
 get_cache_stats
-
-# Note sur les permissions
-if [ "$NEED_LOGOUT" = true ]; then
-    echo ""
-    echo "⚠ NOTE IMPORTANTE :"
-    echo "  L'utilisateur $EFFECTIVE_USER a été ajouté au groupe www-data."
-    echo "  Une déconnexion/reconnexion sera nécessaire pour appliquer ce changement."
-    echo "  Après le redémarrage, vous pourrez utiliser FileZilla immédiatement."
-fi
 
 echo ""
 echo "  ↦ Redémarrage du système prévu dans 30 secondes..."

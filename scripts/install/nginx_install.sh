@@ -3,6 +3,7 @@
 # ===============================================================================
 # MAXLINK - INSTALLATION NGINX ET DASHBOARD (VERSION HYBRIDE)
 # Installation flexible avec cache local ou téléchargement automatique
+# Version avec permissions optimisées pour édition FileZilla
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -306,10 +307,27 @@ fi
 rm -rf "$TEMP_DIR"
 log_info "Nettoyage du répertoire temporaire"
 
-# Permissions
-log_command "chown -R www-data:www-data '$NGINX_DASHBOARD_DIR'" "Application permissions"
-log_command "chmod -R 755 '$NGINX_DASHBOARD_DIR'" "Application droits"
-echo "  ↦ Permissions appliquées ✓"
+# Permissions pour édition collaborative via FileZilla
+echo ""
+echo "◦ Configuration des permissions pour édition collaborative..."
+
+# S'assurer que le groupe www-data existe
+groupadd -f www-data 2>/dev/null || true
+
+# Permissions : propriétaire www-data, groupe www-data, 775 pour édition
+log_command "chown -R www-data:www-data '$NGINX_DASHBOARD_DIR'" "Application propriétaire et groupe"
+log_command "chmod -R 775 '$NGINX_DASHBOARD_DIR'" "Permissions 775 (lecture/écriture groupe)"
+log_command "find '$NGINX_DASHBOARD_DIR' -type d -exec chmod g+s {} \;" "Sticky bit sur dossiers"
+
+echo "  ↦ Permissions configurées pour édition via FileZilla ✓"
+log_info "Dashboard accessible en écriture pour le groupe www-data"
+
+# Rappel pour les utilisateurs
+echo ""
+echo "◦ Note : Les utilisateurs suivants peuvent éditer le dashboard :"
+echo "  • $EFFECTIVE_USER (via FileZilla ou local)"
+echo "  • $SFTP_ADMIN_USER (via FileZilla)"
+echo "  • Tout membre du groupe www-data"
 
 send_progress 60 "Dashboard installé"
 echo ""
@@ -449,6 +467,13 @@ if [ -f "/etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf" ] && grep -q "
 else
     echo "    • http://$NGINX_DASHBOARD_DOMAIN (nécessite l'installation de l'AP)"
 fi
+echo ""
+
+# Rappel important sur les permissions
+echo "◦ IMPORTANT - Permissions FileZilla :"
+echo "  Si vous ne pouvez pas éditer les fichiers via FileZilla :"
+echo "  1. Déconnectez-vous de FileZilla"
+echo "  2. Reconnectez-vous pour appliquer les changements de groupe"
 echo ""
 
 log_info "Installation terminée avec succès"

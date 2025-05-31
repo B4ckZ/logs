@@ -34,9 +34,33 @@ VERSION_OVERLAY_PREFIX="MaxLink "            # Préfixe avant la version
 # CONFIGURATION UTILISATEUR SYSTÈME
 # ===============================================================================
 
-# Utilisateur principal du Raspberry Pi
-SYSTEM_USER="max"
+# Utilisateur principal du Raspberry Pi (créé lors du flash avec Pi Imager)
+SYSTEM_USER="prod"
 SYSTEM_USER_HOME="/home/$SYSTEM_USER"
+
+# ===============================================================================
+# CONFIGURATION DES UTILISATEURS SFTP/FILEZILLA
+# ===============================================================================
+
+# Super admin FileZilla (accès complet au système)
+SFTP_ADMIN_USER="max"
+SFTP_ADMIN_PASS="max"
+SFTP_ADMIN_DESC="Super Admin FileZilla - Accès complet"
+
+# Utilisateur limité (téléchargement uniquement)
+SFTP_DATA_USER="franck"
+SFTP_DATA_PASS="franck"
+SFTP_DATA_DIR="/home/franck/downloads"
+SFTP_DATA_DESC="Utilisateur limité - Téléchargement uniquement"
+
+# Liste extensible d'utilisateurs limités pour évolutions futures
+# Format: "username:password:directory:description"
+SFTP_LIMITED_USERS=(
+    "franck:franck:/home/franck/downloads:Utilisateur limité - Téléchargement uniquement"
+    # Ajouter d'autres utilisateurs ici si besoin
+    # "client1:Pass123:/home/client1/data:Client 1 - Accès données"
+    # "client2:Pass456:/home/client2/exports:Client 2 - Export only"
+)
 
 # ===============================================================================
 # CONFIGURATION RÉSEAU WIFI
@@ -188,6 +212,8 @@ validate_config() {
     [ -z "$WIFI_SSID" ] && echo "ERREUR: WIFI_SSID non défini" && ((errors++))
     [ -z "$AP_SSID" ] && echo "ERREUR: AP_SSID non défini" && ((errors++))
     [ -z "$SYSTEM_USER" ] && echo "ERREUR: SYSTEM_USER non défini" && ((errors++))
+    [ -z "$SFTP_ADMIN_USER" ] && echo "ERREUR: SFTP_ADMIN_USER non défini" && ((errors++))
+    [ -z "$SFTP_DATA_USER" ] && echo "ERREUR: SFTP_DATA_USER non défini" && ((errors++))
     
     # Vérifier la validité de l'IP
     if [[ ! "$AP_IP" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
@@ -220,6 +246,9 @@ export VERSION_OVERLAY_MARGIN_RIGHT VERSION_OVERLAY_MARGIN_BOTTOM
 export VERSION_OVERLAY_FONT_BOLD VERSION_OVERLAY_PREFIX
 export SYSTEM_USER SYSTEM_USER_HOME
 export EFFECTIVE_USER EFFECTIVE_USER_HOME
+export SFTP_ADMIN_USER SFTP_ADMIN_PASS SFTP_ADMIN_DESC
+export SFTP_DATA_USER SFTP_DATA_PASS SFTP_DATA_DIR SFTP_DATA_DESC
+export SFTP_LIMITED_USERS
 export WIFI_SSID WIFI_PASSWORD
 export AP_SSID AP_PASSWORD AP_IP AP_NETMASK AP_DHCP_START AP_DHCP_END
 export GITHUB_REPO_URL GITHUB_BRANCH GITHUB_DASHBOARD_DIR GITHUB_TOKEN

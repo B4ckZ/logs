@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION MQTT BROKER (VERSION FINALE FONCTIONNELLE)
-# Installation avec configuration minimale garantie de fonctionner
+# MAXLINK - INSTALLATION MQTT BROKER (VERSION AVEC STATISTIQUES)
+# Installation avec configuration des topics système $SYS activés
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -20,7 +20,7 @@ source "$SCRIPT_DIR/../common/wifi_helper.sh"
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Installation MQTT Broker (version finale)" "install"
+init_logging "Installation MQTT Broker avec statistiques" "install"
 
 # Variables MQTT - Utiliser les valeurs de variables.sh ou les valeurs par défaut
 MQTT_USER="${MQTT_USER:-mosquitto}"
@@ -188,9 +188,9 @@ chown mosquitto:mosquitto "$MQTT_CONFIG_DIR/passwords"
 echo "  ↦ Utilisateur '$MQTT_USER' créé ✓"
 log_info "Utilisateur MQTT créé: $MQTT_USER"
 
-# IMPORTANT : Créer la configuration MINIMALE qui fonctionne
+# IMPORTANT : Créer la configuration avec topics système activés
 echo ""
-echo "◦ Création du fichier de configuration..."
+echo "◦ Création du fichier de configuration avec statistiques..."
 
 # Sauvegarder l'ancienne configuration si elle existe
 if [ -f "$MQTT_CONFIG_DIR/mosquitto.conf" ]; then
@@ -198,9 +198,9 @@ if [ -f "$MQTT_CONFIG_DIR/mosquitto.conf" ]; then
     log_info "Ancienne configuration sauvegardée"
 fi
 
-# Créer la configuration minimale GARANTIE de fonctionner
+# Créer la configuration avec topics système $SYS activés
 cat > "$MQTT_CONFIG_DIR/mosquitto.conf" << EOF
-# Configuration Mosquitto MaxLink - Minimale et fonctionnelle
+# Configuration Mosquitto MaxLink - Avec statistiques système
 allow_anonymous false
 password_file /etc/mosquitto/passwords
 
@@ -210,10 +210,52 @@ listener $MQTT_PORT
 # Listener WebSocket sur port $MQTT_WEBSOCKET_PORT
 listener $MQTT_WEBSOCKET_PORT
 protocol websockets
+
+# =======================================
+# CONFIGURATION DES TOPICS SYSTÈME ($SYS)
+# =======================================
+
+# Activer les topics système
+sys_interval 10
+
+# Autoriser l'accès aux topics système pour l'utilisateur authentifié
+# Les topics $SYS sont en lecture seule par défaut
+
+# Configuration ACL pour permettre la lecture des topics système
+# L'utilisateur mosquitto peut lire tous les topics système et publier/lire sur tous les autres
+acl_file /etc/mosquitto/acl
+
+# Logging pour debug (optionnel)
+log_dest file /var/log/mosquitto/mosquitto.log
+log_type error
+log_type warning
+log_type notice
+log_type information
 EOF
 
-echo "  ↦ Configuration créée ✓"
-log_success "Configuration Mosquitto créée"
+echo "  ↦ Configuration créée avec statistiques activées ✓"
+log_success "Configuration Mosquitto créée avec topics système"
+
+# Créer le fichier ACL pour autoriser la lecture des topics $SYS
+echo ""
+echo "◦ Configuration des permissions ACL..."
+cat > "$MQTT_CONFIG_DIR/acl" << EOF
+# ACL pour MaxLink MQTT
+# Format: user username
+#         topic [read|write|readwrite] topic
+
+# L'utilisateur mosquitto a accès complet
+user $MQTT_USER
+topic readwrite #
+
+# Tous les utilisateurs authentifiés peuvent lire les topics système
+pattern read \$SYS/#
+EOF
+
+chmod 644 "$MQTT_CONFIG_DIR/acl"
+chown mosquitto:mosquitto "$MQTT_CONFIG_DIR/acl"
+echo "  ↦ Permissions ACL configurées ✓"
+log_info "Fichier ACL créé pour autoriser la lecture des topics système"
 
 # Afficher la configuration pour vérification
 echo ""
@@ -309,6 +351,24 @@ else
     echo "  ↦ Le port peut prendre quelques secondes pour s'ouvrir"
 fi
 
+# Test des topics système
+echo ""
+echo "◦ Test des topics système ($SYS)..."
+# Essayer de lire un topic système
+if timeout 2 mosquitto_sub -h localhost -p $MQTT_PORT -u "$MQTT_USER" -P "$MQTT_PASS" -t '$SYS/broker/version' -C 1 2>/dev/null; then
+    echo "  ↦ Topics système accessibles ✓"
+    log_success "Topics système $SYS accessibles"
+    
+    # Afficher quelques statistiques système
+    echo ""
+    echo "◦ Aperçu des statistiques système disponibles :"
+    echo "  ↦ Version : $(mosquitto_sub -h localhost -p $MQTT_PORT -u "$MQTT_USER" -P "$MQTT_PASS" -t '$SYS/broker/version' -C 1 2>/dev/null || echo 'N/A')"
+    echo "  ↦ Uptime : $(mosquitto_sub -h localhost -p $MQTT_PORT -u "$MQTT_USER" -P "$MQTT_PASS" -t '$SYS/broker/uptime' -C 1 2>/dev/null || echo 'N/A')"
+else
+    echo "  ↦ Topics système non accessibles ⚠"
+    log_warn "Topics système non accessibles - vérifier la configuration"
+fi
+
 # Afficher les ports en écoute
 echo ""
 echo "◦ Ports en écoute :"
@@ -324,6 +384,7 @@ echo "INSTALLATION TERMINÉE AVEC SUCCÈS !"
 echo "========================================================================"
 echo ""
 echo "◦ Broker MQTT Mosquitto installé et configuré"
+echo "◦ Topics système ($SYS) activés pour les statistiques"
 echo ""
 echo "◦ Informations de connexion :"
 echo "  • Serveur      : localhost (ou IP du Raspberry Pi)"
@@ -332,15 +393,23 @@ echo "  • Port WebSocket : $MQTT_WEBSOCKET_PORT"
 echo "  • Utilisateur  : $MQTT_USER"
 echo "  • Mot de passe : $MQTT_PASS"
 echo ""
+echo "◦ Topics système disponibles :"
+echo "  • \$SYS/broker/clients/connected    : Clients connectés"
+echo "  • \$SYS/broker/messages/received   : Messages reçus"
+echo "  • \$SYS/broker/messages/sent       : Messages envoyés"
+echo "  • \$SYS/broker/uptime             : Temps de fonctionnement"
+echo "  • \$SYS/broker/load/+             : Charge du broker"
+echo ""
 echo "◦ Commandes utiles :"
 echo "  • État : systemctl status mosquitto"
 echo "  • Logs : journalctl -u mosquitto -f"
 echo "  • Test : mosquitto_sub -h localhost -u $MQTT_USER -P $MQTT_PASS -t '#' -v"
+echo "  • Stats: mosquitto_sub -h localhost -u $MQTT_USER -P $MQTT_PASS -t '\$SYS/#' -v"
 echo ""
 echo "◦ Prochaine étape : Installer les widgets avec mqtt_wgs_install.sh"
 echo ""
 
-log_success "Installation MQTT Broker terminée avec succès"
+log_success "Installation MQTT Broker terminée avec statistiques système activées"
 log_info "Configuration: $MQTT_USER/$MQTT_PASS sur ports $MQTT_PORT et $MQTT_WEBSOCKET_PORT"
 
 exit 0
