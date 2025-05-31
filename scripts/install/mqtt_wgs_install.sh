@@ -42,7 +42,8 @@ send_progress() {
 discover_widgets() {
     local widgets=()
     
-    log_info "Découverte des widgets disponibles"
+    # Rediriger les logs vers stderr pour ne pas polluer stdout
+    log_info "Découverte des widgets disponibles" >&2
     
     # Parcourir le répertoire widgets
     for widget_dir in "$WIDGETS_DIR"/*; do
@@ -52,15 +53,16 @@ discover_widgets() {
         local widget_name=$(basename "$widget_dir")
         [ "$widget_name" = "_core" ] && continue
         
-        # Vérifier que c'est un widget valide
-        if widget_validate "$widget_name" 2>/dev/null; then
+        # Vérifier que c'est un widget valide (rediriger toute sortie vers stderr)
+        if widget_validate "$widget_name" >/dev/null 2>&1; then
             widgets+=("$widget_name")
-            log_info "Widget trouvé: $widget_name"
+            log_info "Widget trouvé: $widget_name" >&2
         else
-            log_warn "Widget invalide ignoré: $widget_name"
+            log_warn "Widget invalide ignoré: $widget_name" >&2
         fi
     done
     
+    # Retourner uniquement les noms des widgets sur stdout
     printf '%s\n' "${widgets[@]}"
 }
 
@@ -140,7 +142,10 @@ send_progress 10 "Découverte des widgets..."
 # Découvrir les widgets
 echo ""
 echo "◦ Recherche des widgets disponibles..."
-mapfile -t widgets < <(discover_widgets)
+widgets=()
+while IFS= read -r widget; do
+    widgets+=("$widget")
+done < <(discover_widgets)
 TOTAL_WIDGETS=${#widgets[@]}
 
 if [ $TOTAL_WIDGETS -eq 0 ]; then

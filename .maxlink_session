@@ -1,6 +1,0 @@
-MAXLINK_ROOT_MODE=1
-MAXLINK_BASE_DIR=/media/prod/MAXLINK
-MAXLINK_SUDO_USER=prod
-MAXLINK_ORIGINAL_HOME=/home/prod
-DISPLAY=:0
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
