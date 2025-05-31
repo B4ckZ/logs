@@ -1,363 +1,0 @@
-
-================================================================================
-DÉMARRAGE: update_install
-Description: Mise à jour système MaxLink V10 - Configuration multi-utilisateurs
-Date: Tue 13 May 02:18:44 CEST 2025
-Utilisateur: root
-Répertoire: /media/prod/MAXLINK
-================================================================================
-
-[2025-05-13 02:18:44] [INFO] [update_install] Script update_install initialisé
-[2025-05-13 02:18:44] [INFO] [update_install] ========== DÉBUT DE LA MISE À JOUR SYSTÈME V10 ==========
-[2025-05-13 02:18:44] [INFO] [update_install] Progression: 5% - Préparation du système...
-[2025-05-13 02:18:44] [INFO] [update_install] Stabilisation du système - attente 10s pour OS frais
-[2025-05-13 02:18:54] [INFO] [update_install] Désactivation des mises à jour automatiques
-[2025-05-13 02:18:55] [INFO] [update_install] Sauvegarde de l'état réseau actuel
-[2025-05-13 02:18:55] [INFO] [update_install] Mode AP non actif
-[2025-05-13 02:18:55] [INFO] [update_install] Interface WiFi wlan0 détectée
-[2025-05-13 02:18:55] [CMD] [update_install] Exécution: Activation WiFi
-[2025-05-13 02:18:55] [CMD] [update_install] Commande: nmcli radio wifi on >/dev/null 2>&1
-[2025-05-13 02:18:55] [CMD] [update_install] Code de sortie: 0
-[2025-05-13 02:18:58] [INFO] [update_install] Progression: 10% - WiFi préparé
-[2025-05-13 02:19:00] [INFO] [update_install] Progression: 15% - Connexion au réseau...
-[2025-05-13 02:19:00] [INFO] [update_install] Vérification et établissement de la connexion internet
-[2025-05-13 02:19:01] [INFO] [update_install] Sauvegarde de l'état réseau actuel
-[2025-05-13 02:19:01] [INFO] [update_install] Mode AP non actif
-[2025-05-13 02:19:01] [DEBUG] [update_install] Vérification de la connectivité internet
-[2025-05-13 02:19:01] [DEBUG] [update_install] Pas de connectivité internet
-[2025-05-13 02:19:01] [INFO] [update_install] Connexion automatique requise pour télécharger les paquets
-[2025-05-13 02:19:01] [INFO] [update_install] Tentative de connexion à Max
-[2025-05-13 02:19:04] [SUCCESS] [update_install] Connexion WiFi établie
-[2025-05-13 02:19:09] [DEBUG] [update_install] Vérification de la connectivité internet
-[2025-05-13 02:19:10] [DEBUG] [update_install] Connectivité internet OK
-[2025-05-13 02:19:10] [SUCCESS] [update_install] Connectivité internet confirmée
-[2025-05-13 02:19:10] [INFO] [update_install] Stabilisation de la connexion - attente 5s
-[2025-05-13 02:19:15] [INFO] [update_install] Progression: 30% - Connexion établie
-[2025-05-13 02:19:17] [INFO] [update_install] Progression: 35% - Synchronisation de l'horloge...
-[2025-05-13 02:19:17] [INFO] [update_install] Synchronisation NTP
-[2025-05-13 02:19:17] [CMD] [update_install] Exécution: Activation NTP
-[2025-05-13 02:19:17] [CMD] [update_install] Commande: timedatectl set-ntp true
-[2025-05-13 02:19:18] [CMD] [update_install] Code de sortie: 0
-[2025-05-13 02:19:18] [INFO] [update_install] Attente synchronisation NTP - 15s
-[2025-05-31 23:58:32] [INFO] [update_install] Heure synchronisée: Sat 31 May 23:58:32 CEST 2025
-[2025-05-31 23:58:32] [INFO] [update_install] Progression: 40% - Horloge synchronisée
-[2025-05-31 23:58:34] [INFO] [update_install] Progression: 45% - Préparation des mises à jour...
-[2025-05-31 23:58:34] [INFO] [update_install] Début du nettoyage APT sécurisé
-[2025-05-31 23:58:35] [INFO] [update_install] Vérification de l'état d'APT
-[2025-05-31 23:58:35] [INFO] [update_install] APT libre immédiatement
-[2025-05-31 23:58:35] [INFO] [update_install] Nettoyage des processus zombies
-[2025-05-31 23:58:37] [INFO] [update_install] Vérification des verrous orphelins
-[2025-05-31 23:58:37] [INFO] [update_install] Suppression verrou orphelin: /var/lib/dpkg/lock
-[2025-05-31 23:58:37] [INFO] [update_install] Suppression verrou orphelin: /var/lib/dpkg/lock-frontend
-[2025-05-31 23:58:37] [INFO] [update_install] Suppression verrou orphelin: /var/lib/apt/lists/lock
-[2025-05-31 23:58:38] [INFO] [update_install] Suppression verrou orphelin: /var/cache/apt/archives/lock
-[2025-05-31 23:58:38] [CMD] [update_install] Exécution: Configuration dpkg
-[2025-05-31 23:58:38] [CMD] [update_install] Commande: dpkg --configure -a
-[2025-05-31 23:58:38] [CMD] [update_install] Code de sortie: 0
-[2025-05-31 23:58:38] [SUCCESS] [update_install] Nettoyage APT terminé
-[2025-05-31 23:58:40] [INFO] [update_install] Stabilisation après nettoyage - attente 3s
-[2025-05-31 23:58:43] [INFO] [update_install] Début de la mise à jour APT
-[2025-05-31 23:58:43] [INFO] [update_install] Tentative APT update 1/3
-[2025-05-31 23:58:58] [SUCCESS] [update_install] APT update réussi
-[2025-05-31 23:58:58] [INFO] [update_install] Progression: 55% - Installation des mises à jour critiques...
-[2025-05-31 23:58:58] [INFO] [update_install] Installation des paquets critiques uniquement
-[2025-05-31 23:58:58] [CMD] [update_install] Exécution: Mise à jour sécurité
-[2025-05-31 23:58:58] [CMD] [update_install] Commande: DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade --allow-unauthenticated openssh-server openssh-client openssl libssl* sudo systemd apt dpkg libc6 libpam* ca-certificates tzdata
-[2025-05-31 23:59:24] [OUT] [update_install] Reading package lists...
-[2025-05-31 23:59:24] [OUT] [update_install] Building dependency tree...
-[2025-05-31 23:59:24] [OUT] [update_install] Reading state information...
-[2025-05-31 23:59:24] [OUT] [update_install] openssl is already the newest version (3.0.16-1~deb12u1+rpt1).
-[2025-05-31 23:59:24] [OUT] [update_install] libssl3 is already the newest version (3.0.16-1~deb12u1+rpt1).
-[2025-05-31 23:59:24] [OUT] [update_install] Skipping libssl-dev, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:25] [OUT] [update_install] Skipping libssl-ocaml, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:25] [OUT] [update_install] Skipping libssl-ocaml-dev, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:25] [OUT] [update_install] Skipping libssl-doc, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:25] [OUT] [update_install] Skipping libssl-utils-clojure, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:25] [OUT] [update_install] Skipping libssl-ocaml:armhf, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:25] [OUT] [update_install] Skipping libssl-ocaml-dev:armhf, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:25] [OUT] [update_install] Skipping libssl1.1, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:25] [OUT] [update_install] Skipping libssl1.1-dbgsym, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:25] [OUT] [update_install] Skipping libssl3-dbgsym, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:25] [OUT] [update_install] sudo is already the newest version (1.9.13p3-1+deb12u1).
-[2025-05-31 23:59:26] [OUT] [update_install] apt is already the newest version (2.6.1).
-[2025-05-31 23:59:26] [OUT] [update_install] dpkg is already the newest version (1.22.6~bpo12+rpt3).
-[2025-05-31 23:59:26] [OUT] [update_install] libc6 is already the newest version (2.36-9+rpt2+deb12u10).
-[2025-05-31 23:59:26] [OUT] [update_install] libpam0g is already the newest version (1.5.2-6+rpt2+deb12u1).
-[2025-05-31 23:59:26] [OUT] [update_install] Skipping libpam-apparmor, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:26] [OUT] [update_install] libpam-runtime is already the newest version (1.5.2-6+rpt2+deb12u1).
-[2025-05-31 23:59:26] [OUT] [update_install] libpam-modules is already the newest version (1.5.2-6+rpt2+deb12u1).
-[2025-05-31 23:59:26] [OUT] [update_install] Skipping libpam-barada, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:26] [OUT] [update_install] Skipping libpam-sss, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:27] [OUT] [update_install] Skipping libpam-gnome-keyring, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:27] [OUT] [update_install] Skipping libpam-tmpdir, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:27] [OUT] [update_install] Skipping libpam-krb5, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:27] [OUT] [update_install] Skipping libpam-ccreds, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:27] [OUT] [update_install] Skipping libpam-mount, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:27] [OUT] [update_install] Skipping libpam-mklocaluser, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:27] [OUT] [update_install] Skipping libpam-python, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:27] [OUT] [update_install] Skipping libpam-duo, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:27] [OUT] [update_install] Skipping libpam-fprintd, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:27] [OUT] [update_install] Skipping libpam0g-dev, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:28] [OUT] [update_install] Skipping libpam-elogind, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:28] [OUT] [update_install] Skipping libpam-ldapd, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:28] [OUT] [update_install] Skipping libpam-abl, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:28] [OUT] [update_install] Skipping libpam-fscrypt, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:28] [OUT] [update_install] Skipping libpam-pkcs11, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:28] [OUT] [update_install] Skipping libpam-google-authenticator, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:28] [OUT] [update_install] Skipping libpam-kwallet-common, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:28] [OUT] [update_install] Skipping libpam-kwallet5, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:28] [OUT] [update_install] Skipping libpam-mount-bin, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:29] [OUT] [update_install] Skipping libpam-cap, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:29] [OUT] [update_install] Skipping libpam-cgroup, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:29] [OUT] [update_install] Skipping libpam-afs-session, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:29] [OUT] [update_install] Skipping libpam-heimdal, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:29] [OUT] [update_install] Skipping libpam-alreadyloggedin, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:29] [OUT] [update_install] Skipping libpam-chroot, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:29] [OUT] [update_install] Skipping libpam-encfs, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:29] [OUT] [update_install] Skipping libpam-freerdp2, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:29] [OUT] [update_install] Skipping libpam-freerdp2-dev, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:29] [OUT] [update_install] Skipping libpam-net, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:30] [OUT] [update_install] Skipping libpam-pwdfile, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:30] [OUT] [update_install] Skipping libpam-radius-auth, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:30] [OUT] [update_install] Skipping libpam-script, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:30] [OUT] [update_install] Skipping libpam-ufpidentity, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:30] [OUT] [update_install] Skipping libpam-x2go, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:30] [OUT] [update_install] Skipping libpam-x2go-dev, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:30] [OUT] [update_install] Skipping libpam-pwquality, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:30] [OUT] [update_install] Skipping libpam-cgfs, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:30] [OUT] [update_install] Skipping libpam-malcontent, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:30] [OUT] [update_install] Skipping libpam-oath, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:31] [OUT] [update_install] Skipping libpam-ocaml, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:31] [OUT] [update_install] Skipping libpam-ocaml-dev, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:31] [OUT] [update_install] Skipping libpam-otpw, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:31] [OUT] [update_install] Skipping libpam-doc, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:31] [OUT] [update_install] libpam-modules-bin is already the newest version (1.5.2-6+rpt2+deb12u1).
-[2025-05-31 23:59:31] [OUT] [update_install] Skipping libpam-geoip, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:31] [OUT] [update_install] Skipping libpam-krb5-migrate-heimdal, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:31] [OUT] [update_install] Skipping libpam-krb5-migrate-mit, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:31] [OUT] [update_install] Skipping libpam-mysql, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:32] [OUT] [update_install] Skipping libpam-p11, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:32] [OUT] [update_install] Skipping libpam-python-doc, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:32] [OUT] [update_install] Skipping libpam-shield, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:32] [OUT] [update_install] Skipping libpam-ssh-agent-auth, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:32] [OUT] [update_install] Skipping libpam-u2f, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:32] [OUT] [update_install] Skipping libpam-wrapper, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:32] [OUT] [update_install] Skipping libpamtest0, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:32] [OUT] [update_install] Skipping libpamtest0-dev, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:32] [OUT] [update_install] Skipping libpam-passwdqc, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:32] [OUT] [update_install] Skipping libpam-poldi, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:33] [OUT] [update_install] Skipping libpam-winbind, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:33] [OUT] [update_install] Skipping libpam-shishi, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:33] [OUT] [update_install] Skipping libpam-slurm, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:33] [OUT] [update_install] Skipping libpam-slurm-adopt, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:33] [OUT] [update_install] Skipping libpam-snapper, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:33] [OUT] [update_install] Skipping libpam-biometric, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:33] [OUT] [update_install] Skipping libpam-yubico, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:33] [OUT] [update_install] Skipping libpam-ocaml:armhf, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:33] [OUT] [update_install] Skipping libpam-ocaml-dev:armhf, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:33] [OUT] [update_install] Skipping libpam-zfs, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:34] [OUT] [update_install] libpam-chksshpwd is already the newest version (1.5.2-6+rpt2+deb12u1).
-[2025-05-31 23:59:34] [OUT] [update_install] Skipping libpam-chksshpwd-dbgsym, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:34] [OUT] [update_install] Skipping libpam-cracklib, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:34] [OUT] [update_install] Skipping libpam-cracklib-dbgsym, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:34] [OUT] [update_install] Skipping libpam-modules-bin-dbgsym, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:34] [OUT] [update_install] Skipping libpam-modules-dbgsym, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:34] [OUT] [update_install] Skipping libpam-zfs-dbgsym, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:34] [OUT] [update_install] Skipping libpam0g-dbgsym, it is not installed and only upgrades are requested.
-[2025-05-31 23:59:34] [OUT] [update_install] ca-certificates is already the newest version (20230311).
-[2025-05-31 23:59:35] [OUT] [update_install] tzdata is already the newest version (2025b-0+deb12u1).
-[2025-05-31 23:59:35] [OUT] [update_install] The following additional packages will be installed:
-[2025-05-31 23:59:35] [OUT] [update_install]   libsystemd-shared libsystemd0 libudev1 openssh-sftp-server ssh systemd-sysv
-[2025-05-31 23:59:35] [OUT] [update_install]   systemd-timesyncd udev
-[2025-05-31 23:59:35] [OUT] [update_install] Suggested packages:
-[2025-05-31 23:59:35] [OUT] [update_install]   keychain libpam-ssh monkeysphere ssh-askpass molly-guard ufw
-[2025-05-31 23:59:35] [OUT] [update_install]   systemd-container systemd-homed systemd-userdbd systemd-boot
-[2025-05-31 23:59:35] [OUT] [update_install]   systemd-resolved libtss2-esys-3.0.2-0 libtss2-mu0 libtss2-rc0
-[2025-05-31 23:59:35] [OUT] [update_install] Recommended packages:
-[2025-05-31 23:59:35] [OUT] [update_install]   libnss-systemd
-[2025-05-31 23:59:36] [OUT] [update_install] The following packages will be upgraded:
-[2025-05-31 23:59:36] [OUT] [update_install]   libpam-systemd libsystemd-shared libsystemd0 libudev1 openssh-client
-[2025-05-31 23:59:36] [OUT] [update_install]   openssh-server openssh-sftp-server ssh systemd systemd-sysv
-[2025-05-31 23:59:36] [OUT] [update_install]   systemd-timesyncd udev
-[2025-05-31 23:59:36] [OUT] [update_install] 12 upgraded, 0 newly installed, 0 to remove and 78 not upgraded.
-[2025-05-31 23:59:36] [OUT] [update_install] Need to get 8,297 kB of archives.
-[2025-05-31 23:59:36] [OUT] [update_install] After this operation, 202 kB of additional disk space will be used.
-[2025-05-31 23:59:36] [OUT] [update_install] Get:1 http://deb.debian.org/debian-security bookworm-security/main arm64 systemd-timesyncd arm64 252.38-1~deb12u1 [61.8 kB]
-[2025-05-31 23:59:36] [OUT] [update_install] Get:2 http://deb.debian.org/debian-security bookworm-security/main arm64 libpam-systemd arm64 252.38-1~deb12u1 [209 kB]
-[2025-05-31 23:59:37] [OUT] [update_install] Get:3 http://deb.debian.org/debian-security bookworm-security/main arm64 systemd arm64 252.38-1~deb12u1 [2,839 kB]
-[2025-05-31 23:59:37] [OUT] [update_install] Get:4 http://deb.debian.org/debian-security bookworm-security/main arm64 libsystemd-shared arm64 252.38-1~deb12u1 [1,507 kB]
-[2025-05-31 23:59:37] [OUT] [update_install] Get:5 http://deb.debian.org/debian-security bookworm-security/main arm64 systemd-sysv arm64 252.38-1~deb12u1 [42.6 kB]
-[2025-05-31 23:59:37] [OUT] [update_install] Get:6 http://deb.debian.org/debian-security bookworm-security/main arm64 libsystemd0 arm64 252.38-1~deb12u1 [308 kB]
-[2025-05-31 23:59:37] [OUT] [update_install] Get:7 http://deb.debian.org/debian bookworm/main arm64 openssh-sftp-server arm64 1:9.2p1-2+deb12u6 [60.7 kB]
-[2025-05-31 23:59:37] [OUT] [update_install] Get:8 http://deb.debian.org/debian bookworm/main arm64 openssh-server arm64 1:9.2p1-2+deb12u6 [413 kB]
-[2025-05-31 23:59:37] [OUT] [update_install] Get:9 http://deb.debian.org/debian bookworm/main arm64 openssh-client arm64 1:9.2p1-2+deb12u6 [937 kB]
-[2025-05-31 23:59:37] [OUT] [update_install] Get:10 http://deb.debian.org/debian-security bookworm-security/main arm64 udev arm64 252.38-1~deb12u1 [1,641 kB]
-[2025-05-31 23:59:37] [OUT] [update_install] Get:11 http://deb.debian.org/debian-security bookworm-security/main arm64 libudev1 arm64 252.38-1~deb12u1 [103 kB]
-[2025-05-31 23:59:37] [OUT] [update_install] Get:12 http://deb.debian.org/debian bookworm/main arm64 ssh all 1:9.2p1-2+deb12u6 [174 kB]
-[2025-05-31 23:59:38] [OUT] [update_install] apt-listchanges: Reading changelogs...
-[2025-05-31 23:59:38] [OUT] [update_install] Preconfiguring packages ...
-[2025-05-31 23:59:38] [OUT] [update_install] Fetched 8,297 kB in 5s (1,691 kB/s)
-[2025-05-31 23:59:38] [OUT] [update_install] (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 129085 files and directories currently installed.)
-[2025-05-31 23:59:38] [OUT] [update_install] Preparing to unpack .../systemd-timesyncd_252.38-1~deb12u1_arm64.deb ...
-[2025-05-31 23:59:38] [OUT] [update_install] Unpacking systemd-timesyncd (252.38-1~deb12u1) over (252.36-1~deb12u1) ...
-[2025-05-31 23:59:38] [OUT] [update_install] Preparing to unpack .../libpam-systemd_252.38-1~deb12u1_arm64.deb ...
-[2025-05-31 23:59:38] [OUT] [update_install] Unpacking libpam-systemd:arm64 (252.38-1~deb12u1) over (252.36-1~deb12u1) ...
-[2025-05-31 23:59:38] [OUT] [update_install] Preparing to unpack .../systemd_252.38-1~deb12u1_arm64.deb ...
-[2025-05-31 23:59:38] [OUT] [update_install] Unpacking systemd (252.38-1~deb12u1) over (252.36-1~deb12u1) ...
-[2025-05-31 23:59:39] [OUT] [update_install] Preparing to unpack .../libsystemd-shared_252.38-1~deb12u1_arm64.deb ...
-[2025-05-31 23:59:39] [OUT] [update_install] Unpacking libsystemd-shared:arm64 (252.38-1~deb12u1) over (252.36-1~deb12u1) ...
-[2025-05-31 23:59:39] [OUT] [update_install] Preparing to unpack .../libsystemd0_252.38-1~deb12u1_arm64.deb ...
-[2025-05-31 23:59:39] [OUT] [update_install] Unpacking libsystemd0:arm64 (252.38-1~deb12u1) over (252.36-1~deb12u1) ...
-[2025-05-31 23:59:39] [OUT] [update_install] Setting up libsystemd0:arm64 (252.38-1~deb12u1) ...
-[2025-05-31 23:59:39] [OUT] [update_install] Setting up libsystemd-shared:arm64 (252.38-1~deb12u1) ...
-[2025-05-31 23:59:39] [OUT] [update_install] Setting up systemd (252.38-1~deb12u1) ...
-[2025-05-31 23:59:39] [OUT] [update_install] (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 129086 files and directories currently installed.)
-[2025-05-31 23:59:39] [OUT] [update_install] Preparing to unpack .../0-systemd-sysv_252.38-1~deb12u1_arm64.deb ...
-[2025-05-31 23:59:40] [OUT] [update_install] Unpacking systemd-sysv (252.38-1~deb12u1) over (252.36-1~deb12u1) ...
-[2025-05-31 23:59:40] [OUT] [update_install] Preparing to unpack .../1-openssh-sftp-server_1%3a9.2p1-2+deb12u6_arm64.deb ...
-[2025-05-31 23:59:40] [OUT] [update_install] Unpacking openssh-sftp-server (1:9.2p1-2+deb12u6) over (1:9.2p1-2+deb12u5) ...
-[2025-05-31 23:59:40] [OUT] [update_install] Preparing to unpack .../2-openssh-server_1%3a9.2p1-2+deb12u6_arm64.deb ...
-[2025-05-31 23:59:40] [OUT] [update_install] Unpacking openssh-server (1:9.2p1-2+deb12u6) over (1:9.2p1-2+deb12u5) ...
-[2025-05-31 23:59:40] [OUT] [update_install] Preparing to unpack .../3-openssh-client_1%3a9.2p1-2+deb12u6_arm64.deb ...
-[2025-05-31 23:59:40] [OUT] [update_install] Unpacking openssh-client (1:9.2p1-2+deb12u6) over (1:9.2p1-2+deb12u5) ...
-[2025-05-31 23:59:40] [OUT] [update_install] Preparing to unpack .../4-udev_252.38-1~deb12u1_arm64.deb ...
-[2025-05-31 23:59:40] [OUT] [update_install] Unpacking udev (252.38-1~deb12u1) over (252.36-1~deb12u1) ...
-[2025-05-31 23:59:40] [OUT] [update_install] Preparing to unpack .../5-libudev1_252.38-1~deb12u1_arm64.deb ...
-[2025-05-31 23:59:41] [OUT] [update_install] Unpacking libudev1:arm64 (252.38-1~deb12u1) over (252.36-1~deb12u1) ...
-[2025-05-31 23:59:41] [OUT] [update_install] Setting up libudev1:arm64 (252.38-1~deb12u1) ...
-[2025-05-31 23:59:41] [OUT] [update_install] (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 129086 files and directories currently installed.)
-[2025-05-31 23:59:41] [OUT] [update_install] Preparing to unpack .../ssh_1%3a9.2p1-2+deb12u6_all.deb ...
-[2025-05-31 23:59:41] [OUT] [update_install] Unpacking ssh (1:9.2p1-2+deb12u6) over (1:9.2p1-2+deb12u5) ...
-[2025-05-31 23:59:41] [OUT] [update_install] Setting up systemd-sysv (252.38-1~deb12u1) ...
-[2025-05-31 23:59:41] [OUT] [update_install] Setting up openssh-client (1:9.2p1-2+deb12u6) ...
-[2025-05-31 23:59:41] [OUT] [update_install] Setting up systemd-timesyncd (252.38-1~deb12u1) ...
-[2025-05-31 23:59:41] [OUT] [update_install] Setting up udev (252.38-1~deb12u1) ...
-[2025-05-31 23:59:42] [OUT] [update_install] Setting up libpam-systemd:arm64 (252.38-1~deb12u1) ...
-[2025-05-31 23:59:42] [OUT] [update_install] Setting up openssh-sftp-server (1:9.2p1-2+deb12u6) ...
-[2025-05-31 23:59:42] [OUT] [update_install] Setting up openssh-server (1:9.2p1-2+deb12u6) ...
-[2025-05-31 23:59:42] [OUT] [update_install] rescue-ssh.target is a disabled or a static unit not running, not starting it.
-[2025-05-31 23:59:42] [OUT] [update_install] ssh.socket is a disabled or a static unit not running, not starting it.
-[2025-05-31 23:59:42] [OUT] [update_install] Setting up ssh (1:9.2p1-2+deb12u6) ...
-[2025-05-31 23:59:42] [OUT] [update_install] Processing triggers for man-db (2.11.2-2) ...
-[2025-05-31 23:59:42] [OUT] [update_install] Processing triggers for dbus (1.14.10-1~deb12u1) ...
-[2025-05-31 23:59:42] [OUT] [update_install] Processing triggers for initramfs-tools (0.142+rpt3+deb12u3) ...
-[2025-05-31 23:59:42] [OUT] [update_install] update-initramfs: Generating /boot/initrd.img-6.12.25+rpt-rpi-v8
-[2025-05-31 23:59:43] [OUT] [update_install] '/boot/initrd.img-6.12.25+rpt-rpi-v8' -> '/boot/firmware/initramfs8'
-[2025-05-31 23:59:43] [OUT] [update_install] update-initramfs: Generating /boot/initrd.img-6.12.25+rpt-rpi-2712
-[2025-05-31 23:59:43] [OUT] [update_install] '/boot/initrd.img-6.12.25+rpt-rpi-2712' -> '/boot/firmware/initramfs_2712'
-[2025-05-31 23:59:43] [OUT] [update_install] Processing triggers for libc-bin (2.36-9+rpt2+deb12u10) ...
-[2025-05-31 23:59:43] [CMD] [update_install] Code de sortie: 0
-[2025-05-31 23:59:43] [SUCCESS] [update_install] Mises à jour de sécurité installées
-[2025-05-31 23:59:43] [INFO] [update_install] Stabilisation après mises à jour - attente 5s
-[2025-05-31 23:59:48] [INFO] [update_install] Progression: 65% - Création du cache de paquets...
-[2025-05-31 23:59:48] [INFO] [update_install] Initialisation du cache de paquets
-[2025-05-31 23:59:48] [INFO] [update_install] Initialisation du cache des paquets
-[2025-05-31 23:59:49] [SUCCESS] [update_install] Cache initialisé: /var/cache/maxlink/packages
-[2025-05-31 23:59:49] [SUCCESS] [update_install] Cache initialisé avec succès
-[2025-05-31 23:59:49] [INFO] [update_install] Préparation du téléchargement - attente 3s
-[2025-05-31 23:59:52] [INFO] [update_install] Téléchargement de tous les paquets requis
-[2025-05-31 23:59:52] [INFO] [update_install] Mise à jour des listes de paquets APT
-[2025-05-31 23:59:54] [INFO] [update_install] Téléchargement du paquet: git
-[2025-06-01 00:00:23] [SUCCESS] [update_install] Paquet téléchargé: git
-[2025-06-01 00:00:23] [INFO] [update_install] Téléchargement du paquet: curl
-[2025-06-01 00:00:24] [SUCCESS] [update_install] Paquet téléchargé: curl
-[2025-06-01 00:00:25] [INFO] [update_install] Téléchargement du paquet: wget
-[2025-06-01 00:00:26] [SUCCESS] [update_install] Paquet téléchargé: wget
-[2025-06-01 00:00:26] [INFO] [update_install] Téléchargement du paquet: ca-certificates
-[2025-06-01 00:00:33] [SUCCESS] [update_install] Paquet téléchargé: ca-certificates
-[2025-06-01 00:00:33] [INFO] [update_install] Téléchargement du paquet: apt-transport-https
-[2025-06-01 00:00:42] [SUCCESS] [update_install] Paquet téléchargé: apt-transport-https
-[2025-06-01 00:00:42] [INFO] [update_install] Téléchargement du paquet: gnupg
-[2025-06-01 00:06:27] [SUCCESS] [update_install] Paquet téléchargé: gnupg
-[2025-06-01 00:06:27] [INFO] [update_install] Téléchargement du paquet: lsb-release
-[2025-06-01 00:06:28] [SUCCESS] [update_install] Paquet téléchargé: lsb-release
-[2025-06-01 00:06:29] [INFO] [update_install] Téléchargement du paquet: nginx
-[2025-06-01 00:06:34] [SUCCESS] [update_install] Paquet téléchargé: nginx
-[2025-06-01 00:06:35] [INFO] [update_install] Téléchargement du paquet: nginx-common
-[2025-06-01 00:06:36] [SUCCESS] [update_install] Paquet téléchargé: nginx-common
-[2025-06-01 00:06:36] [INFO] [update_install] Téléchargement du paquet: mosquitto
-[2025-06-01 00:06:38] [SUCCESS] [update_install] Paquet téléchargé: mosquitto
-[2025-06-01 00:06:38] [INFO] [update_install] Téléchargement du paquet: mosquitto-clients
-[2025-06-01 00:06:39] [SUCCESS] [update_install] Paquet téléchargé: mosquitto-clients
-[2025-06-01 00:06:39] [INFO] [update_install] Téléchargement du paquet: libmosquitto1
-[2025-06-01 00:06:40] [SUCCESS] [update_install] Paquet téléchargé: libmosquitto1
-[2025-06-01 00:06:40] [INFO] [update_install] Téléchargement du paquet: libdlt2
-[2025-06-01 00:06:41] [SUCCESS] [update_install] Paquet téléchargé: libdlt2
-[2025-06-01 00:06:41] [INFO] [update_install] Téléchargement du paquet: dnsmasq
-[2025-06-01 00:06:43] [SUCCESS] [update_install] Paquet téléchargé: dnsmasq
-[2025-06-01 00:06:43] [INFO] [update_install] Téléchargement du paquet: iptables
-[2025-06-01 00:06:45] [SUCCESS] [update_install] Paquet téléchargé: iptables
-[2025-06-01 00:06:45] [INFO] [update_install] Téléchargement du paquet: python3-psutil
-[2025-06-01 00:06:49] [SUCCESS] [update_install] Paquet téléchargé: python3-psutil
-[2025-06-01 00:06:49] [INFO] [update_install] Téléchargement du paquet: python3-paho-mqtt
-[2025-06-01 00:06:51] [SUCCESS] [update_install] Paquet téléchargé: python3-paho-mqtt
-[2025-06-01 00:06:51] [INFO] [update_install] Téléchargement du paquet: python3-pip
-[2025-06-01 00:06:53] [SUCCESS] [update_install] Paquet téléchargé: python3-pip
-[2025-06-01 00:06:54] [INFO] [update_install] Téléchargement du paquet: python3-setuptools
-[2025-06-01 00:06:54] [SUCCESS] [update_install] Paquet téléchargé: python3-setuptools
-[2025-06-01 00:06:55] [INFO] [update_install] Téléchargement du paquet: htop
-[2025-06-01 00:06:56] [SUCCESS] [update_install] Paquet téléchargé: htop
-[2025-06-01 00:06:56] [INFO] [update_install] Téléchargement du paquet: iotop
-[2025-06-01 00:06:57] [SUCCESS] [update_install] Paquet téléchargé: iotop
-[2025-06-01 00:06:57] [INFO] [update_install] Téléchargement du paquet: net-tools
-[2025-06-01 00:06:59] [SUCCESS] [update_install] Paquet téléchargé: net-tools
-[2025-06-01 00:06:59] [INFO] [update_install] Téléchargement du paquet: dnsutils
-[2025-06-01 00:07:01] [SUCCESS] [update_install] Paquet téléchargé: dnsutils
-[2025-06-01 00:07:01] [INFO] [update_install] Téléchargement du paquet: python3-pil
-[2025-06-01 00:07:04] [SUCCESS] [update_install] Paquet téléchargé: python3-pil
-[2025-06-01 00:07:04] [INFO] [update_install] Total paquets téléchargés: 656
-[2025-06-01 00:07:04] [SUCCESS] [update_install] Tous les paquets ont été téléchargés
-[2025-06-01 00:07:05] [INFO] [update_install] Téléchargement du dashboard depuis GitHub
-[2025-06-01 00:07:05] [CMD] [update_install] Exécution: Téléchargement dashboard (curl)
-[2025-06-01 00:07:05] [CMD] [update_install] Commande: curl -L -o '/var/cache/maxlink/dashboard/dashboard.tar.gz' 'https://github.com/B4ckZ/MaxLink/archive/refs/heads/main.tar.gz'
-[2025-06-01 00:07:06] [OUT] [update_install]   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-[2025-06-01 00:07:06] [OUT] [update_install]                                  Dload  Upload   Total   Spent    Left  Speed
-[2025-06-01 00:07:06] [OUT] [update_install]   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
-[2025-06-01 00:07:06] [OUT] [update_install] 100 12959    0 12959    0     0  15043      0 --:--:-- --:--:-- --:--:-- 15043100 91646    0 91646    0     0  93477      0 --:--:-- --:--:-- --:--:--  651k
-[2025-06-01 00:07:06] [CMD] [update_install] Code de sortie: 0
-[2025-06-01 00:07:06] [SUCCESS] [update_install] Dashboard téléchargé avec curl
-[2025-06-01 00:07:07] [SUCCESS] [update_install] Archive dashboard valide
-[2025-06-01 00:07:07] [CMD] [update_install] Exécution: APT autoremove
-[2025-06-01 00:07:07] [CMD] [update_install] Commande: apt-get autoremove -y >/dev/null 2>&1
-[2025-06-01 00:07:08] [CMD] [update_install] Code de sortie: 0
-[2025-06-01 00:07:08] [CMD] [update_install] Exécution: APT autoclean
-[2025-06-01 00:07:08] [CMD] [update_install] Commande: apt-get autoclean >/dev/null 2>&1
-[2025-06-01 00:07:09] [CMD] [update_install] Code de sortie: 0
-[2025-06-01 00:07:09] [INFO] [update_install] Progression: 75% - Cache créé
-[2025-06-01 00:07:11] [INFO] [update_install] Progression: 80% - Configuration du système...
-[2025-06-01 00:07:11] [INFO] [update_install] Configuration du ventilateur
-[2025-06-01 00:07:11] [SUCCESS] [update_install] Configuration ventilateur ajoutée
-[2025-06-01 00:07:11] [INFO] [update_install] Installation du fond d'écran personnalisé
-[2025-06-01 00:07:11] [INFO] [update_install] Ajout de la version MaxLink v2.4 sur l'image de fond
-[2025-06-01 00:07:11] [SUCCESS] [update_install] Version ajoutée sur l'image
-[2025-06-01 00:07:12] [SUCCESS] [update_install] Configuration bureau LXDE appliquée
-[2025-06-01 00:07:12] [INFO] [update_install] Progression: 85% - Configuration des utilisateurs...
-[2025-06-01 00:07:12] [INFO] [update_install] Configuration SSH et gestion des utilisateurs SFTP
-[2025-06-01 00:07:12] [CMD] [update_install] Exécution: Création utilisateur max
-[2025-06-01 00:07:12] [CMD] [update_install] Commande: useradd -m -s /bin/bash 'max'
-[2025-06-01 00:07:12] [CMD] [update_install] Code de sortie: 0
-[2025-06-01 00:07:13] [CMD] [update_install] Exécution: Ajout au groupe sudo
-[2025-06-01 00:07:13] [CMD] [update_install] Commande: usermod -aG sudo 'max'
-[2025-06-01 00:07:13] [CMD] [update_install] Code de sortie: 0
-[2025-06-01 00:07:13] [SUCCESS] [update_install] Super admin max créé avec succès
-[2025-06-01 00:07:13] [CMD] [update_install] Exécution: Création utilisateur franck
-[2025-06-01 00:07:13] [CMD] [update_install] Commande: useradd -m -s /usr/sbin/nologin 'franck'
-[2025-06-01 00:07:13] [CMD] [update_install] Code de sortie: 0
-[2025-06-01 00:07:14] [SUCCESS] [update_install] Utilisateur limité franck créé avec succès
-[2025-06-01 00:07:14] [INFO] [update_install] Sauvegarde de la configuration SSH originale
-[2025-06-01 00:07:14] [INFO] [update_install] Configuration SSH chroot ajoutée pour franck
-[2025-06-01 00:07:14] [CMD] [update_install] Exécution: Redémarrage SSH
-[2025-06-01 00:07:14] [CMD] [update_install] Commande: systemctl restart ssh
-[2025-06-01 00:07:14] [CMD] [update_install] Code de sortie: 0
-[2025-06-01 00:07:14] [SUCCESS] [update_install] Configuration SSH mise à jour et service redémarré
-[2025-06-01 00:07:14] [SUCCESS] [update_install] Configuration SSH et utilisateurs SFTP terminée
-[2025-06-01 00:07:15] [INFO] [update_install] Progression: 90% - Configuration terminée
-[2025-06-01 00:07:17] [INFO] [update_install] Progression: 95% - Finalisation...
-[2025-06-01 00:07:17] [INFO] [update_install] Services de mise à jour réactivés
-[2025-06-01 00:07:17] [INFO] [update_install] Restauration de l'état réseau
-[2025-06-01 00:07:17] [INFO] [update_install] Déconnexion du WiFi Max
-[2025-06-01 00:07:19] [INFO] [update_install] Progression: 100% - Mise à jour terminée !
-[2025-06-01 00:07:19] [SUCCESS] [update_install] Mise à jour système terminée - Version: v2.4
-[2025-06-01 00:07:20] [INFO] [update_install] Redémarrage du système prévu dans 15 secondes
-[2025-06-01 00:07:35] [INFO] [update_install] Redémarrage du système
-[2025-06-01 00:07:35] [INFO] [update_install] Script update_install terminé avec le code 0

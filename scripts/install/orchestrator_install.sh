@@ -3,6 +3,7 @@
 # ===============================================================================
 # MAXLINK - SYSTÈME D'ORCHESTRATION AVEC SYSTEMD
 # Script d'installation de l'orchestrateur pour un démarrage fiable
+# Version sans interaction - Test automatique et reboot
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -20,9 +21,29 @@ source "$BASE_DIR/scripts/common/logging.sh"
 # Initialiser le logging
 init_logging "Installation de l'orchestrateur MaxLink" "install"
 
+# ===============================================================================
+# FONCTIONS
+# ===============================================================================
+
+# Envoyer la progression
+send_progress() {
+    echo "PROGRESS:$1:$2"
+    log_info "Progression: $1% - $2" false
+}
+
+# Attente simple
+wait_silently() {
+    sleep "$1"
+}
+
+# ===============================================================================
+# VÉRIFICATIONS
+# ===============================================================================
+
 # Vérifier les privilèges root
 if [ "$EUID" -ne 0 ]; then
     echo "⚠ Ce script doit être exécuté avec des privilèges root"
+    log_error "Privilèges root requis"
     exit 1
 fi
 
@@ -31,6 +52,8 @@ echo "========================================================================"
 echo "INSTALLATION DE L'ORCHESTRATEUR MAXLINK"
 echo "========================================================================"
 echo ""
+
+send_progress 5 "Initialisation..."
 
 # ===============================================================================
 # ÉTAPE 1 : CRÉATION DES SCRIPTS DE HEALTHCHECK
@@ -237,6 +260,10 @@ EOF
 # Rendre les scripts exécutables
 chmod +x /opt/maxlink/healthchecks/*.sh
 echo "  ↦ Scripts de vérification créés ✓"
+log_success "Scripts de healthcheck créés"
+
+send_progress 20 "Scripts de vérification créés"
+wait_silently 2
 
 # ===============================================================================
 # ÉTAPE 2 : CRÉATION DES SERVICES DE HEALTHCHECK
@@ -308,6 +335,10 @@ WantedBy=multi-user.target
 EOF
 
 echo "  ↦ Services de vérification créés ✓"
+log_success "Services de healthcheck créés"
+
+send_progress 35 "Services créés"
+wait_silently 2
 
 # ===============================================================================
 # ÉTAPE 3 : CRÉATION DES TARGETS SYSTEMD
@@ -350,6 +381,10 @@ WantedBy=multi-user.target
 EOF
 
 echo "  ↦ Targets d'orchestration créés ✓"
+log_success "Targets systemd créés"
+
+send_progress 50 "Targets créés"
+wait_silently 2
 
 # ===============================================================================
 # ÉTAPE 4 : MODIFICATION DES SERVICES EXISTANTS
@@ -445,8 +480,12 @@ StartLimitBurst=10
 EOF
         
         echo "  ↦ Service $service_name mis à jour ✓"
+        log_info "Service $service_name mis à jour pour l'orchestration"
     fi
 done
+
+send_progress 65 "Services mis à jour"
+wait_silently 2
 
 # ===============================================================================
 # ÉTAPE 5 : SCRIPT DE GESTION
@@ -563,6 +602,10 @@ EOF
 
 chmod +x /usr/local/bin/maxlink-orchestrator
 echo "  ↦ Script de gestion créé ✓"
+log_success "Script de gestion créé"
+
+send_progress 80 "Script de gestion créé"
+wait_silently 2
 
 # ===============================================================================
 # ÉTAPE 6 : ACTIVATION ET TEST
@@ -582,6 +625,29 @@ systemctl enable maxlink-network-ready.service
 systemctl enable maxlink-mqtt-ready.service
 
 echo "  ↦ Orchestrateur activé ✓"
+log_success "Orchestrateur activé au démarrage"
+
+send_progress 90 "Orchestrateur activé"
+wait_silently 2
+
+# ===============================================================================
+# ÉTAPE 7 : TEST AUTOMATIQUE
+# ===============================================================================
+
+echo ""
+echo "◦ Test automatique de l'orchestrateur..."
+echo ""
+
+send_progress 95 "Tests en cours..."
+
+# Exécuter le test
+/usr/local/bin/maxlink-orchestrator check
+
+# Note: on ignore le code de retour car certains services peuvent ne pas être actifs encore
+log_info "Test de l'orchestrateur exécuté"
+
+send_progress 100 "Installation terminée"
+wait_silently 3
 
 # ===============================================================================
 # RÉSUMÉ
@@ -607,17 +673,15 @@ echo "  • maxlink-orchestrator status    - État du système"
 echo "  • maxlink-orchestrator check     - Vérification complète"
 echo "  • maxlink-orchestrator logs all  - Voir tous les logs"
 echo ""
-echo "▶ Prochaine étape :"
-echo "  Redémarrer le système pour tester l'orchestration complète"
+
+log_success "Installation de l'orchestrateur MaxLink terminée avec succès"
+
+echo ""
+echo "  ↦ Redémarrage du système prévu dans 15 secondes..."
 echo ""
 
-log_success "Orchestrateur MaxLink installé avec succès"
+log_info "Redémarrage du système prévu dans 15 secondes"
+sleep 15
 
-# Proposer un test immédiat
-echo "Voulez-vous tester l'orchestrateur maintenant ? (o/N)"
-read -r response
-if [[ "$response" =~ ^[Oo]$ ]]; then
-    echo ""
-    echo "Test de l'orchestrateur..."
-    /usr/local/bin/maxlink-orchestrator check
-fi
+log_info "Redémarrage du système"
+reboot

@@ -5,14 +5,14 @@
 # Outil pour gérer le cache local des paquets
 # ===============================================================================
 
-# Définir le répertoire de base
+# Définir le répertoire de base (ajusté pour le nouveau chemin)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-# Source des modules
-source "$BASE_DIR/scripts/common/variables.sh"
-source "$BASE_DIR/scripts/common/logging.sh"
-source "$BASE_DIR/scripts/common/packages.sh"
+# Source des modules (dans le même dossier maintenant)
+source "$SCRIPT_DIR/variables.sh"
+source "$SCRIPT_DIR/logging.sh"
+source "$SCRIPT_DIR/packages.sh"
 
 # ===============================================================================
 # FONCTIONS
