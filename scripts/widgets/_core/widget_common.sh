@@ -2,7 +2,7 @@
 
 # ===============================================================================
 # MAXLINK - CORE COMMUN DES WIDGETS
-# Fonctions partagées pour l'installation des widgets MQTT
+# Version améliorée avec gestion robuste du démarrage au boot
 # ===============================================================================
 
 # Vérifier les dépendances
@@ -137,27 +137,13 @@ widget_install_python_deps() {
     # par update_install.sh et mqtt_wgs_install.sh
     log_info "Dépendances Python vérifiées (installées via le cache)"
     return 0
-    
-    # Code de vérification original (désactivé temporairement)
-    : '
-    # Parser et vérifier...
-    python3 -c "..."
-    
-    if [ $? -ne 0 ]; then
-        log_warn "Installation des dépendances Python nécessaire"
-        return 1
-    fi
-    
-    log_success "Dépendances Python OK pour $widget_name"
-    return 0
-    '
 }
 
 # ===============================================================================
-# SERVICE SYSTEMD
+# SERVICE SYSTEMD AMÉLIORÉ
 # ===============================================================================
 
-# Créer et installer un service systemd pour un widget
+# Créer et installer un service systemd pour un widget avec démarrage robuste
 widget_create_service() {
     local widget_name=$1
     local config_file=$2
@@ -177,18 +163,29 @@ widget_create_service() {
     
     log_info "Création du service $service_name"
     
-    # Créer le fichier service
+    # Créer le fichier service avec configuration améliorée
     cat > "/etc/systemd/system/${service_name}.service" << EOF
 [Unit]
 Description=$service_desc
-After=mosquitto.service
-Wants=mosquitto.service
+# Dépendances strictes pour assurer l'ordre de démarrage
+After=network-online.target mosquitto.service
+Wants=network-online.target
+Requires=mosquitto.service
+
+# Conditions de démarrage
+ConditionPathExists=$collector_script
+ConditionPathExists=$config_file
 
 [Service]
 Type=simple
+ExecStartPre=/bin/sleep 10
 ExecStart=/usr/bin/python3 $collector_script
 Restart=always
-RestartSec=10
+RestartSec=30
+StartLimitInterval=600
+StartLimitBurst=5
+
+# Utilisateur et groupe
 User=root
 StandardOutput=journal
 StandardError=journal
@@ -197,19 +194,43 @@ StandardError=journal
 Environment="PYTHONUNBUFFERED=1"
 Environment="WIDGET_NAME=$widget_name"
 Environment="CONFIG_FILE=$config_file"
+Environment="MQTT_RETRY_ENABLED=true"
+Environment="MQTT_RETRY_DELAY=10"
+Environment="MQTT_MAX_RETRIES=0"
 
 # Sécurité
 PrivateTmp=true
 NoNewPrivileges=true
 
+# Timeout généreux pour le démarrage
+TimeoutStartSec=300
+
 [Install]
 WantedBy=multi-user.target
+EOF
+    
+    # Créer aussi un service de vérification pour s'assurer que mosquitto est vraiment prêt
+    cat > "/etc/systemd/system/${service_name}-checker.service" << EOF
+[Unit]
+Description=Checker for $service_desc
+Before=${service_name}.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'until mosquitto_pub -h localhost -p 1883 -u mosquitto -P mqtt -t test/boot -m "test" 2>/dev/null; do echo "Waiting for MQTT..."; sleep 2; done'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=${service_name}.service
 EOF
     
     # Recharger systemd
     systemctl daemon-reload
     
-    # Activer et démarrer
+    # Activer le checker
+    systemctl enable "${service_name}-checker.service" >/dev/null 2>&1
+    
+    # Activer et démarrer le service principal
     if systemctl enable "$service_name" >/dev/null 2>&1; then
         log_success "Service activé: $service_name"
         
@@ -306,6 +327,7 @@ widget_standard_install() {
         local old_service=$(widget_get_value "$WIDGETS_TRACKING_FILE" "$widget_name.service_name")
         if [ -n "$old_service" ] && [ "$old_service" != "none" ]; then
             systemctl stop "$old_service" 2>/dev/null || true
+            systemctl stop "${old_service}-checker" 2>/dev/null || true
         fi
     fi
     
@@ -351,6 +373,62 @@ widget_standard_install() {
 }
 
 # ===============================================================================
+# NOUVELLES FONCTIONS UTILITAIRES
+# ===============================================================================
+
+# Vérifier l'état de tous les widgets
+widget_check_all_status() {
+    echo "État des widgets installés :"
+    
+    if [ -f "$WIDGETS_TRACKING_FILE" ]; then
+        python3 -c "
+import json
+import subprocess
+
+with open('$WIDGETS_TRACKING_FILE', 'r') as f:
+    widgets = json.load(f)
+
+for name, info in widgets.items():
+    service = info.get('service_name', 'none')
+    if service != 'none':
+        try:
+            result = subprocess.run(['systemctl', 'is-active', service], 
+                                  capture_output=True, text=True)
+            status = '✓' if result.stdout.strip() == 'active' else '✗'
+        except:
+            status = '?'
+    else:
+        status = '-'
+    
+    print(f'  • {name}: {status} ({service})')
+"
+    else
+        echo "  Aucun widget installé"
+    fi
+}
+
+# Redémarrer tous les widgets
+widget_restart_all() {
+    echo "Redémarrage de tous les widgets..."
+    
+    if [ -f "$WIDGETS_TRACKING_FILE" ]; then
+        python3 -c "
+import json
+import subprocess
+
+with open('$WIDGETS_TRACKING_FILE', 'r') as f:
+    widgets = json.load(f)
+
+for name, info in widgets.items():
+    service = info.get('service_name', 'none')
+    if service != 'none':
+        print(f'  • Redémarrage de {name}...')
+        subprocess.run(['systemctl', 'restart', service])
+"
+    fi
+}
+
+# ===============================================================================
 # EXPORT
 # ===============================================================================
 
@@ -362,3 +440,5 @@ export -f widget_install_python_deps
 export -f widget_create_service
 export -f widget_validate
 export -f widget_standard_install
+export -f widget_check_all_status
+export -f widget_restart_all

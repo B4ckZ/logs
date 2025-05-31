@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Collecteur de métriques système pour le widget Server Monitoring
-Version optimisée avec gestion d'erreurs robuste
+Version améliorée avec mécanisme de retry robuste pour le démarrage au boot
 """
 
 import os
@@ -45,6 +45,14 @@ class SystemMetricsCollector:
         # Configuration MQTT
         self.mqtt_config = self.config['mqtt']['broker']
         
+        # Configuration retry depuis l'environnement
+        self.retry_enabled = os.environ.get('MQTT_RETRY_ENABLED', 'true').lower() == 'true'
+        self.retry_delay = int(os.environ.get('MQTT_RETRY_DELAY', '10'))
+        self.max_retries = int(os.environ.get('MQTT_MAX_RETRIES', '0'))  # 0 = infini
+        
+        # Compteur de tentatives
+        self.connection_attempts = 0
+        
         # Intervalles de mise à jour
         self.intervals = self.config['collector']['update_intervals']
         self.last_update = {
@@ -57,10 +65,12 @@ class SystemMetricsCollector:
         self.stats = {
             'messages_sent': 0,
             'errors': 0,
-            'start_time': time.time()
+            'start_time': time.time(),
+            'connection_failures': 0
         }
         
         logger.info(f"Collecteur initialisé - Version {self.config['widget']['version']}")
+        logger.info(f"Retry: {self.retry_enabled}, Delay: {self.retry_delay}s, Max: {self.max_retries}")
     
     def load_config(self, config_file):
         """Charge la configuration depuis le fichier JSON"""
@@ -72,46 +82,73 @@ class SystemMetricsCollector:
             sys.exit(1)
     
     def connect_mqtt(self):
-        """Connexion au broker MQTT"""
-        try:
-            self.mqtt_client = mqtt.Client()
-            
-            # Callbacks
-            self.mqtt_client.on_connect = self.on_connect
-            self.mqtt_client.on_disconnect = self.on_disconnect
-            
-            # Authentification
-            self.mqtt_client.username_pw_set(
-                self.mqtt_config['username'],
-                self.mqtt_config['password']
-            )
-            
-            # Connexion
-            logger.info(f"Connexion à {self.mqtt_config['host']}:{self.mqtt_config['port']}")
-            self.mqtt_client.connect(
-                self.mqtt_config['host'], 
-                self.mqtt_config['port'], 
-                60
-            )
-            
-            # Démarrer la boucle
-            self.mqtt_client.loop_start()
-            
-            # Attendre la connexion
-            timeout = 10
-            while not self.connected and timeout > 0:
-                time.sleep(0.5)
-                timeout -= 0.5
-            
-            if not self.connected:
-                logger.error("Timeout de connexion MQTT")
-                return False
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Erreur connexion MQTT: {e}")
-            return False
+        """Connexion au broker MQTT avec retry robuste"""
+        while True:
+            try:
+                self.connection_attempts += 1
+                
+                # Vérifier si on a atteint la limite
+                if self.max_retries > 0 and self.connection_attempts > self.max_retries:
+                    logger.error(f"Limite de tentatives atteinte ({self.max_retries})")
+                    return False
+                
+                logger.info(f"Tentative de connexion MQTT #{self.connection_attempts} à {self.mqtt_config['host']}:{self.mqtt_config['port']}")
+                
+                # Créer le client MQTT
+                self.mqtt_client = mqtt.Client()
+                
+                # Callbacks
+                self.mqtt_client.on_connect = self.on_connect
+                self.mqtt_client.on_disconnect = self.on_disconnect
+                
+                # Authentification
+                self.mqtt_client.username_pw_set(
+                    self.mqtt_config['username'],
+                    self.mqtt_config['password']
+                )
+                
+                # Options de reconnexion automatique
+                self.mqtt_client.reconnect_delay_set(min_delay=1, max_delay=120)
+                
+                # Connexion
+                self.mqtt_client.connect(
+                    self.mqtt_config['host'], 
+                    self.mqtt_config['port'], 
+                    60
+                )
+                
+                # Démarrer la boucle
+                self.mqtt_client.loop_start()
+                
+                # Attendre la connexion
+                timeout = 30
+                while not self.connected and timeout > 0:
+                    time.sleep(0.5)
+                    timeout -= 0.5
+                
+                if self.connected:
+                    logger.info("Connexion MQTT établie avec succès")
+                    self.stats['connection_failures'] = 0
+                    return True
+                else:
+                    raise Exception("Timeout de connexion")
+                
+            except Exception as e:
+                self.stats['connection_failures'] += 1
+                logger.error(f"Erreur connexion MQTT: {e}")
+                
+                if self.mqtt_client:
+                    try:
+                        self.mqtt_client.loop_stop()
+                    except:
+                        pass
+                
+                if not self.retry_enabled:
+                    return False
+                
+                # Attendre avant de réessayer
+                logger.info(f"Nouvelle tentative dans {self.retry_delay} secondes...")
+                time.sleep(self.retry_delay)
     
     def on_connect(self, client, userdata, flags, rc):
         """Callback de connexion"""
@@ -126,9 +163,10 @@ class SystemMetricsCollector:
         """Callback de déconnexion"""
         logger.warning(f"Déconnecté du broker MQTT (code: {rc})")
         self.connected = False
+        self.stats['connection_failures'] += 1
     
     def publish_metric(self, topic, value, unit=None):
-        """Publie une métrique sur MQTT"""
+        """Publie une métrique sur MQTT avec gestion d'erreur"""
         if not self.connected:
             return False
         
@@ -141,7 +179,7 @@ class SystemMetricsCollector:
             if unit:
                 payload["unit"] = unit
             
-            result = self.mqtt_client.publish(topic, json.dumps(payload))
+            result = self.mqtt_client.publish(topic, json.dumps(payload), qos=1)
             
             if result.rc == 0:
                 self.stats['messages_sent'] += 1
@@ -276,52 +314,84 @@ class SystemMetricsCollector:
         logger.info(
             f"Stats - Runtime: {hours}h {minutes}m | "
             f"Messages: {self.stats['messages_sent']} | "
-            f"Erreurs: {self.stats['errors']}"
+            f"Erreurs: {self.stats['errors']} | "
+            f"Échecs connexion: {self.stats['connection_failures']}"
         )
     
     def run(self):
-        """Boucle principale du collecteur"""
+        """Boucle principale du collecteur avec gestion d'erreurs robuste"""
         logger.info("Démarrage du collecteur")
         
+        # Attendre un peu au démarrage pour laisser le système se stabiliser
+        startup_delay = int(os.environ.get('STARTUP_DELAY', '5'))
+        if startup_delay > 0:
+            logger.info(f"Pause de {startup_delay}s au démarrage...")
+            time.sleep(startup_delay)
+        
+        # Se connecter au broker MQTT avec retry
         if not self.connect_mqtt():
-            logger.error("Impossible de se connecter au broker MQTT")
+            logger.error("Impossible de se connecter au broker MQTT après toutes les tentatives")
             return
         
         logger.info("Collecteur opérationnel")
         
         # Compteur pour les statistiques
         stats_counter = 0
+        error_count = 0
         
         try:
             while True:
-                current_time = time.time()
-                
-                # Groupe rapide (CPU, RAM)
-                if current_time - self.last_update['fast'] >= self.intervals['fast']:
-                    self.collect_cpu_metrics()
-                    self.collect_memory_metrics()  # RAM seulement
-                    self.last_update['fast'] = current_time
-                
-                # Groupe normal (Températures, Fréquences)
-                if current_time - self.last_update['normal'] >= self.intervals['normal']:
-                    self.collect_temperature_metrics()
-                    self.collect_frequency_metrics()
-                    self.last_update['normal'] = current_time
-                
-                # Groupe lent (SWAP, Disk, Uptime)
-                if current_time - self.last_update['slow'] >= self.intervals['slow']:
-                    self.collect_memory_metrics()  # Toutes les métriques
-                    self.collect_uptime_metrics()
-                    self.last_update['slow'] = current_time
-                
-                # Afficher les statistiques toutes les 5 minutes
-                stats_counter += 1
-                if stats_counter >= 3000:  # 300 secondes à 0.1s par boucle
-                    self.log_statistics()
-                    stats_counter = 0
-                
-                # Pause pour éviter la surcharge CPU
-                time.sleep(0.1)
+                try:
+                    current_time = time.time()
+                    
+                    # Vérifier la connexion MQTT
+                    if not self.connected:
+                        logger.warning("Connexion MQTT perdue, reconnexion...")
+                        if not self.connect_mqtt():
+                            logger.error("Reconnexion échouée")
+                            break
+                    
+                    # Groupe rapide (CPU, RAM)
+                    if current_time - self.last_update['fast'] >= self.intervals['fast']:
+                        self.collect_cpu_metrics()
+                        self.collect_memory_metrics()  # RAM seulement
+                        self.last_update['fast'] = current_time
+                    
+                    # Groupe normal (Températures, Fréquences)
+                    if current_time - self.last_update['normal'] >= self.intervals['normal']:
+                        self.collect_temperature_metrics()
+                        self.collect_frequency_metrics()
+                        self.last_update['normal'] = current_time
+                    
+                    # Groupe lent (SWAP, Disk, Uptime)
+                    if current_time - self.last_update['slow'] >= self.intervals['slow']:
+                        self.collect_memory_metrics()  # Toutes les métriques
+                        self.collect_uptime_metrics()
+                        self.last_update['slow'] = current_time
+                    
+                    # Afficher les statistiques toutes les 5 minutes
+                    stats_counter += 1
+                    if stats_counter >= 3000:  # 300 secondes à 0.1s par boucle
+                        self.log_statistics()
+                        stats_counter = 0
+                    
+                    # Réinitialiser le compteur d'erreurs si tout va bien
+                    error_count = 0
+                    
+                    # Pause pour éviter la surcharge CPU
+                    time.sleep(0.1)
+                    
+                except Exception as e:
+                    error_count += 1
+                    logger.error(f"Erreur dans la boucle de collecte: {e}")
+                    self.stats['errors'] += 1
+                    
+                    # Si trop d'erreurs consécutives, arrêter
+                    if error_count > 10:
+                        logger.error("Trop d'erreurs consécutives, arrêt du collecteur")
+                        break
+                    
+                    time.sleep(5)  # Pause plus longue en cas d'erreur
                 
         except KeyboardInterrupt:
             logger.info("Arrêt demandé par l'utilisateur")

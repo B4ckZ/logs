@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V8 AVEC GESTION APT SÉCURISÉE
-# Version robuste pour OS frais avec gestion propre d'APT
+# MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V9 AVEC SSH ET PERMISSIONS FILEZILLA
+# Version finale avec configuration complète pour développement
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -20,7 +20,7 @@ source "$SCRIPT_DIR/../common/wifi_helper.sh"
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Mise à jour système MaxLink V8 - Gestion APT sécurisée" "install"
+init_logging "Mise à jour système MaxLink V9 - Configuration complète" "install"
 
 # Variables pour le contrôle du processus
 AP_WAS_ACTIVE=false
@@ -342,11 +342,105 @@ EOF
     fi
 }
 
+# Configuration SSH et permissions pour développement
+configure_ssh_and_permissions() {
+    echo "◦ Configuration SSH et permissions complètes pour développement..."
+    log_info "Configuration SSH et permissions FileZilla avec accès complet"
+    
+    # Activer SSH si nécessaire
+    if ! systemctl is-active --quiet ssh; then
+        echo "  ↦ Activation du service SSH..."
+        log_command "systemctl enable ssh" "Activation SSH au démarrage"
+        log_command "systemctl start ssh" "Démarrage SSH"
+        echo "  ↦ Service SSH activé ✓"
+    else
+        echo "  ↦ Service SSH déjà actif ✓"
+    fi
+    
+    # Configuration des permissions COMPLÈTES pour éviter tout problème
+    echo ""
+    echo "◦ Application des permissions complètes..."
+    
+    # 1. Dashboard - Propriétaire = utilisateur effectif avec permissions complètes
+    # Note: Le dashboard n'existe pas encore à ce stade, sera créé par nginx_install.sh
+    
+    # 2. Dossier MaxLink complet - Accès total
+    if [ -d "$BASE_DIR" ]; then
+        echo "  ↦ Configuration du dossier MaxLink avec accès complet..."
+        log_command "chown -R $EFFECTIVE_USER:$EFFECTIVE_USER $BASE_DIR" "Propriétaire MaxLink"
+        log_command "find $BASE_DIR -type d -exec chmod 777 {} \;" "Permissions dossiers 777"
+        log_command "find $BASE_DIR -type f -exec chmod 666 {} \;" "Permissions fichiers 666"
+        log_command "find $BASE_DIR -name '*.sh' -exec chmod 777 {} \;" "Scripts bash exécutables"
+        log_command "find $BASE_DIR -name '*.py' -exec chmod 777 {} \;" "Scripts python exécutables"
+        echo "    • MaxLink : accès complet ✓"
+    fi
+    
+    # 3. Préparer les groupes pour Nginx (qui sera installé plus tard)
+    # Ajouter l'utilisateur au groupe www-data pour compatibilité future
+    if ! groups $EFFECTIVE_USER | grep -q www-data; then
+        log_command "usermod -a -G www-data $EFFECTIVE_USER" "Ajout au groupe www-data"
+        NEED_LOGOUT=true
+    fi
+    
+    # 4. Créer un script pour configurer les permissions du dashboard après son installation
+    cat > "$EFFECTIVE_USER_HOME/setup_dashboard_permissions.sh" << 'EOF'
+#!/bin/bash
+# Script pour configurer les permissions du dashboard après installation de Nginx
+
+if [ -d "/var/www/maxlink-dashboard" ]; then
+    echo "Configuration des permissions du dashboard..."
+    sudo chown -R $USER:$USER /var/www/maxlink-dashboard
+    sudo find /var/www/maxlink-dashboard -type d -exec chmod 777 {} \;
+    sudo find /var/www/maxlink-dashboard -type f -exec chmod 666 {} \;
+    
+    # Créer le lien symbolique
+    if [ ! -L "$HOME/dashboard" ]; then
+        ln -s /var/www/maxlink-dashboard "$HOME/dashboard"
+        echo "  ✓ Raccourci ~/dashboard créé"
+    fi
+    
+    echo "  ✓ Permissions du dashboard configurées avec accès complet"
+else
+    echo "Dashboard non trouvé. Installez d'abord Nginx."
+fi
+EOF
+    
+    chmod +x "$EFFECTIVE_USER_HOME/setup_dashboard_permissions.sh"
+    chown $EFFECTIVE_USER:$EFFECTIVE_USER "$EFFECTIVE_USER_HOME/setup_dashboard_permissions.sh"
+    
+    # 5. Créer le lien vers les widgets dans le home
+    if [ ! -L "$EFFECTIVE_USER_HOME/widgets" ]; then
+        ln -s "$BASE_DIR/scripts/widgets" "$EFFECTIVE_USER_HOME/widgets"
+        chown -h $EFFECTIVE_USER:$EFFECTIVE_USER "$EFFECTIVE_USER_HOME/widgets"
+        echo "  ↦ Raccourci ~/widgets créé ✓"
+    fi
+    
+    # Afficher les informations de connexion
+    local ip_address=$(hostname -I | awk '{print $1}')
+    echo ""
+    echo "◦ Informations de connexion FileZilla :"
+    echo "  • Protocole : SFTP - SSH File Transfer Protocol"
+    echo "  • Hôte : $ip_address"
+    echo "  • Port : 22"
+    echo "  • Utilisateur : $EFFECTIVE_USER"
+    echo ""
+    echo "◦ Raccourcis disponibles :"
+    echo "  • ~/widgets → $BASE_DIR/scripts/widgets"
+    echo "  • ~/dashboard → (disponible après installation de Nginx)"
+    echo ""
+    echo "◦ Permissions : Accès complet en lecture/écriture ✓"
+    echo ""
+    echo "◦ Note : Après l'installation de Nginx, exécutez :"
+    echo "  ~/setup_dashboard_permissions.sh"
+    
+    log_success "Configuration SSH et permissions complètes terminée"
+}
+
 # ===============================================================================
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-log_info "========== DÉBUT DE LA MISE À JOUR SYSTÈME V8 =========="
+log_info "========== DÉBUT DE LA MISE À JOUR SYSTÈME V9 =========="
 
 # Vérifier les privilèges root
 if [ "$EUID" -ne 0 ]; then
@@ -720,6 +814,10 @@ EOF
     log_success "Configuration bureau LXDE appliquée"
 fi
 
+# Configuration SSH et permissions
+echo ""
+configure_ssh_and_permissions
+
 send_progress 90 "Configuration terminée"
 echo ""
 sleep 2
@@ -755,12 +853,22 @@ echo "◦ Mise à jour terminée avec succès !"
 echo "  ↦ Version: v$MAXLINK_VERSION"
 echo "  ↦ Système à jour et configuré"
 echo "  ↦ Cache de paquets créé pour installation offline"
+echo "  ↦ SSH activé pour développement"
 log_success "Mise à jour système terminée - Version: v$MAXLINK_VERSION"
 
 # Afficher le résumé du cache
 echo ""
 echo "◦ Résumé du cache créé :"
 get_cache_stats
+
+# Note sur les permissions
+if [ "$NEED_LOGOUT" = true ]; then
+    echo ""
+    echo "⚠ NOTE IMPORTANTE :"
+    echo "  L'utilisateur $EFFECTIVE_USER a été ajouté au groupe www-data."
+    echo "  Une déconnexion/reconnexion sera nécessaire pour appliquer ce changement."
+    echo "  Après le redémarrage, vous pourrez utiliser FileZilla immédiatement."
+fi
 
 echo ""
 echo "  ↦ Redémarrage du système prévu dans 30 secondes..."
