@@ -1,0 +1,59 @@
+
+================================================================================
+DÉMARRAGE: mqtt_install
+Description: Installation MQTT Broker (version finale)
+Date: Sat 31 May 09:54:04 CEST 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-31 09:54:04] [INFO] [mqtt_install] Script mqtt_install initialisé
+[2025-05-31 09:54:04] [INFO] [mqtt_install] ========== DÉBUT DE L'INSTALLATION MQTT BROKER ==========
+[2025-05-31 09:54:04] [INFO] [mqtt_install] Progression: 5% - Initialisation...
+[2025-05-31 09:54:04] [INFO] [mqtt_install] Privilèges root confirmés
+[2025-05-31 09:54:04] [INFO] [mqtt_install] Progression: 10% - Préparation du système...
+[2025-05-31 09:54:05] [INFO] [mqtt_install] Système de paquets nettoyé
+[2025-05-31 09:54:05] [INFO] [mqtt_install] Progression: 20% - Système préparé
+[2025-05-31 09:54:08] [INFO] [mqtt_install] Progression: 30% - Installation de Mosquitto...
+[2025-05-31 09:54:08] [INFO] [mqtt_install] Installation hybride de Mosquitto et dépendances
+[2025-05-31 09:54:08] [INFO] [mqtt_install] Tentative d'installation depuis le cache
+[2025-05-31 09:54:12] [SUCCESS] [mqtt_install] Mosquitto et dépendances installé depuis le cache
+[2025-05-31 09:54:12] [SUCCESS] [mqtt_install] Tous les paquets installés avec succès
+[2025-05-31 09:54:12] [INFO] [mqtt_install] Mosquitto installé avec succès
+[2025-05-31 09:54:12] [INFO] [mqtt_install] Progression: 50% - Paquets installés
+[2025-05-31 09:54:14] [INFO] [mqtt_install] Progression: 60% - Configuration du système...
+[2025-05-31 09:54:14] [INFO] [mqtt_install] Répertoires Mosquitto créés
+[2025-05-31 09:54:15] [INFO] [mqtt_install] ldconfig exécuté
+[2025-05-31 09:54:15] [INFO] [mqtt_install] Progression: 70% - Système configuré
+[2025-05-31 09:54:17] [INFO] [mqtt_install] Progression: 75% - Configuration de Mosquitto...
+[2025-05-31 09:54:17] [CMD] [mqtt_install] Exécution: Création utilisateur MQTT
+[2025-05-31 09:54:17] [CMD] [mqtt_install] Commande: /usr/bin/mosquitto_passwd -b -c '/etc/mosquitto/passwords' 'mosquitto' 'mqtt'
+[2025-05-31 09:54:17] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-31 09:54:17] [INFO] [mqtt_install] Utilisateur MQTT créé: mosquitto
+[2025-05-31 09:54:17] [INFO] [mqtt_install] Ancienne configuration sauvegardée
+[2025-05-31 09:54:17] [SUCCESS] [mqtt_install] Configuration Mosquitto créée
+[2025-05-31 09:54:17] [INFO] [mqtt_install] Progression: 85% - Configuration terminée
+[2025-05-31 09:54:20] [INFO] [mqtt_install] Progression: 90% - Démarrage du service...
+[2025-05-31 09:54:20] [CMD] [mqtt_install] Exécution: Activation au démarrage
+[2025-05-31 09:54:20] [CMD] [mqtt_install] Commande: systemctl enable mosquitto >/dev/null 2>&1
+[2025-05-31 09:54:20] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-31 09:54:21] [CMD] [mqtt_install] Exécution: Démarrage Mosquitto
+[2025-05-31 09:54:21] [CMD] [mqtt_install] Commande: systemctl start mosquitto
+[2025-05-31 09:54:21] [CMD] [mqtt_install] Code de sortie: 0
+[2025-05-31 09:54:21] [SUCCESS] [mqtt_install] Mosquitto démarré avec succès
+[2025-05-31 09:54:24] [INFO] [mqtt_install] Service Mosquitto actif
+[2025-05-31 09:54:24] [INFO] [mqtt_install] Progression: 95% - Service démarré
+[2025-05-31 09:54:26] [INFO] [mqtt_install] Progression: 98% - Tests de connexion...
+[2025-05-31 09:54:26] [SUCCESS] [mqtt_install] Test de connexion MQTT réussi
+[2025-05-31 09:54:26] [WARN] [mqtt_install] Port WebSocket non accessible immédiatement
+[2025-05-31 09:54:27] [INFO] [mqtt_install] Progression: 100% - Installation terminée
+[2025-05-31 09:54:29] [SUCCESS] [mqtt_install] Installation MQTT Broker terminée avec succès
+[2025-05-31 09:54:29] [INFO] [mqtt_install] Configuration: mosquitto/mqtt sur ports 1883 et 9001
+[2025-05-31 09:54:29] [INFO] [mqtt_install] Script mqtt_install terminé avec le code 0
+
+================================================================================
+FIN: mqtt_install
+Code de sortie: 0
+Durée: 26 secondes
+================================================================================
+

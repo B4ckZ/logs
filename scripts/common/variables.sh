@@ -12,8 +12,23 @@
 # ===============================================================================
 
 # Version et informations de l'interface
-MAXLINK_VERSION="22.4"
+MAXLINK_VERSION="2.4"
 MAXLINK_COPYRIGHT="© 2025 WERIT. Tous droits réservés."
+
+# ===============================================================================
+# CONFIGURATION DE L'OVERLAY DE VERSION
+# ===============================================================================
+
+# Configuration de l'overlay de version sur le fond d'écran
+VERSION_OVERLAY_ENABLED=true                 # Activer/désactiver l'overlay
+VERSION_OVERLAY_FONT_SIZE=48                 # Taille de la police (pixels)
+VERSION_OVERLAY_FONT_COLOR="#FFFFFF"         # Couleur du texte (hex)
+VERSION_OVERLAY_SHADOW_COLOR="#000000"       # Couleur de l'ombre (hex)
+VERSION_OVERLAY_SHADOW_OPACITY=128           # Opacité de l'ombre (0-255)
+VERSION_OVERLAY_MARGIN_RIGHT=50              # Marge depuis le bord droit
+VERSION_OVERLAY_MARGIN_BOTTOM=50             # Marge depuis le bas
+VERSION_OVERLAY_FONT_BOLD=true               # Police en gras
+VERSION_OVERLAY_PREFIX="MaxLink "            # Préfixe avant la version
 
 # ===============================================================================
 # CONFIGURATION UTILISATEUR SYSTÈME
@@ -199,6 +214,10 @@ BG_IMAGE_DEST=$(get_bg_image_dest)
 
 # Exporter toutes les variables nécessaires
 export MAXLINK_VERSION MAXLINK_COPYRIGHT
+export VERSION_OVERLAY_ENABLED VERSION_OVERLAY_FONT_SIZE
+export VERSION_OVERLAY_FONT_COLOR VERSION_OVERLAY_SHADOW_COLOR VERSION_OVERLAY_SHADOW_OPACITY
+export VERSION_OVERLAY_MARGIN_RIGHT VERSION_OVERLAY_MARGIN_BOTTOM
+export VERSION_OVERLAY_FONT_BOLD VERSION_OVERLAY_PREFIX
 export SYSTEM_USER SYSTEM_USER_HOME
 export EFFECTIVE_USER EFFECTIVE_USER_HOME
 export WIFI_SSID WIFI_PASSWORD

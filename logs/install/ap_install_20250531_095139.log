@@ -1,0 +1,74 @@
+
+================================================================================
+DÉMARRAGE: ap_install
+Description: Installation du mode Access Point (hybride)
+Date: Sat 31 May 09:51:39 CEST 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-31 09:51:39] [INFO] [ap_install] Script ap_install initialisé
+[2025-05-31 09:51:39] [INFO] [ap_install] ========== DÉBUT DE L'INSTALLATION AP ==========
+[2025-05-31 09:51:39] [INFO] [ap_install] Progression: 10% - Vérifications initiales
+[2025-05-31 09:51:39] [INFO] [ap_install] Privilèges root confirmés
+[2025-05-31 09:51:40] [INFO] [ap_install] Interface wlan0 disponible
+[2025-05-31 09:51:40] [INFO] [ap_install] NetworkManager actif
+[2025-05-31 09:51:42] [INFO] [ap_install] Progression: 25% - Installation des paquets
+[2025-05-31 09:51:42] [INFO] [ap_install] Installation hybride de Point d'accès
+[2025-05-31 09:51:42] [INFO] [ap_install] Point d'accès déjà installé
+[2025-05-31 09:51:42] [SUCCESS] [ap_install] Tous les paquets AP installés
+[2025-05-31 09:51:44] [INFO] [ap_install] Progression: 35% - Préparation du système
+[2025-05-31 09:51:44] [INFO] [ap_install] Configuration du resolv.conf
+[2025-05-31 09:51:44] [CMD] [ap_install] Exécution: Protection du resolv.conf
+[2025-05-31 09:51:45] [CMD] [ap_install] Commande: chattr +i /etc/resolv.conf 2>/dev/null || true
+[2025-05-31 09:51:45] [CMD] [ap_install] Code de sortie: 0
+[2025-05-31 09:51:45] [INFO] [ap_install] resolv.conf configuré avec succès
+[2025-05-31 09:51:45] [INFO] [ap_install] Désactivation des services DNS conflictuels
+[2025-05-31 09:51:45] [INFO] [ap_install] Nettoyage des connexions WiFi existantes
+[2025-05-31 09:51:45] [CMD] [ap_install] Exécution: Déconnexion interface
+[2025-05-31 09:51:45] [CMD] [ap_install] Commande: nmcli device disconnect wlan0 2>/dev/null || true
+[2025-05-31 09:51:45] [CMD] [ap_install] Code de sortie: 0
+[2025-05-31 09:51:45] [CMD] [ap_install] Exécution: Suppression ancienne config AP
+[2025-05-31 09:51:46] [CMD] [ap_install] Commande: nmcli connection delete 'MaxLink-NETWORK' 2>/dev/null || true
+[2025-05-31 09:51:46] [CMD] [ap_install] Code de sortie: 0
+[2025-05-31 09:51:46] [INFO] [ap_install] Configuration de NetworkManager pour dnsmasq
+[2025-05-31 09:51:46] [CMD] [ap_install] Exécution: Sauvegarde config NetworkManager
+[2025-05-31 09:51:46] [CMD] [ap_install] Commande: cp /etc/NetworkManager/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf.original
+[2025-05-31 09:51:46] [CMD] [ap_install] Code de sortie: 0
+[2025-05-31 09:51:46] [INFO] [ap_install] NetworkManager configuré avec succès
+[2025-05-31 09:51:48] [INFO] [ap_install] Progression: 50% - Configuration du point d'accès
+[2025-05-31 09:51:48] [INFO] [ap_install] Configuration AP - SSID: MaxLink-NETWORK, IP: 192.168.4.1/24, Canal: 6
+[2025-05-31 09:51:49] [CMD] [ap_install] Exécution: Création profil AP
+[2025-05-31 09:51:49] [CMD] [ap_install] Commande: nmcli connection add     type wifi     ifname wlan0     con-name 'MaxLink-NETWORK'     autoconnect yes     ssid 'MaxLink-NETWORK'     mode ap     802-11-wireless.band bg     802-11-wireless.channel 6     802-11-wireless-security.key-mgmt wpa-psk     802-11-wireless-security.psk 'MDPsupersecret007'     ipv4.method shared     ipv4.addresses '192.168.4.1/24'     ipv6.method disabled
+[2025-05-31 09:51:49] [OUT] [ap_install] Connection 'MaxLink-NETWORK' (0854f42f-5531-4481-b3ba-e63ab5840495) successfully added.
+[2025-05-31 09:51:49] [CMD] [ap_install] Code de sortie: 0
+[2025-05-31 09:51:49] [SUCCESS] [ap_install] Profil AP créé avec succès
+[2025-05-31 09:51:49] [INFO] [ap_install] Configuration DHCP/DNS pour l'AP
+[2025-05-31 09:51:49] [INFO] [ap_install] Configuration dnsmasq créée dans /etc/NetworkManager/dnsmasq-shared.d/
+[2025-05-31 09:51:49] [INFO] [ap_install] Configuration DNS supplémentaire créée
+[2025-05-31 09:51:51] [INFO] [ap_install] Progression: 70% - Configuration du pare-feu
+[2025-05-31 09:51:52] [INFO] [ap_install] Configuration des règles iptables
+[2025-05-31 09:51:54] [INFO] [ap_install] Progression: 85% - Activation du point d'accès
+[2025-05-31 09:51:54] [INFO] [ap_install] Activation du point d'accès
+[2025-05-31 09:51:54] [CMD] [ap_install] Exécution: Redémarrage NetworkManager
+[2025-05-31 09:51:54] [CMD] [ap_install] Commande: systemctl restart NetworkManager
+[2025-05-31 09:51:56] [CMD] [ap_install] Code de sortie: 0
+[2025-05-31 09:52:01] [CMD] [ap_install] Exécution: Activation connexion AP
+[2025-05-31 09:52:01] [CMD] [ap_install] Commande: nmcli connection up 'MaxLink-NETWORK'
+[2025-05-31 09:52:02] [OUT] [ap_install] Connection successfully activated (D-Bus active path: /org/freedesktop/NetworkManager/ActiveConnection/3)
+[2025-05-31 09:52:02] [CMD] [ap_install] Code de sortie: 0
+[2025-05-31 09:52:02] [SUCCESS] [ap_install] Point d'accès activé avec succès
+[2025-05-31 09:52:02] [INFO] [ap_install] Vérification de l'état du point d'accès
+[2025-05-31 09:52:05] [SUCCESS] [ap_install] Point d'accès opérationnel
+[2025-05-31 09:52:05] [INFO] [ap_install] Service dnsmasq actif
+[2025-05-31 09:52:07] [INFO] [ap_install] Progression: 95% - Finalisation
+[2025-05-31 09:52:07] [INFO] [ap_install] Configuration de démarrage automatique activée
+[2025-05-31 09:52:08] [INFO] [ap_install] Configuration finale:
+[2025-05-31 09:52:08] [INFO] [ap_install]   - SSID: MaxLink-NETWORK
+[2025-05-31 09:52:08] [INFO] [ap_install]   - IP: 192.168.4.1
+[2025-05-31 09:52:08] [INFO] [ap_install]   - DHCP: 192.168.4.10 - 192.168.4.100
+[2025-05-31 09:52:08] [INFO] [ap_install] Progression: 100% - Installation terminée
+[2025-05-31 09:52:08] [WARN] [ap_install] Test DNS final échoué - redémarrage recommandé
+[2025-05-31 09:52:08] [INFO] [ap_install] Installation AP terminée - Redémarrage du système prévu
+[2025-05-31 09:52:18] [INFO] [ap_install] Redémarrage du système
+[2025-05-31 09:52:18] [INFO] [ap_install] Script ap_install terminé avec le code 0

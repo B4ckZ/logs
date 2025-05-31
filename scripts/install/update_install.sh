@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V7 AVEC CACHE COMPLET
-# Version utilisant le système de cache centralisé
+# MAXLINK - SCRIPT DE MISE À JOUR SYSTÈME V8 AVEC GESTION APT SÉCURISÉE
+# Version robuste pour OS frais avec gestion propre d'APT
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -20,10 +20,11 @@ source "$SCRIPT_DIR/../common/wifi_helper.sh"
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Mise à jour système MaxLink avec cache complet" "install"
+init_logging "Mise à jour système MaxLink V8 - Gestion APT sécurisée" "install"
 
 # Variables pour le contrôle du processus
 AP_WAS_ACTIVE=false
+APT_CLEANUP_DONE=false
 
 # ===============================================================================
 # FONCTIONS
@@ -35,53 +36,309 @@ send_progress() {
     log_info "Progression: $1% - $2" false
 }
 
-# Attente simple
+# Attente simple avec message
+wait_with_message() {
+    local seconds=$1
+    local message=$2
+    echo "  ↦ $message (${seconds}s)..."
+    log_info "$message - attente ${seconds}s"
+    sleep "$seconds"
+}
+
+# Attente simple silencieuse
 wait_silently() {
     sleep "$1"
 }
 
-# Ajouter la version sur l'image de fond
+# Fonction pour attendre qu'APT soit libre
+wait_for_apt() {
+    local max_wait=300  # Maximum 5 minutes d'attente
+    local waited=0
+    
+    echo "◦ Vérification de l'état d'APT..."
+    log_info "Vérification de l'état d'APT"
+    
+    # Vérifier tous les verrous possibles
+    while [ $waited -lt $max_wait ]; do
+        # Vérifier si APT ou DPKG sont actifs
+        if fuser /var/lib/dpkg/lock >/dev/null 2>&1 || \
+           fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || \
+           fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || \
+           fuser /var/cache/apt/archives/lock >/dev/null 2>&1; then
+            
+            if [ $waited -eq 0 ]; then
+                echo "  ↦ APT est occupé, attente qu'il termine..."
+                log_info "APT occupé détecté, attente"
+            fi
+            
+            # Afficher un point toutes les 10 secondes
+            if [ $((waited % 10)) -eq 0 ] && [ $waited -gt 0 ]; then
+                echo -n "."
+            fi
+            
+            sleep 1
+            ((waited++))
+        else
+            if [ $waited -gt 0 ]; then
+                echo ""  # Nouvelle ligne après les points
+                echo "  ↦ APT est maintenant libre ✓"
+                log_info "APT libre après ${waited}s d'attente"
+            else
+                echo "  ↦ APT est libre ✓"
+                log_info "APT libre immédiatement"
+            fi
+            return 0
+        fi
+    done
+    
+    echo ""
+    echo "  ↦ Timeout: APT toujours occupé après ${max_wait}s ⚠"
+    log_warn "Timeout APT après ${max_wait}s"
+    return 1
+}
+
+# Nettoyer proprement APT
+clean_apt_properly() {
+    echo "◦ Nettoyage sécurisé du système de paquets..."
+    log_info "Début du nettoyage APT sécurisé"
+    
+    # 1. D'abord, attendre qu'APT soit libre
+    if ! wait_for_apt; then
+        echo "  ↦ Forçage du nettoyage APT..."
+        log_warn "Forçage du nettoyage APT nécessaire"
+        
+        # Arrêter les services qui pourraient utiliser APT
+        systemctl stop unattended-upgrades.service 2>/dev/null || true
+        systemctl stop apt-daily.service 2>/dev/null || true
+        systemctl stop apt-daily-upgrade.service 2>/dev/null || true
+        
+        wait_silently 3
+    fi
+    
+    # 2. Nettoyer les processus zombies s'il y en a
+    echo "  ↦ Nettoyage des processus zombies..."
+    log_info "Nettoyage des processus zombies"
+    
+    # Terminer proprement (SIGTERM) au lieu de tuer brutalement (SIGKILL)
+    pkill -15 apt 2>/dev/null || true
+    pkill -15 dpkg 2>/dev/null || true
+    
+    # Attendre un peu pour la terminaison propre
+    wait_silently 2
+    
+    # 3. Supprimer les verrous uniquement s'ils sont orphelins
+    echo "  ↦ Vérification des verrous orphelins..."
+    log_info "Vérification des verrous orphelins"
+    
+    for lock in /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock; do
+        if [ -f "$lock" ] && ! fuser "$lock" >/dev/null 2>&1; then
+            echo "    • Suppression du verrou orphelin: $lock"
+            log_info "Suppression verrou orphelin: $lock"
+            rm -f "$lock"
+        fi
+    done
+    
+    # 4. Reconfigurer dpkg si nécessaire
+    echo "  ↦ Reconfiguration de dpkg..."
+    log_command "dpkg --configure -a" "Configuration dpkg"
+    
+    # 5. Nettoyer le cache APT si corrompu
+    if [ -d "/var/lib/apt/lists/partial" ]; then
+        local partial_files=$(ls -1 /var/lib/apt/lists/partial 2>/dev/null | wc -l)
+        if [ $partial_files -gt 0 ]; then
+            echo "  ↦ Nettoyage des fichiers partiels corrompus ($partial_files fichiers)..."
+            log_info "Nettoyage de $partial_files fichiers partiels"
+            rm -rf /var/lib/apt/lists/*
+            APT_CLEANUP_DONE=true
+        fi
+    fi
+    
+    echo "  ↦ Système de paquets nettoyé ✓"
+    log_success "Nettoyage APT terminé"
+    
+    # Pause de sécurité
+    wait_silently 2
+}
+
+# Mise à jour APT sécurisée avec retry
+safe_apt_update() {
+    local max_attempts=3
+    local attempt=1
+    
+    echo "◦ Mise à jour de la liste des paquets..."
+    log_info "Début de la mise à jour APT"
+    
+    while [ $attempt -le $max_attempts ]; do
+        echo "  ↦ Tentative $attempt/$max_attempts..."
+        log_info "Tentative APT update $attempt/$max_attempts"
+        
+        # Si on a nettoyé les listes, on doit tout retélécharger
+        if [ "$APT_CLEANUP_DONE" = true ]; then
+            echo "    • Reconstruction complète du cache APT..."
+            log_info "Reconstruction complète du cache APT"
+        fi
+        
+        if apt-get update -y 2>&1 | tee /tmp/apt_update.log; then
+            # Vérifier qu'il n'y a pas d'erreurs dans la sortie
+            if ! grep -E "(^Err:|^E:|Failed)" /tmp/apt_update.log >/dev/null 2>&1; then
+                echo "  ↦ Liste des paquets mise à jour ✓"
+                log_success "APT update réussi"
+                rm -f /tmp/apt_update.log
+                return 0
+            else
+                echo "  ↦ Des erreurs ont été détectées dans la mise à jour ⚠"
+                log_warn "Erreurs détectées dans APT update"
+            fi
+        fi
+        
+        # En cas d'échec
+        if [ $attempt -lt $max_attempts ]; then
+            echo "  ↦ Échec, nouvelle tentative dans 10 secondes..."
+            log_info "Échec APT update, attente avant retry"
+            
+            # Nettoyer plus agressivement avant le retry
+            apt-get clean
+            rm -rf /var/lib/apt/lists/*
+            APT_CLEANUP_DONE=true
+            
+            wait_silently 10
+        fi
+        
+        ((attempt++))
+    done
+    
+    echo "  ↦ Impossible de mettre à jour les listes après $max_attempts tentatives ✗"
+    log_error "Échec définitif d'APT update après $max_attempts tentatives"
+    return 1
+}
+
+# Ajouter la version sur l'image de fond avec configuration avancée
 add_version_to_image() {
     local source_image=$1
     local dest_image=$2
-    local version_text="v$MAXLINK_VERSION"
+    local version_text="${VERSION_OVERLAY_PREFIX}v$MAXLINK_VERSION"
     
     log_info "Ajout de la version $version_text sur l'image de fond"
     
-    if python3 -c "import PIL" >/dev/null 2>&1; then
-        python3 << EOF
+    # Vérifier si l'overlay est activé
+    if [ "$VERSION_OVERLAY_ENABLED" != "true" ]; then
+        log_info "Overlay de version désactivé, copie simple de l'image"
+        cp "$source_image" "$dest_image"
+        return 0
+    fi
+    
+    # Si PIL n'est pas disponible, copier simplement l'image
+    if ! python3 -c "import PIL" >/dev/null 2>&1; then
+        log_info "PIL non disponible, copie simple de l'image"
+        cp "$source_image" "$dest_image"
+        return 0
+    fi
+    
+    # Script Python avec configuration avancée
+    python3 << EOF
 import sys
+import os
 from PIL import Image, ImageDraw, ImageFont
 
+def hex_to_rgb(hex_color):
+    """Convertir une couleur hex en RGB"""
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
 try:
+    # Charger l'image
     img = Image.open("$source_image")
-    draw = ImageDraw.Draw(img)
     
-    margin = 50
-    x = img.width - margin - 100
-    y = img.height - margin - 50
+    # Si l'image n'a pas de canal alpha, la convertir en RGBA
+    if img.mode != 'RGBA':
+        img = img.convert('RGBA')
     
-    font = ImageFont.load_default()
+    # Créer un overlay transparent pour le texte
+    txt_layer = Image.new('RGBA', img.size, (255, 255, 255, 0))
+    draw = ImageDraw.Draw(txt_layer)
     
-    draw.text((x + 2, y + 2), "$version_text", font=font, fill=(0, 0, 0, 128))
-    draw.text((x, y), "$version_text", font=font, fill=(255, 255, 255, 255))
+    # Configuration
+    font_size = $VERSION_OVERLAY_FONT_SIZE
+    margin_right = $VERSION_OVERLAY_MARGIN_RIGHT
+    margin_bottom = $VERSION_OVERLAY_MARGIN_BOTTOM
+    text_color = hex_to_rgb("$VERSION_OVERLAY_FONT_COLOR")
+    shadow_color = hex_to_rgb("$VERSION_OVERLAY_SHADOW_COLOR")
+    shadow_opacity = $VERSION_OVERLAY_SHADOW_OPACITY
+    is_bold = "$VERSION_OVERLAY_FONT_BOLD" == "true"
     
-    img.save("$dest_image")
-    print("Version ajoutée")
+    # Essayer de charger une police système
+    font = None
+    font_paths = [
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf" if is_bold else "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if is_bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf" if is_bold else "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    ]
+    
+    for font_path in font_paths:
+        if os.path.exists(font_path):
+            try:
+                font = ImageFont.truetype(font_path, font_size)
+                break
+            except:
+                pass
+    
+    # Si aucune police trouvée, utiliser la police par défaut
+    if font is None:
+        font = ImageFont.load_default()
+        print("Utilisation de la police par défaut")
+    
+    # Obtenir la taille du texte
+    if font != ImageFont.load_default():
+        bbox = draw.textbbox((0, 0), "$version_text", font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+    else:
+        # Pour la police par défaut, estimation
+        text_width = len("$version_text") * 10
+        text_height = 15
+    
+    # Calculer la position (ancrage coin bas-droit)
+    x = img.width - margin_right - text_width
+    y = img.height - margin_bottom - text_height
+    
+    # Dessiner l'ombre avec opacité
+    shadow_offset = max(2, int(font_size / 20))
+    if font != ImageFont.load_default():
+        # Ombre avec transparence
+        for offset_x in range(-shadow_offset, shadow_offset + 1):
+            for offset_y in range(-shadow_offset, shadow_offset + 1):
+                if offset_x != 0 or offset_y != 0:
+                    draw.text(
+                        (x + offset_x, y + offset_y), 
+                        "$version_text", 
+                        font=font, 
+                        fill=shadow_color + (shadow_opacity,)
+                    )
+    
+    # Dessiner le texte principal
+    draw.text((x, y), "$version_text", font=font, fill=text_color + (255,))
+    
+    # Composer l'image finale
+    out = Image.alpha_composite(img, txt_layer)
+    
+    # Sauvegarder (convertir en RGB si nécessaire pour JPEG)
+    if dest_image.lower().endswith('.jpg') or dest_image.lower().endswith('.jpeg'):
+        out = out.convert('RGB')
+    
+    out.save("$dest_image", quality=95)
+    print("Version ajoutée avec succès")
+    
 except Exception as e:
+    print(f"Erreur: {e}")
     import shutil
     shutil.copy2("$source_image", "$dest_image")
-    print(f"Copie simple: {e}")
 EOF
-        if [ $? -eq 0 ]; then
-            log_success "Version ajoutée sur l'image"
-        else
-            cp "$source_image" "$dest_image"
-            log_info "Image copiée sans version"
-        fi
+    
+    if [ $? -eq 0 ]; then
+        log_success "Version ajoutée sur l'image"
     else
         cp "$source_image" "$dest_image"
-        log_info "PIL non disponible - copie simple de l'image"
+        log_info "Image copiée sans modification"
     fi
 }
 
@@ -89,7 +346,7 @@ EOF
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-log_info "========== DÉBUT DE LA MISE À JOUR SYSTÈME V7 =========="
+log_info "========== DÉBUT DE LA MISE À JOUR SYSTÈME V8 =========="
 
 # Vérifier les privilèges root
 if [ "$EUID" -ne 0 ]; then
@@ -109,11 +366,22 @@ echo ""
 
 send_progress 5 "Préparation du système..."
 
-# Stabilisation initiale
+# Stabilisation initiale plus longue pour OS frais
 echo "◦ Stabilisation du système après démarrage..."
 echo "  ↦ Initialisation des services réseau..."
-log_info "Stabilisation du système - attente 5s"
-wait_silently 5
+log_info "Stabilisation du système - attente 10s pour OS frais"
+wait_silently 10  # Plus long pour laisser le système se stabiliser
+
+# Désactiver temporairement les mises à jour automatiques
+echo ""
+echo "◦ Désactivation temporaire des mises à jour automatiques..."
+log_info "Désactivation des mises à jour automatiques"
+
+systemctl stop unattended-upgrades 2>/dev/null || true
+systemctl stop apt-daily.timer 2>/dev/null || true
+systemctl stop apt-daily-upgrade.timer 2>/dev/null || true
+
+echo "  ↦ Mises à jour automatiques suspendues ✓"
 
 # Sauvegarder l'état réseau actuel
 save_network_state
@@ -125,7 +393,7 @@ if ip link show wlan0 >/dev/null 2>&1; then
     echo "  ↦ Interface WiFi détectée ✓"
     log_info "Interface WiFi wlan0 détectée"
     log_command "nmcli radio wifi on >/dev/null 2>&1" "Activation WiFi"
-    wait_silently 2
+    wait_silently 3  # Attendre que le WiFi s'active complètement
     echo "  ↦ WiFi activé ✓"
 else
     echo "  ↦ Interface WiFi non disponible ✗"
@@ -155,6 +423,9 @@ if ! ensure_internet_connection; then
     exit 1
 fi
 
+# Attendre que la connexion soit stable
+wait_with_message 5 "Stabilisation de la connexion"
+
 send_progress 30 "Connexion établie"
 echo ""
 sleep 2
@@ -177,17 +448,23 @@ if command -v timedatectl >/dev/null 2>&1; then
     log_command "timedatectl set-ntp true" "Activation NTP"
     
     echo "  ↦ Attente de la synchronisation NTP..."
-    log_info "Stabilisation pour synchronisation NTP - attente 10s"
-    wait_silently 10
+    log_info "Attente synchronisation NTP - 15s"
+    wait_silently 15  # Plus de temps pour la synchro
     
-    if timedatectl status | grep -q "synchronized: yes"; then
-        echo "  ↦ Horloge synchronisée ✓"
-        log_success "Synchronisation NTP confirmée"
-    else
-        echo "  ↦ Synchronisation en cours... ⚠"
-        log_warn "Synchronisation NTP toujours en cours"
-        wait_silently 5
-    fi
+    # Vérifier plusieurs fois
+    local sync_attempts=0
+    while [ $sync_attempts -lt 3 ]; do
+        if timedatectl status | grep -q "synchronized: yes"; then
+            echo "  ↦ Horloge synchronisée ✓"
+            log_success "Synchronisation NTP confirmée"
+            break
+        else
+            echo "  ↦ Synchronisation en cours... (tentative $((sync_attempts+1))/3)"
+            log_info "Attente supplémentaire pour NTP"
+            wait_silently 5
+            ((sync_attempts++))
+        fi
+    done
     
     echo "  ↦ Date/Heure: $(date '+%d/%m/%Y %H:%M:%S')"
     log_info "Heure synchronisée: $(date)"
@@ -211,24 +488,17 @@ echo ""
 
 send_progress 45 "Préparation des mises à jour..."
 
-# Nettoyer les verrous APT
-echo "◦ Préparation du système de paquets..."
-log_info "Nettoyage des verrous APT"
+# Nettoyer APT proprement
+clean_apt_properly
 
-log_command "pkill -9 apt 2>/dev/null || true" "Kill processus APT"
-log_command "pkill -9 dpkg 2>/dev/null || true" "Kill processus DPKG"
-log_command "rm -f /var/lib/apt/lists/lock /var/cache/apt/archives/lock /var/lib/dpkg/lock*" "Suppression verrous"
+# Attendre un peu après le nettoyage
+wait_with_message 3 "Stabilisation après nettoyage"
 
-wait_silently 2
-
-# Mise à jour des dépôts
-echo ""
-echo "◦ Mise à jour de la liste des paquets..."
-if log_command "apt-get update -y" "APT update"; then
-    echo "  ↦ Liste des paquets mise à jour ✓"
-else
-    echo "  ↦ Erreur lors de la mise à jour ✗"
-    log_error "Échec apt-get update"
+# Mise à jour des dépôts avec retry
+if ! safe_apt_update; then
+    echo "  ↦ Impossible de mettre à jour les dépôts ✗"
+    echo "  ↦ Continuation sans mises à jour de sécurité ⚠"
+    log_error "APT update impossible, continuation sans mises à jour"
 fi
 
 send_progress 55 "Installation des mises à jour critiques..."
@@ -241,14 +511,22 @@ log_info "Installation des paquets critiques uniquement"
 # Liste des paquets critiques
 CRITICAL_PACKAGES="openssh-server openssh-client openssl libssl* sudo systemd apt dpkg libc6 libpam* ca-certificates tzdata"
 
-# Installer uniquement les mises à jour critiques
-if log_command "DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade $CRITICAL_PACKAGES" "Mise à jour sécurité"; then
+# Installer uniquement les mises à jour critiques avec gestion d'erreur
+if log_command "DEBIAN_FRONTEND=noninteractive apt-get install -y --only-upgrade --allow-unauthenticated $CRITICAL_PACKAGES" "Mise à jour sécurité"; then
     echo "  ↦ Mises à jour de sécurité installées ✓"
     log_success "Mises à jour de sécurité installées"
 else
-    echo "  ↦ Erreur lors des mises à jour ⚠"
+    echo "  ↦ Certaines mises à jour ont échoué ⚠"
     log_warn "Certaines mises à jour ont échoué"
+    
+    # Essayer de réparer
+    echo "  ↦ Tentative de réparation..."
+    dpkg --configure -a
+    apt-get install -f -y
 fi
+
+# Pause après les mises à jour
+wait_with_message 5 "Stabilisation après mises à jour"
 
 send_progress 65 "Création du cache de paquets..."
 
@@ -273,6 +551,9 @@ else
     echo "  ↦ Erreur d'initialisation du cache ✗"
     log_error "Échec de l'initialisation du cache"
 fi
+
+# Attendre avant de télécharger
+wait_with_message 3 "Préparation du téléchargement"
 
 # Télécharger tous les paquets définis dans packages.list
 echo ""
@@ -454,7 +735,15 @@ echo ""
 
 send_progress 95 "Finalisation..."
 
+# Réactiver les mises à jour automatiques
+echo "◦ Réactivation des mises à jour automatiques..."
+systemctl start apt-daily.timer 2>/dev/null || true
+systemctl start apt-daily-upgrade.timer 2>/dev/null || true
+echo "  ↦ Services de mise à jour réactivés ✓"
+log_info "Services de mise à jour réactivés"
+
 # Restaurer l'état réseau
+echo ""
 echo "◦ Restauration de l'état réseau..."
 restore_network_state
 echo "  ↦ État réseau restauré ✓"
@@ -474,13 +763,13 @@ echo "◦ Résumé du cache créé :"
 get_cache_stats
 
 echo ""
-echo "  ↦ Redémarrage dans 10 secondes..."
+echo "  ↦ Redémarrage du système prévu dans 30 secondes..."
 echo ""
 
-log_info "Redémarrage du système prévu dans 10 secondes"
+log_info "Redémarrage du système prévu dans 30 secondes"
 
-# Pause de 10 secondes avant reboot
-sleep 10
+# Pause de 30 secondes
+sleep 30
 
 # Redémarrer
 log_info "Redémarrage du système"
