@@ -76,7 +76,7 @@
   },
   "collector": {
     "enabled": true,
-    "script": "collector.py",
+    "script": "servermonitoring_collector.py",
     "service_name": "maxlink-widget-servermonitoring",
     "service_description": "MaxLink Server Monitoring Collector",
     "update_intervals": {
@@ -92,21 +92,11 @@
   },
   "dependencies": {
     "python_packages": [
-      "psutil>=5.8.0",
-      "paho-mqtt>=1.6.0"
+      "psutil",
+      "paho-mqtt"
     ],
     "system_packages": [],
     "services": ["mosquitto"],
     "python_version": ">=3.7"
-  },
-  "files": {
-    "install_script": "servermonitoring_install.sh",
-    "test_script": "servermonitoring_test.sh",
-    "uninstall_script": "servermonitoring_uninstall.sh",
-    "collector_script": "collector.py",
-    "service_file": "maxlink-widget-servermonitoring.service"
-  },
-  "install_order": 10,
-  "auto_start": true,
-  "test_timeout": 30
+  }
 }

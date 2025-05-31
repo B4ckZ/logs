@@ -1,0 +1,349 @@
+#!/bin/bash
+
+# ===============================================================================
+# MAXLINK - CORE COMMUN DES WIDGETS
+# Fonctions partagées pour l'installation des widgets MQTT
+# ===============================================================================
+
+# Vérifier les dépendances
+if [ -z "$BASE_DIR" ]; then
+    echo "ERREUR: Ce module doit être sourcé après variables.sh"
+    exit 1
+fi
+
+# ===============================================================================
+# CONFIGURATION
+# ===============================================================================
+
+WIDGETS_DIR="$BASE_DIR/scripts/widgets"
+WIDGETS_CONFIG_DIR="/etc/maxlink/widgets"
+WIDGETS_TRACKING_FILE="/etc/maxlink/widgets_installed.json"
+
+# Créer les répertoires
+mkdir -p "$WIDGETS_CONFIG_DIR" "$(dirname "$WIDGETS_TRACKING_FILE")"
+
+# ===============================================================================
+# FONCTIONS DE BASE
+# ===============================================================================
+
+# Charger la configuration d'un widget
+widget_load_config() {
+    local widget_name=$1
+    local config_file="$WIDGETS_DIR/$widget_name/${widget_name}_widget.json"
+    
+    if [ ! -f "$config_file" ]; then
+        log_error "Configuration manquante: $config_file"
+        return 1
+    fi
+    
+    # Retourner le chemin pour utilisation
+    echo "$config_file"
+}
+
+# Extraire une valeur du JSON
+widget_get_value() {
+    local json_file=$1
+    local key_path=$2
+    
+    python3 -c "
+import json
+try:
+    with open('$json_file', 'r') as f:
+        data = json.load(f)
+    # Naviguer dans le JSON avec le chemin de clés
+    keys = '$key_path'.split('.')
+    value = data
+    for key in keys:
+        value = value.get(key, '')
+    print(value)
+except:
+    print('')
+"
+}
+
+# Vérifier si un widget est installé
+widget_is_installed() {
+    local widget_name=$1
+    
+    if [ -f "$WIDGETS_TRACKING_FILE" ]; then
+        python3 -c "
+import json
+try:
+    with open('$WIDGETS_TRACKING_FILE', 'r') as f:
+        data = json.load(f)
+    print('yes' if '$widget_name' in data else 'no')
+except:
+    print('no')
+"
+    else
+        echo "no"
+    fi
+}
+
+# Enregistrer un widget comme installé
+widget_register() {
+    local widget_name=$1
+    local service_name=$2
+    local version=$3
+    
+    # Créer ou mettre à jour le fichier de tracking
+    python3 -c "
+import json
+from datetime import datetime
+
+# Charger ou créer
+try:
+    with open('$WIDGETS_TRACKING_FILE', 'r') as f:
+        data = json.load(f)
+except:
+    data = {}
+
+# Ajouter/mettre à jour
+data['$widget_name'] = {
+    'installed_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    'service_name': '$service_name',
+    'version': '$version',
+    'status': 'active'
+}
+
+# Sauvegarder
+with open('$WIDGETS_TRACKING_FILE', 'w') as f:
+    json.dump(data, f, indent=2)
+"
+    
+    log_success "Widget $widget_name enregistré"
+}
+
+# ===============================================================================
+# INSTALLATION PYTHON
+# ===============================================================================
+
+# Installer les dépendances Python d'un widget
+widget_install_python_deps() {
+    local widget_name=$1
+    local config_file=$2
+    
+    log_info "Vérification des dépendances Python pour $widget_name"
+    
+    # Extraire les dépendances
+    local python_deps=$(widget_get_value "$config_file" "dependencies.python_packages")
+    
+    if [ -z "$python_deps" ] || [ "$python_deps" = "[]" ]; then
+        log_info "Aucune dépendance Python pour $widget_name"
+        return 0
+    fi
+    
+    # Parser et installer
+    python3 -c "
+import json
+import subprocess
+import sys
+
+with open('$config_file', 'r') as f:
+    config = json.load(f)
+
+deps = config.get('dependencies', {}).get('python_packages', [])
+if not deps:
+    sys.exit(0)
+
+# Vérifier chaque dépendance
+missing = []
+for dep in deps:
+    pkg_name = dep.split('>=')[0].split('==')[0]
+    try:
+        __import__(pkg_name.replace('-', '_'))
+    except ImportError:
+        missing.append(pkg_name)
+
+if missing:
+    print(f'Dépendances manquantes: {\", \".join(missing)}')
+    sys.exit(1)
+"
+    
+    if [ $? -ne 0 ]; then
+        log_warn "Installation des dépendances Python nécessaire"
+        return 1
+    fi
+    
+    log_success "Dépendances Python OK pour $widget_name"
+    return 0
+}
+
+# ===============================================================================
+# SERVICE SYSTEMD
+# ===============================================================================
+
+# Créer et installer un service systemd pour un widget
+widget_create_service() {
+    local widget_name=$1
+    local config_file=$2
+    local collector_script=$3
+    
+    # Extraire les infos
+    local service_name=$(widget_get_value "$config_file" "collector.service_name")
+    local service_desc=$(widget_get_value "$config_file" "collector.service_description")
+    
+    if [ -z "$service_name" ]; then
+        service_name="maxlink-widget-$widget_name"
+    fi
+    
+    if [ -z "$service_desc" ]; then
+        service_desc="MaxLink Widget $widget_name"
+    fi
+    
+    log_info "Création du service $service_name"
+    
+    # Créer le fichier service
+    cat > "/etc/systemd/system/${service_name}.service" << EOF
+[Unit]
+Description=$service_desc
+After=mosquitto.service
+Wants=mosquitto.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 $collector_script
+Restart=always
+RestartSec=10
+User=root
+StandardOutput=journal
+StandardError=journal
+
+# Environnement
+Environment="PYTHONUNBUFFERED=1"
+Environment="WIDGET_NAME=$widget_name"
+Environment="CONFIG_FILE=$config_file"
+
+# Sécurité
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    # Recharger systemd
+    systemctl daemon-reload
+    
+    # Activer et démarrer
+    if systemctl enable "$service_name" >/dev/null 2>&1; then
+        log_success "Service activé: $service_name"
+        
+        if systemctl start "$service_name"; then
+            log_success "Service démarré: $service_name"
+            return 0
+        else
+            log_error "Impossible de démarrer le service"
+            return 1
+        fi
+    else
+        log_error "Impossible d'activer le service"
+        return 1
+    fi
+}
+
+# ===============================================================================
+# VALIDATION
+# ===============================================================================
+
+# Valider la structure d'un widget
+widget_validate() {
+    local widget_name=$1
+    local widget_dir="$WIDGETS_DIR/$widget_name"
+    
+    # Fichiers requis
+    local required_files=(
+        "${widget_name}_widget.json"
+        "${widget_name}_install.sh"
+        "${widget_name}_collector.py"
+    )
+    
+    for file in "${required_files[@]}"; do
+        if [ ! -f "$widget_dir/$file" ]; then
+            log_error "Fichier manquant: $widget_dir/$file"
+            return 1
+        fi
+    done
+    
+    # Valider le JSON
+    if ! python3 -m json.tool "$widget_dir/${widget_name}_widget.json" >/dev/null 2>&1; then
+        log_error "JSON invalide: ${widget_name}_widget.json"
+        return 1
+    fi
+    
+    log_success "Widget $widget_name validé"
+    return 0
+}
+
+# ===============================================================================
+# INSTALLATION STANDARD
+# ===============================================================================
+
+# Fonction d'installation standard d'un widget
+widget_standard_install() {
+    local widget_name=$1
+    
+    echo ""
+    echo "Installation du widget: $widget_name"
+    echo "------------------------------------"
+    
+    # Valider
+    if ! widget_validate "$widget_name"; then
+        echo "  ↦ Widget invalide ✗"
+        return 1
+    fi
+    
+    # Charger la config
+    local config_file=$(widget_load_config "$widget_name")
+    local widget_dir="$WIDGETS_DIR/$widget_name"
+    local collector_script="$widget_dir/${widget_name}_collector.py"
+    
+    # Vérifier si déjà installé
+    if [ "$(widget_is_installed "$widget_name")" = "yes" ]; then
+        echo "  ↦ Widget déjà installé, mise à jour..."
+        
+        # Arrêter l'ancien service
+        local old_service=$(widget_get_value "$WIDGETS_TRACKING_FILE" "$widget_name.service_name")
+        if [ -n "$old_service" ]; then
+            systemctl stop "$old_service" 2>/dev/null || true
+        fi
+    fi
+    
+    # Installer les dépendances Python si nécessaire
+    if ! widget_install_python_deps "$widget_name" "$config_file"; then
+        echo "  ↦ Dépendances Python manquantes ✗"
+        return 1
+    fi
+    
+    # Rendre le collector exécutable
+    chmod +x "$collector_script"
+    
+    # Créer et démarrer le service
+    if widget_create_service "$widget_name" "$config_file" "$collector_script"; then
+        # Enregistrer l'installation
+        local version=$(widget_get_value "$config_file" "widget.version")
+        local service_name=$(widget_get_value "$config_file" "collector.service_name")
+        [ -z "$service_name" ] && service_name="maxlink-widget-$widget_name"
+        
+        widget_register "$widget_name" "$service_name" "$version"
+        
+        echo "  ↦ Widget $widget_name installé ✓"
+        return 0
+    else
+        echo "  ↦ Erreur lors de l'installation ✗"
+        return 1
+    fi
+}
+
+# ===============================================================================
+# EXPORT
+# ===============================================================================
+
+export -f widget_load_config
+export -f widget_get_value
+export -f widget_is_installed
+export -f widget_register
+export -f widget_install_python_deps
+export -f widget_create_service
+export -f widget_validate
+export -f widget_standard_install

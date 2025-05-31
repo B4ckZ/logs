@@ -1,0 +1,38 @@
+{
+  "widget": {
+    "id": "uptime",
+    "name": "System Uptime",
+    "version": "1.0.0",
+    "description": "Affiche le temps de fonctionnement du système",
+    "author": "MaxLink Team",
+    "dashboard_compatibility": "1.0+"
+  },
+  "mqtt": {
+    "required": true,
+    "broker": {
+      "host": "localhost",
+      "port": 1883,
+      "username": "mosquitto",
+      "password": "mqtt"
+    },
+    "topics": {
+      "subscribe": [
+        {
+          "topic": "rpi/system/uptime",
+          "description": "Temps de fonctionnement en secondes",
+          "format": "json"
+        }
+      ]
+    }
+  },
+  "collector": {
+    "enabled": false,
+    "note": "Ce widget utilise les données du collecteur servermonitoring"
+  },
+  "dependencies": {
+    "python_packages": [],
+    "system_packages": [],
+    "services": ["mosquitto", "maxlink-widget-servermonitoring"],
+    "python_version": ">=3.7"
+  }
+}

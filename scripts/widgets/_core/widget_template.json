@@ -1,0 +1,47 @@
+{
+  "widget": {
+    "id": "WIDGET_NAME",
+    "name": "Widget Display Name",
+    "version": "1.0.0",
+    "description": "Description du widget",
+    "author": "MaxLink Team",
+    "dashboard_compatibility": "1.0+"
+  },
+  "mqtt": {
+    "required": true,
+    "broker": {
+      "host": "localhost",
+      "port": 1883,
+      "username": "mosquitto",
+      "password": "mqtt"
+    },
+    "topics": {
+      "publish": [
+        {
+          "topic": "rpi/widget/WIDGET_NAME/data",
+          "description": "Description du topic",
+          "format": "json",
+          "example": "{\"timestamp\": \"2025-05-27T10:00:00Z\", \"value\": 42}"
+        }
+      ],
+      "subscribe": []
+    }
+  },
+  "collector": {
+    "enabled": true,
+    "script": "WIDGET_NAME_collector.py",
+    "service_name": "maxlink-widget-WIDGET_NAME",
+    "service_description": "MaxLink WIDGET_NAME Collector",
+    "update_intervals": {
+      "default": 10
+    }
+  },
+  "dependencies": {
+    "python_packages": [
+      "paho-mqtt"
+    ],
+    "system_packages": [],
+    "services": ["mosquitto"],
+    "python_version": ">=3.7"
+  }
+}
