@@ -427,6 +427,26 @@ else
     exit 1
 fi
 
+# Créer un override systemd pour le delay de démarrage et dépendances
+echo ""
+echo "◦ Configuration du délai de démarrage..."
+mkdir -p /etc/systemd/system/nginx.service.d/
+cat > /etc/systemd/system/nginx.service.d/dependencies.conf << EOF
+[Unit]
+# S'assurer que mosquitto est démarré avant nginx (optionnel mais recommandé)
+After=mosquitto.service
+Wants=mosquitto.service
+
+[Service]
+# Delay de démarrage pour attendre Mosquitto
+ExecStartPre=/bin/sleep $STARTUP_DELAY_NGINX
+EOF
+echo "  ↦ Délai de démarrage configuré (${STARTUP_DELAY_NGINX}s) ✓"
+log_info "Delay de démarrage Nginx configuré: ${STARTUP_DELAY_NGINX}s"
+
+# Recharger systemd
+systemctl daemon-reload
+
 # Démarrer Nginx
 echo ""
 echo "◦ Démarrage de Nginx..."
@@ -458,6 +478,7 @@ send_progress 100 "Installation terminée !"
 echo ""
 echo "◦ Installation terminée avec succès !"
 echo "  ↦ Dashboard installé dans : $NGINX_DASHBOARD_DIR"
+echo "  ↦ Délai de démarrage : ${STARTUP_DELAY_NGINX}s"
 echo "  ↦ Accessible via :"
 echo "    • http://$AP_IP"
 if [ -f "/etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf" ] && grep -q "address=/$NGINX_DASHBOARD_DOMAIN/" /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf; then
@@ -479,13 +500,13 @@ echo ""
 log_info "Installation terminée avec succès"
 log_info "Dashboard accessible à: http://$AP_IP et http://$NGINX_DASHBOARD_DOMAIN"
 
-echo "  ↦ Redémarrage dans 10 secondes..."
+echo "  ↦ Redémarrage dans 15 secondes..."
 echo ""
 
-log_info "Redémarrage du système prévu dans 10 secondes"
+log_info "Redémarrage du système prévu dans 15 secondes"
 
-# Pause de 10 secondes avant reboot
-sleep 10
+# Pause de 15 secondes avant reboot
+sleep 15
 
 # Redémarrer
 log_info "Redémarrage du système"

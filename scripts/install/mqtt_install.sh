@@ -280,7 +280,22 @@ echo ""
 
 send_progress 90 "Démarrage du service..."
 
+# Créer un override systemd pour le delay de démarrage
+echo "◦ Configuration du délai de démarrage..."
+mkdir -p /etc/systemd/system/mosquitto.service.d/
+cat > /etc/systemd/system/mosquitto.service.d/startup-delay.conf << EOF
+[Service]
+# Delay de démarrage pour attendre la stabilisation du réseau
+ExecStartPre=/bin/sleep $STARTUP_DELAY_MOSQUITTO
+EOF
+echo "  ↦ Délai de démarrage configuré (${STARTUP_DELAY_MOSQUITTO}s) ✓"
+log_info "Delay de démarrage Mosquitto configuré: ${STARTUP_DELAY_MOSQUITTO}s"
+
+# Recharger systemd pour prendre en compte l'override
+systemctl daemon-reload
+
 # Activer le service au démarrage
+echo ""
 echo "◦ Activation du service au démarrage..."
 log_command "systemctl enable mosquitto >/dev/null 2>&1" "Activation au démarrage"
 echo "  ↦ Service activé ✓"
@@ -385,6 +400,7 @@ echo "========================================================================"
 echo ""
 echo "◦ Broker MQTT Mosquitto installé et configuré"
 echo "◦ Topics système ($SYS) activés pour les statistiques"
+echo "◦ Délai de démarrage : ${STARTUP_DELAY_MOSQUITTO}s"
 echo ""
 echo "◦ Informations de connexion :"
 echo "  • Serveur      : localhost (ou IP du Raspberry Pi)"
@@ -412,4 +428,14 @@ echo ""
 log_success "Installation MQTT Broker terminée avec statistiques système activées"
 log_info "Configuration: $MQTT_USER/$MQTT_PASS sur ports $MQTT_PORT et $MQTT_WEBSOCKET_PORT"
 
-exit 0
+echo "  ↦ Redémarrage dans 15 secondes..."
+echo ""
+
+log_info "Redémarrage du système prévu dans 15 secondes"
+
+# Pause de 15 secondes avant reboot
+sleep 15
+
+# Redémarrer
+log_info "Redémarrage du système"
+reboot

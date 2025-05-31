@@ -163,7 +163,7 @@ widget_create_service() {
     
     log_info "Création du service $service_name"
     
-    # Créer le fichier service avec configuration améliorée
+    # Créer le fichier service avec configuration améliorée et DELAY
     cat > "/etc/systemd/system/${service_name}.service" << EOF
 [Unit]
 Description=$service_desc
@@ -178,7 +178,8 @@ ConditionPathExists=$config_file
 
 [Service]
 Type=simple
-ExecStartPre=/bin/sleep 10
+# DELAY DE DÉMARRAGE CONFIGURABLE
+ExecStartPre=/bin/sleep ${STARTUP_DELAY_WIDGETS:-20}
 ExecStart=/usr/bin/python3 $collector_script
 Restart=always
 RestartSec=30
@@ -208,6 +209,16 @@ TimeoutStartSec=300
 [Install]
 WantedBy=multi-user.target
 EOF
+    
+    # Créer aussi un override pour pouvoir ajuster le delay sans recréer le service
+    mkdir -p "/etc/systemd/system/${service_name}.service.d/"
+    cat > "/etc/systemd/system/${service_name}.service.d/startup-delay.conf" << EOF
+[Service]
+# Delay de démarrage configurable
+ExecStartPre=/bin/sleep ${STARTUP_DELAY_WIDGETS:-20}
+EOF
+    
+    log_info "Service créé avec delay de démarrage: ${STARTUP_DELAY_WIDGETS:-20}s"
     
     # Créer aussi un service de vérification pour s'assurer que mosquitto est vraiment prêt
     cat > "/etc/systemd/system/${service_name}-checker.service" << EOF
@@ -354,6 +365,7 @@ widget_standard_install() {
             widget_register "$widget_name" "$service_name" "$version"
             
             echo "  ↦ Widget $widget_name installé ✓"
+            echo "  ↦ Délai de démarrage : ${STARTUP_DELAY_WIDGETS:-20}s"
             return 0
         else
             echo "  ↦ Erreur lors de l'installation ✗"

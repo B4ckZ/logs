@@ -38,7 +38,7 @@
     "service_name": "maxlink-widget-wifistats",
     "service_description": "MaxLink WiFi Statistics Collector",
     "update_intervals": {
-      "default": 30
+      "default": 1
     }
   },
   "dependencies": {

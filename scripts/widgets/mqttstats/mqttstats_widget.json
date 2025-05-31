@@ -66,7 +66,7 @@
     "service_name": "maxlink-widget-mqttstats",
     "service_description": "MaxLink MQTT Statistics Collector",
     "update_intervals": {
-      "default": 10
+      "default": 1
     },
     "features": {
       "sys_topics": true,

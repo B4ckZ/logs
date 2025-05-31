@@ -100,6 +100,30 @@ MQTT_PORT="1883"
 MQTT_WEBSOCKET_PORT="9001"
 
 # ===============================================================================
+# CONFIGURATION FILTRAGE MQTT
+# ===============================================================================
+
+# Topics MQTT à ignorer dans les statistiques
+# Utilisez des patterns avec wildcards (* et +) si nécessaire
+MQTT_IGNORED_TOPICS=(
+    # Topics de test et latence
+    "test/#"
+    "test/latency/+"
+    "test/widget/+"
+    
+    # Topics internes des widgets qui génèrent du bruit
+    "rpi/network/mqtt/stats"
+    "rpi/network/mqtt/topics"
+    
+    # Ajoutez vos propres topics à ignorer ici
+    # "device/telemetry/frequent"
+    # "sensor/noisy/+"
+)
+
+# Convertir en string pour l'export (séparateur |)
+MQTT_IGNORED_TOPICS_STRING=$(IFS='|'; echo "${MQTT_IGNORED_TOPICS[*]}")
+
+# ===============================================================================
 # CONFIGURATION NGINX
 # ===============================================================================
 
@@ -169,6 +193,16 @@ DISPLAY_DELAY_BETWEEN_STEPS=2
 FAN_TEMP_MIN=0
 FAN_TEMP_ACTIVATE=60
 FAN_TEMP_MAX=60
+
+# ===============================================================================
+# CONFIGURATION DES DELAYS DE DÉMARRAGE
+# ===============================================================================
+
+# Delays de démarrage des services
+STARTUP_DELAY_MOSQUITTO=10
+STARTUP_DELAY_NGINX=20
+STARTUP_DELAY_WIDGETS=30
+
 
 # ===============================================================================
 # FONCTIONS UTILITAIRES
@@ -262,6 +296,8 @@ export NETWORK_TIMEOUT PING_COUNT APT_RETRY_MAX_ATTEMPTS APT_RETRY_DELAY
 export DISPLAY_DELAY_STARTUP DISPLAY_DELAY_BETWEEN_STEPS
 export FAN_TEMP_MIN FAN_TEMP_ACTIVATE FAN_TEMP_MAX
 export MQTT_USER MQTT_PASS MQTT_PORT MQTT_WEBSOCKET_PORT
+export STARTUP_DELAY_MOSQUITTO STARTUP_DELAY_NGINX STARTUP_DELAY_WIDGETS
+export MQTT_IGNORED_TOPICS_STRING
 
 # Valider la configuration
 if ! validate_config; then
