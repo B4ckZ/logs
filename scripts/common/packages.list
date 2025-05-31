@@ -4,7 +4,7 @@
 # ===============================================================================
 
 # Paquets de base (update_install.sh)
-base:git curl wget ca-certificates apt-transport-https lsb-release
+base:git curl wget ca-certificates apt-transport-https gnupg lsb-release
 
 # Serveur Web (nginx_install.sh)
 nginx:nginx nginx-common
