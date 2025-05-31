@@ -85,9 +85,9 @@
       "slow": 30
     },
     "metrics_groups": {
-      "fast": ["cpu_usage", "ram_usage"],
+      "fast": ["cpu_usage", "ram_usage", "uptime"],
       "normal": ["temperatures", "frequencies"],
-      "slow": ["swap_usage", "disk_usage", "uptime"]
+      "slow": ["swap_usage", "disk_usage",]
     }
   },
   "dependencies": {
