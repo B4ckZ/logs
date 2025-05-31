@@ -428,12 +428,13 @@ echo ""
 log_success "Installation MQTT Broker terminée avec statistiques système activées"
 log_info "Configuration: $MQTT_USER/$MQTT_PASS sur ports $MQTT_PORT et $MQTT_WEBSOCKET_PORT"
 
-echo "  ↦ Redémarrage dans 15 secondes..."
+echo ""
+echo "  ↦ Redémarrage du système prévu dans 15 secondes..."
 echo ""
 
 log_info "Redémarrage du système prévu dans 15 secondes"
 
-# Pause de 15 secondes avant reboot
+# Pause de 30 secondes
 sleep 15
 
 # Redémarrer

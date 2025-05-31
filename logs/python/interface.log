@@ -1,0 +1,102 @@
+
+================================================================================
+DÉMARRAGE: interface
+Description: Interface graphique MaxLink Admin Panel
+Date: Tue May 13 02:22:27 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-13 02:22:28] [INFO] [interface] Interface MaxLink démarrée
+[2025-05-13 02:22:28] [INFO] [interface] Initialisation du gestionnaire de variables
+[2025-05-13 02:22:28] [INFO] [interface] Variables chargées: 65 variables
+[2025-05-13 02:22:28] [INFO] [interface] Variables chargées avec succès
+[2025-05-13 02:22:28] [INFO] [interface] Initialisation de l'application MaxLink
+[2025-05-13 02:22:28] [INFO] [interface] Mode root: True
+[2025-05-13 02:22:28] [INFO] [interface] Services chargés: 5
+[2025-05-13 02:22:28] [INFO] [interface] Interface créée avec succès
+[2025-05-13 02:22:34] [INFO] [interface] Exécution action: install sur Update RPI
+[2025-05-13 02:22:34] [INFO] [interface] Exécution du script: /media/prod/MAXLINK/scripts/install/update_install.sh
+[2025-05-13 02:22:34] [INFO] [interface] Démarrage du processus: /media/prod/MAXLINK/scripts/install/update_install.sh
+
+================================================================================
+DÉMARRAGE: interface
+Description: Interface graphique MaxLink Admin Panel
+Date: Sat May 31 22:45:07 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-31 22:45:07] [INFO] [interface] Interface MaxLink démarrée
+[2025-05-31 22:45:07] [INFO] [interface] Initialisation du gestionnaire de variables
+[2025-05-31 22:45:07] [INFO] [interface] Variables chargées: 65 variables
+[2025-05-31 22:45:07] [INFO] [interface] Variables chargées avec succès
+[2025-05-31 22:45:07] [INFO] [interface] Initialisation de l'application MaxLink
+[2025-05-31 22:45:07] [INFO] [interface] Mode root: True
+[2025-05-31 22:45:07] [INFO] [interface] Services chargés: 5
+[2025-05-31 22:45:07] [INFO] [interface] Interface créée avec succès
+[2025-05-31 22:45:12] [INFO] [interface] Exécution action: install sur Network AP
+[2025-05-31 22:45:12] [INFO] [interface] Exécution du script: /media/prod/MAXLINK/scripts/install/ap_install.sh
+[2025-05-31 22:45:12] [INFO] [interface] Démarrage du processus: /media/prod/MAXLINK/scripts/install/ap_install.sh
+
+================================================================================
+DÉMARRAGE: interface
+Description: Interface graphique MaxLink Admin Panel
+Date: Sat May 31 22:47:02 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-31 22:47:02] [INFO] [interface] Interface MaxLink démarrée
+[2025-05-31 22:47:02] [INFO] [interface] Initialisation du gestionnaire de variables
+[2025-05-31 22:47:02] [INFO] [interface] Variables chargées: 65 variables
+[2025-05-31 22:47:02] [INFO] [interface] Variables chargées avec succès
+[2025-05-31 22:47:02] [INFO] [interface] Initialisation de l'application MaxLink
+[2025-05-31 22:47:02] [INFO] [interface] Mode root: True
+[2025-05-31 22:47:02] [INFO] [interface] Services chargés: 5
+[2025-05-31 22:47:02] [INFO] [interface] Interface créée avec succès
+[2025-05-31 22:47:06] [INFO] [interface] Exécution action: install sur NginX Web
+[2025-05-31 22:47:06] [INFO] [interface] Exécution du script: /media/prod/MAXLINK/scripts/install/nginx_install.sh
+[2025-05-31 22:47:06] [INFO] [interface] Démarrage du processus: /media/prod/MAXLINK/scripts/install/nginx_install.sh
+
+================================================================================
+DÉMARRAGE: interface
+Description: Interface graphique MaxLink Admin Panel
+Date: Sat May 31 22:48:26 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-31 22:48:26] [INFO] [interface] Interface MaxLink démarrée
+[2025-05-31 22:48:26] [INFO] [interface] Initialisation du gestionnaire de variables
+[2025-05-31 22:48:26] [INFO] [interface] Variables chargées: 65 variables
+[2025-05-31 22:48:26] [INFO] [interface] Variables chargées avec succès
+[2025-05-31 22:48:26] [INFO] [interface] Initialisation de l'application MaxLink
+[2025-05-31 22:48:26] [INFO] [interface] Mode root: True
+[2025-05-31 22:48:26] [INFO] [interface] Services chargés: 5
+[2025-05-31 22:48:26] [INFO] [interface] Interface créée avec succès
+[2025-05-31 22:48:30] [INFO] [interface] Exécution action: install sur MQTT BKR
+[2025-05-31 22:48:30] [INFO] [interface] Exécution du script: /media/prod/MAXLINK/scripts/install/mqtt_install.sh
+[2025-05-31 22:48:30] [INFO] [interface] Démarrage du processus: /media/prod/MAXLINK/scripts/install/mqtt_install.sh
+
+================================================================================
+DÉMARRAGE: interface
+Description: Interface graphique MaxLink Admin Panel
+Date: Sat May 31 22:49:50 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-31 22:49:50] [INFO] [interface] Interface MaxLink démarrée
+[2025-05-31 22:49:50] [INFO] [interface] Initialisation du gestionnaire de variables
+[2025-05-31 22:49:50] [INFO] [interface] Variables chargées: 65 variables
+[2025-05-31 22:49:50] [INFO] [interface] Variables chargées avec succès
+[2025-05-31 22:49:50] [INFO] [interface] Initialisation de l'application MaxLink
+[2025-05-31 22:49:50] [INFO] [interface] Mode root: True
+[2025-05-31 22:49:50] [INFO] [interface] Services chargés: 5
+[2025-05-31 22:49:50] [INFO] [interface] Interface créée avec succès
+[2025-05-31 22:49:55] [INFO] [interface] Exécution action: install sur MQTT WGS
+[2025-05-31 22:49:55] [INFO] [interface] Exécution du script: /media/prod/MAXLINK/scripts/install/mqtt_wgs_install.sh
+[2025-05-31 22:49:55] [INFO] [interface] Démarrage du processus: /media/prod/MAXLINK/scripts/install/mqtt_wgs_install.sh
+[2025-05-31 22:52:16] [INFO] [interface] Script terminé avec code: 0
+[2025-05-31 22:52:16] [INFO] [interface] Service MQTT WGS activé

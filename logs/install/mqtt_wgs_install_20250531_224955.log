@@ -1,0 +1,69 @@
+
+================================================================================
+DÉMARRAGE: mqtt_wgs_install
+Description: Installation de tous les widgets MQTT
+Date: Sat 31 May 22:49:55 CEST 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-05-31 22:49:55] [INFO] [mqtt_wgs_install] Script mqtt_wgs_install initialisé
+[2025-05-31 22:49:56] [INFO] [mqtt_wgs_install] ========== DÉBUT DE L'INSTALLATION DES WIDGETS MQTT ==========
+[2025-05-31 22:49:56] [INFO] [mqtt_wgs_install] Progression: 5% - Initialisation...
+[2025-05-31 22:49:56] [INFO] [mqtt_wgs_install] Progression: 10% - Découverte des widgets...
+[2025-05-31 22:49:56] [INFO] [mqtt_wgs_install] Découverte des widgets disponibles
+[2025-05-31 22:49:56] [SUCCESS] [mqtt_wgs_install] Widget mqttstats validé
+[2025-05-31 22:49:56] [INFO] [mqtt_wgs_install] Widget trouvé: mqttstats
+[2025-05-31 22:49:56] [ERROR] [mqtt_wgs_install] JSON invalide: servermonitoring_widget.json
+[2025-05-31 22:49:56] [WARN] [mqtt_wgs_install] Widget invalide ignoré: servermonitoring
+[2025-05-31 22:49:57] [SUCCESS] [mqtt_wgs_install] Widget uptime validé
+[2025-05-31 22:49:57] [INFO] [mqtt_wgs_install] Widget trouvé: uptime
+[2025-05-31 22:49:57] [SUCCESS] [mqtt_wgs_install] Widget wifistats validé
+[2025-05-31 22:49:57] [INFO] [mqtt_wgs_install] Widget trouvé: wifistats
+[2025-05-31 22:49:57] [INFO] [mqtt_wgs_install] Progression: 20% - Installation des dépendances...
+[2025-05-31 22:49:57] [INFO] [mqtt_wgs_install] Installation des dépendances Python
+[2025-05-31 22:49:57] [INFO] [mqtt_wgs_install] Installation des paquets de la catégorie: python
+[2025-05-31 22:49:57] [INFO] [mqtt_wgs_install] Installation du paquet depuis le cache: python3-psutil
+[2025-05-31 22:49:58] [SUCCESS] [mqtt_wgs_install] Paquet installé depuis le cache: python3-psutil
+[2025-05-31 22:49:58] [INFO] [mqtt_wgs_install] Installation du paquet depuis le cache: python3-paho-mqtt
+[2025-05-31 22:49:59] [SUCCESS] [mqtt_wgs_install] Paquet installé depuis le cache: python3-paho-mqtt
+[2025-05-31 22:49:59] [INFO] [mqtt_wgs_install] Installation du paquet depuis le cache: python3-pip
+[2025-05-31 22:50:02] [SUCCESS] [mqtt_wgs_install] Paquet installé depuis le cache: python3-pip
+[2025-05-31 22:50:03] [INFO] [mqtt_wgs_install] Installation du paquet depuis le cache: python3-setuptools
+[2025-05-31 22:50:04] [SUCCESS] [mqtt_wgs_install] Paquet installé depuis le cache: python3-setuptools
+[2025-05-31 22:50:04] [INFO] [mqtt_wgs_install] Progression: 30% - Installation des widgets...
+[2025-05-31 22:50:04] [SUCCESS] [mqtt_wgs_install] Widget mqttstats validé
+[2025-05-31 22:50:04] [INFO] [mqtt_wgs_install] Vérification des dépendances Python pour mqttstats
+[2025-05-31 22:50:04] [INFO] [mqtt_wgs_install] Dépendances Python vérifiées (installées via le cache)
+[2025-05-31 22:50:05] [INFO] [mqtt_wgs_install] Création du service maxlink-widget-mqttstats
+[2025-05-31 22:50:05] [INFO] [mqtt_wgs_install] Service créé avec delay de démarrage: 30s
+[2025-05-31 22:50:05] [SUCCESS] [mqtt_wgs_install] Service activé: maxlink-widget-mqttstats
+[2025-05-31 22:51:06] [SUCCESS] [mqtt_wgs_install] Service démarré: maxlink-widget-mqttstats
+[2025-05-31 22:51:06] [SUCCESS] [mqtt_wgs_install] Widget mqttstats enregistré
+[2025-05-31 22:51:06] [INFO] [mqtt_wgs_install] Progression: 50% - Widget mqttstats traité
+[2025-05-31 22:51:08] [SUCCESS] [mqtt_wgs_install] Widget uptime validé
+[2025-05-31 22:51:08] [INFO] [mqtt_wgs_install] Vérification des dépendances Python pour uptime
+[2025-05-31 22:51:08] [INFO] [mqtt_wgs_install] Aucune dépendance Python pour uptime
+[2025-05-31 22:51:08] [SUCCESS] [mqtt_wgs_install] Widget uptime enregistré
+[2025-05-31 22:51:09] [INFO] [mqtt_wgs_install] Progression: 70% - Widget uptime traité
+[2025-05-31 22:51:11] [SUCCESS] [mqtt_wgs_install] Widget wifistats validé
+[2025-05-31 22:51:11] [INFO] [mqtt_wgs_install] Vérification des dépendances Python pour wifistats
+[2025-05-31 22:51:11] [INFO] [mqtt_wgs_install] Dépendances Python vérifiées (installées via le cache)
+[2025-05-31 22:51:11] [INFO] [mqtt_wgs_install] Création du service maxlink-widget-wifistats
+[2025-05-31 22:51:11] [INFO] [mqtt_wgs_install] Service créé avec delay de démarrage: 30s
+[2025-05-31 22:51:12] [SUCCESS] [mqtt_wgs_install] Service activé: maxlink-widget-wifistats
+[2025-05-31 22:52:12] [SUCCESS] [mqtt_wgs_install] Service démarré: maxlink-widget-wifistats
+[2025-05-31 22:52:12] [SUCCESS] [mqtt_wgs_install] Widget wifistats enregistré
+[2025-05-31 22:52:12] [INFO] [mqtt_wgs_install] Progression: 90% - Widget wifistats traité
+[2025-05-31 22:52:15] [INFO] [mqtt_wgs_install] Progression: 90% - Vérification finale...
+[2025-05-31 22:52:15] [INFO] [mqtt_wgs_install] Progression: 100% - Installation terminée
+[2025-05-31 22:52:15] [SUCCESS] [mqtt_wgs_install] Tous les widgets installés avec succès
+[2025-05-31 22:52:15] [INFO] [mqtt_wgs_install] Installation terminée - Installés: 3/3
+[2025-05-31 22:52:15] [INFO] [mqtt_wgs_install] Script mqtt_wgs_install terminé avec le code 0
+
+================================================================================
+FIN: mqtt_wgs_install
+Code de sortie: 0
+Durée: 141 secondes
+================================================================================
+

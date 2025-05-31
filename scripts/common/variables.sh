@@ -201,7 +201,7 @@ FAN_TEMP_MAX=60
 # Delays de démarrage des services
 STARTUP_DELAY_MOSQUITTO=10
 STARTUP_DELAY_NGINX=20
-STARTUP_DELAY_WIDGETS=30
+STARTUP_DELAY_WIDGETS=40
 
 
 # ===============================================================================

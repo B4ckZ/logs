@@ -500,12 +500,13 @@ echo ""
 log_info "Installation terminée avec succès"
 log_info "Dashboard accessible à: http://$AP_IP et http://$NGINX_DASHBOARD_DOMAIN"
 
-echo "  ↦ Redémarrage dans 15 secondes..."
+echo ""
+echo "  ↦ Redémarrage du système prévu dans 15 secondes..."
 echo ""
 
 log_info "Redémarrage du système prévu dans 15 secondes"
 
-# Pause de 15 secondes avant reboot
+# Pause de 30 secondes
 sleep 15
 
 # Redémarrer

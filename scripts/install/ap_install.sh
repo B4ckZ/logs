@@ -456,13 +456,13 @@ else
 fi
 
 echo ""
-echo "  ↦ Redémarrage dans 10 secondes..."
+echo "  ↦ Redémarrage du système prévu dans 15 secondes..."
 echo ""
 
-log_info "Installation AP terminée - Redémarrage du système prévu"
+log_info "Redémarrage du système prévu dans 15 secondes"
 
-# Pause de 10 secondes avant reboot
-sleep 10
+# Pause de 30 secondes
+sleep 15
 
 # Redémarrer
 log_info "Redémarrage du système"

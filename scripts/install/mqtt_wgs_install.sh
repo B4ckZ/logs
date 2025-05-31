@@ -266,3 +266,16 @@ echo ""
 log_info "Installation terminée - Installés: $INSTALLED_WIDGETS/$TOTAL_WIDGETS"
 
 exit $FAILED_WIDGETS
+
+echo ""
+echo "  ↦ Redémarrage du système prévu dans 15 secondes..."
+echo ""
+
+log_info "Redémarrage du système prévu dans 15 secondes"
+
+# Pause de 30 secondes
+sleep 15
+
+# Redémarrer
+log_info "Redémarrage du système"
+reboot
