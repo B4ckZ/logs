@@ -6,48 +6,30 @@ import sys
 import threading
 from datetime import datetime
 import re
-import json
 import logging
 from pathlib import Path
 
 # ===============================================================================
-# CONFIGURATION DU LOGGING UNIFIÉ
+# CONFIGURATION DU LOGGING
 # ===============================================================================
 
-# Configuration du logging pour correspondre au système bash
 base_dir = Path(__file__).resolve().parent
 log_dir = base_dir / "logs" / "python"
 log_dir.mkdir(parents=True, exist_ok=True)
 
-# Nom du script pour le logging
 script_name = "interface"
 log_file = log_dir / f"{script_name}.log"
 
-# Format identique aux scripts bash : [timestamp] [level] [script] message
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] [%(levelname)s] [interface] %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     handlers=[
         logging.FileHandler(log_file, mode='a', encoding='utf-8'),
-        logging.StreamHandler()  # Console aussi
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger('interface')
-
-# Header de démarrage dans le log
-def log_startup():
-    with open(log_file, 'a') as f:
-        f.write("\n")
-        f.write("="*80 + "\n")
-        f.write(f"DÉMARRAGE: {script_name}\n")
-        f.write(f"Description: Interface graphique MaxLink Admin Panel\n")
-        f.write(f"Date: {datetime.now().strftime('%c')}\n")
-        f.write(f"Utilisateur: {os.environ.get('USER', 'unknown')}\n")
-        f.write(f"Répertoire: {os.getcwd()}\n")
-        f.write("="*80 + "\n")
-        f.write("\n")
-    logger.info("Interface MaxLink démarrée")
 
 # ===============================================================================
 # CONFIGURATION
@@ -60,15 +42,16 @@ COLORS = {
     "nord3": "#4C566A",  # Bordure sélection
     "nord4": "#D8DEE9",  # Texte tertiaire
     "nord6": "#ECEFF4",  # Texte
-    "nord8": "#88C0D0",  # Accent primaire (bleu clair)
+    "nord8": "#88C0D0",  # Accent primaire
     "nord10": "#5E81AC", # Bouton Installer
-    "nord11": "#BF616A", # Rouge / Erreur / Désinstaller
+    "nord11": "#BF616A", # Rouge / Désinstaller
+    "nord12": "#D08770", # Orange / Note importante
     "nord14": "#A3BE8C", # Vert / Succès
     "nord15": "#B48EAD", # Violet / Tester
 }
 
 # ===============================================================================
-# POPUP DE CONFIRMATION PERSONNALISÉE
+# DIALOGUE DE CONFIRMATION
 # ===============================================================================
 
 class StyledConfirmDialog:
@@ -76,46 +59,33 @@ class StyledConfirmDialog:
     
     def __init__(self, parent, title, message):
         self.result = False
-        logger.debug(f"Création dialogue: {title}")
         
-        # Créer la fenêtre
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(title)
         self.dialog.configure(bg=COLORS["nord0"])
         
-        # Rendre modale
         self.dialog.transient(parent)
         self.dialog.grab_set()
         
-        # Taille et position
         width, height = 500, 200
         x = (self.dialog.winfo_screenwidth() // 2) - (width // 2)
         y = (self.dialog.winfo_screenheight() // 2) - (height // 2)
         self.dialog.geometry(f"{width}x{height}+{x}+{y}")
-        
-        # Désactiver le redimensionnement
         self.dialog.resizable(False, False)
         
-        # Créer le contenu
         self.create_content(message)
         
-        # Focus
         self.dialog.focus_set()
-        
-        # Bind Escape
         self.dialog.bind('<Escape>', lambda e: self.on_no())
         self.dialog.bind('<Return>', lambda e: self.on_yes())
     
     def create_content(self, message):
-        # Frame principal
         main_frame = tk.Frame(self.dialog, bg=COLORS["nord1"], padx=30, pady=30)
         main_frame.pack(fill="both", expand=True, padx=2, pady=2)
         
-        # Icône et message
         msg_frame = tk.Frame(main_frame, bg=COLORS["nord1"])
         msg_frame.pack(fill="both", expand=True)
         
-        # Icône d'interrogation
         icon_label = tk.Label(
             msg_frame,
             text="?",
@@ -125,7 +95,6 @@ class StyledConfirmDialog:
         )
         icon_label.pack(side="left", padx=(0, 20))
         
-        # Message
         msg_label = tk.Label(
             msg_frame,
             text=message,
@@ -137,15 +106,12 @@ class StyledConfirmDialog:
         )
         msg_label.pack(side="left", fill="both", expand=True)
         
-        # Séparateur
         separator = tk.Frame(main_frame, height=2, bg=COLORS["nord3"])
         separator.pack(fill="x", pady=20)
         
-        # Boutons
         btn_frame = tk.Frame(main_frame, bg=COLORS["nord1"])
         btn_frame.pack(fill="x")
         
-        # Style des boutons
         btn_style = {
             "font": ("Arial", 14, "bold"),
             "width": 10,
@@ -155,7 +121,6 @@ class StyledConfirmDialog:
             "pady": 8
         }
         
-        # Bouton OUI
         yes_btn = tk.Button(
             btn_frame,
             text="OUI",
@@ -166,7 +131,6 @@ class StyledConfirmDialog:
         )
         yes_btn.pack(side="right", padx=(10, 0))
         
-        # Bouton NON
         no_btn = tk.Button(
             btn_frame,
             text="NON",
@@ -179,16 +143,13 @@ class StyledConfirmDialog:
     
     def on_yes(self):
         self.result = True
-        logger.debug("Dialogue: réponse OUI")
         self.dialog.destroy()
     
     def on_no(self):
         self.result = False
-        logger.debug("Dialogue: réponse NON")
         self.dialog.destroy()
     
     def show(self):
-        """Affiche le dialogue et retourne le résultat"""
         self.dialog.wait_window()
         return self.result
 
@@ -197,20 +158,18 @@ class StyledConfirmDialog:
 # ===============================================================================
 
 class VariablesManager:
-    """Gestionnaire pour charger et utiliser les variables de variables.sh"""
+    """Gestionnaire pour charger les variables depuis variables.sh"""
     
     def __init__(self, base_path):
         self.base_path = base_path
         self.variables = {}
-        logger.info("Initialisation du gestionnaire de variables")
         self.load_variables()
     
     def load_variables(self):
-        """Charge les variables depuis le fichier variables.sh"""
+        """Charge les variables depuis variables.sh"""
         variables_file = os.path.join(self.base_path, "scripts", "common", "variables.sh")
         
         if not os.path.exists(variables_file):
-            logger.error(f"Fichier variables.sh non trouvé: {variables_file}")
             raise FileNotFoundError(f"Fichier variables.sh non trouvé: {variables_file}")
         
         try:
@@ -230,13 +189,14 @@ class VariablesManager:
                         value = match.group(2)
                         self.variables[key] = value
             
-            # Parser SERVICES_LIST
+            # Parser SERVICES_LIST avec l'orchestrateur
             services = [
-                "update:Update RPI:active",
-                "ap:Network AP:active",
+                "update:Update RPI:inactive",
+                "ap:Network AP:inactive",
                 "nginx:NginX Web:inactive",
                 "mqtt:MQTT BKR:inactive",
-                "mqtt_wgs:MQTT WGS:inactive"
+                "mqtt_wgs:MQTT WGS:inactive",
+                "orchestrator:Orchestrateur:inactive"
             ]
             self.variables['SERVICES_LIST'] = services
             
@@ -244,20 +204,17 @@ class VariablesManager:
                 
         except Exception as e:
             logger.error(f"Erreur lors du chargement de variables.sh: {e}")
-            raise Exception(f"Erreur lors du chargement de variables.sh: {e}")
+            raise
     
     def get(self, key, default=None):
-        """Récupère une variable avec valeur par défaut"""
         return self.variables.get(key, default)
     
     def get_window_title(self):
-        """Construit le titre de la fenêtre"""
         version = self.get('MAXLINK_VERSION', '1.0')
         copyright_text = self.get('MAXLINK_COPYRIGHT', '© 2025 WERIT')
         return f"MaxLink™ Admin Panel V{version} - {copyright_text}"
     
     def get_services_list(self):
-        """Parse la liste des services"""
         services_raw = self.get('SERVICES_LIST', [])
         services = []
         
@@ -284,7 +241,6 @@ class MaxLinkApp:
         
         logger.info("Initialisation de l'application MaxLink")
         
-        # Chemins
         self.base_path = os.path.dirname(os.path.abspath(__file__))
         
         # Configuration de la fenêtre
@@ -292,27 +248,21 @@ class MaxLinkApp:
         self.root.geometry("1200x750")
         self.root.configure(bg=COLORS["nord0"])
         
-        # Centrer la fenêtre
         self.center_window()
         
-        # Vérifier le mode root
         self.root_mode = self.check_root_mode()
         logger.info(f"Mode root: {self.root_mode}")
         
-        # Charger les services
         self.services = self.variables.get_services_list()
         self.selected_service = self.services[0] if self.services else None
         logger.info(f"Services chargés: {len(self.services)}")
         
-        # Variables de progression
         self.progress_value = 0
         self.progress_max = 100
         
-        # Thread d'exécution actuel
         self.current_process = None
         self.current_thread = None
         
-        # Créer l'interface
         self.create_interface()
     
     def center_window(self):
@@ -332,7 +282,6 @@ class MaxLinkApp:
             return False
     
     def create_interface(self):
-        # Conteneur principal
         main = tk.Frame(self.root, bg=COLORS["nord0"], padx=20, pady=20)
         main.pack(fill="both", expand=True)
         
@@ -345,7 +294,6 @@ class MaxLinkApp:
         services_frame = tk.Frame(self.left_frame, bg=COLORS["nord1"], padx=20, pady=20)
         services_frame.pack(fill="both", expand=True)
         
-        # Titre services
         services_title = tk.Label(
             services_frame,
             text="Services Disponibles",
@@ -359,7 +307,7 @@ class MaxLinkApp:
         for service in self.services:
             self.create_service_item(services_frame, service)
         
-        # Zone des boutons (3 boutons)
+        # Zone des boutons
         buttons_frame = tk.Frame(self.left_frame, bg=COLORS["nord1"], padx=20, pady=20)
         buttons_frame.pack(fill="x")
         
@@ -373,7 +321,6 @@ class MaxLinkApp:
         console_frame = tk.Frame(right_frame, bg=COLORS["nord1"], padx=20, pady=20)
         console_frame.pack(fill="both", expand=True)
         
-        # Titre console avec indicateur de privilèges
         console_title_frame = tk.Frame(console_frame, bg=COLORS["nord1"])
         console_title_frame.pack(fill="x", pady=(0, 10))
         
@@ -386,7 +333,6 @@ class MaxLinkApp:
         )
         console_title.pack(side="left")
         
-        # Indicateur de privilèges
         privilege_text = "Mode Privilégié: ACTIF" if self.root_mode else "Mode Privilégié: INACTIF"
         privilege_color = COLORS["nord14"] if self.root_mode else COLORS["nord11"]
         
@@ -408,22 +354,18 @@ class MaxLinkApp:
         )
         self.console.pack(fill="both", expand=True)
         
-        # Barre de progression
         self.create_progress_bar(right_frame)
         
-        # Message d'accueil
         self.console.insert(tk.END, f"Console prête - {privilege_text}\n\n")
         self.console.config(state=tk.DISABLED)
         
-        # Sélection initiale
         self.update_selection()
     
     def create_progress_bar(self, parent):
-        """Crée la barre de progression simplifiée"""
+        """Crée la barre de progression"""
         self.progress_frame = tk.Frame(parent, bg=COLORS["nord1"], padx=20, pady=20)
         self.progress_frame.pack(fill="x", side="bottom")
         
-        # Canvas pour la barre de progression
         self.progress_canvas = tk.Canvas(
             self.progress_frame,
             height=30,
@@ -432,7 +374,6 @@ class MaxLinkApp:
         )
         self.progress_canvas.pack(fill="x")
         
-        # Masquer initialement
         self.progress_frame.pack_forget()
     
     def create_service_item(self, parent, service):
@@ -479,7 +420,6 @@ class MaxLinkApp:
             "cursor": "hand2"
         }
         
-        # 3 boutons
         actions = [
             {"text": "Installer", "bg": COLORS["nord10"], "action": "install"},
             {"text": "Tester", "bg": COLORS["nord15"], "action": "test"},
@@ -525,12 +465,10 @@ class MaxLinkApp:
         if value is not None:
             self.progress_value = value
         
-        # Calculer les dimensions
         self.progress_canvas.update_idletasks()
         width = self.progress_canvas.winfo_width() - 20
         height = 20
         
-        # Effacer et redessiner
         self.progress_canvas.delete("all")
         
         # Fond
@@ -547,7 +485,7 @@ class MaxLinkApp:
                 fill=COLORS["nord8"], outline=""
             )
         
-        # Pourcentage au centre
+        # Pourcentage
         percentage = int(self.progress_value * 100 / self.progress_max)
         self.progress_canvas.create_text(
             width / 2 + 10, height / 2 + 5,
@@ -563,7 +501,6 @@ class MaxLinkApp:
         
         logger.info(f"Exécution action: {action} sur {self.selected_service['name']}")
         
-        # Vérifier les privilèges
         if not self.root_mode:
             logger.warning("Tentative d'exécution sans privilèges root")
             messagebox.showerror(
@@ -584,18 +521,14 @@ class MaxLinkApp:
                 f"Désinstaller {service['name']} ?\n\nCette action est irréversible."
             )
             if not dialog.show():
-                logger.info("Désinstallation annulée par l'utilisateur")
                 return
         
-        # Script à exécuter
         script_path = f"scripts/{action}/{service_id}_{action}.sh"
         full_script_path = os.path.join(self.base_path, script_path)
         
-        # Note spéciale pour "Tester"
         if action == "test":
             self.update_console(f"Note: Le test peut aussi démarrer le service si nécessaire.\n\n")
         
-        # Afficher l'action
         self.update_console(f"""{"="*70}
 ACTION: {service['name']} - {action.upper()}
 {"="*70}
@@ -606,7 +539,6 @@ Script: {script_path}
         logger.info(f"Exécution du script: {full_script_path}")
         self.show_progress_bar()
         
-        # Exécuter en arrière-plan
         self.current_thread = threading.Thread(
             target=self.execute_script, 
             args=(full_script_path, service, action), 
@@ -625,7 +557,6 @@ Script: {script_path}
             
             logger.info(f"Démarrage du processus: {script_path}")
             
-            # Exécuter le script
             self.current_process = subprocess.Popen(
                 ["bash", script_path],
                 stdout=subprocess.PIPE, 
@@ -634,10 +565,8 @@ Script: {script_path}
                 bufsize=1
             )
             
-            # Lire la sortie en temps réel
             for line in iter(self.current_process.stdout.readline, ''):
                 if line:
-                    # Détecter les mises à jour de progression
                     if "PROGRESS:" in line:
                         progress_match = re.search(r'PROGRESS:(\d+):(.+)', line)
                         if progress_match:
@@ -646,19 +575,15 @@ Script: {script_path}
                     else:
                         self.update_console(line)
             
-            # Erreurs
             for line in iter(self.current_process.stderr.readline, ''):
                 if line:
                     self.update_console(line, error=True)
             
-            # Attendre la fin
             return_code = self.current_process.wait()
             logger.info(f"Script terminé avec code: {return_code}")
             
-            # Masquer la progression
             self.root.after(0, self.hide_progress_bar)
             
-            # Message de fin
             self.update_console(f"""
 {"="*70}
 TERMINÉ: {service['name']} - {action.upper()}
@@ -667,7 +592,6 @@ Code de sortie: {return_code}
 
 """)
             
-            # Mettre à jour le statut si succès
             if return_code == 0:
                 if action in ["install", "test"]:
                     service["status"] = "active"
@@ -715,38 +639,40 @@ Code de sortie: {return_code}
 # ===============================================================================
 
 if __name__ == "__main__":
-    # Log de démarrage
-    log_startup()
-    
-    # Valider la configuration
-    base_path = os.path.dirname(os.path.abspath(__file__))
-    
     try:
+        # Log de démarrage
+        with open(log_file, 'a') as f:
+            f.write("\n" + "="*80 + "\n")
+            f.write(f"DÉMARRAGE: {script_name}\n")
+            f.write(f"Description: Interface graphique MaxLink Admin Panel\n")
+            f.write(f"Date: {datetime.now().strftime('%c')}\n")
+            f.write(f"Utilisateur: {os.environ.get('USER', 'unknown')}\n")
+            f.write(f"Répertoire: {os.getcwd()}\n")
+            f.write("="*80 + "\n\n")
+        
+        logger.info("Interface MaxLink démarrée")
+        
+        # Charger les variables
+        base_path = os.path.dirname(os.path.abspath(__file__))
         variables = VariablesManager(base_path)
         logger.info("Variables chargées avec succès")
-    except Exception as e:
-        logger.error(f"Erreur fatale: {e}")
-        print(f"\nERREUR: {e}")
-        print("Vérifiez le fichier scripts/common/variables.sh")
-        sys.exit(1)
-    
-    # Créer l'interface
-    try:
+        
+        # Créer l'interface
         root = tk.Tk()
         app = MaxLinkApp(root, variables)
         logger.info("Interface créée avec succès")
         root.mainloop()
+        
     except Exception as e:
-        logger.error(f"Erreur lors du démarrage de l'interface: {e}")
-        print(f"\nErreur lors du démarrage: {e}")
-        sys.exit(2)
+        logger.error(f"Erreur fatale: {e}")
+        print(f"\nERREUR: {e}")
+        sys.exit(1)
+        
     finally:
-        # Footer de fin dans le log
+        # Log de fin
         with open(log_file, 'a') as f:
-            f.write("\n")
-            f.write("="*80 + "\n")
+            f.write("\n" + "="*80 + "\n")
             f.write(f"FIN: {script_name}\n")
             f.write(f"Date: {datetime.now().strftime('%c')}\n")
-            f.write("="*80 + "\n")
-            f.write("\n")
+            f.write("="*80 + "\n\n")
         logger.info("Interface fermée")

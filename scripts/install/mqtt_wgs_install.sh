@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION DE TOUS LES WIDGETS MQTT
-# Version optimisée avec le core commun
+# MAXLINK - INSTALLATION DE TOUS LES WIDGETS MQTT (VERSION NETTOYÉE)
+# Installation sans delays - nécessite l'orchestrateur
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -42,18 +42,14 @@ send_progress() {
 discover_widgets() {
     local widgets=()
     
-    # Rediriger les logs vers stderr pour ne pas polluer stdout
     log_info "Découverte des widgets disponibles" >&2
     
-    # Parcourir le répertoire widgets
     for widget_dir in "$WIDGETS_DIR"/*; do
         [ ! -d "$widget_dir" ] && continue
         
-        # Ignorer le dossier _core
         local widget_name=$(basename "$widget_dir")
         [ "$widget_name" = "_core" ] && continue
         
-        # Vérifier que c'est un widget valide (rediriger toute sortie vers stderr)
         if widget_validate "$widget_name" >/dev/null 2>&1; then
             widgets+=("$widget_name")
             log_info "Widget trouvé: $widget_name" >&2
@@ -62,7 +58,6 @@ discover_widgets() {
         fi
     done
     
-    # Retourner uniquement les noms des widgets sur stdout
     printf '%s\n' "${widgets[@]}"
 }
 
@@ -72,10 +67,8 @@ install_python_dependencies() {
     
     echo "◦ Vérification des paquets Python..."
     
-    # Liste des paquets Python nécessaires
     local python_packages="python3-psutil python3-paho-mqtt"
     
-    # Vérifier ce qui manque
     local missing=""
     for pkg in $python_packages; do
         if ! dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
@@ -88,13 +81,11 @@ install_python_dependencies() {
         return 0
     fi
     
-    # Installer depuis le cache ou apt
     echo "  ↦ Installation des paquets manquants..."
     if install_packages_by_category "python"; then
         echo "  ↦ Dépendances Python installées ✓"
         return 0
     else
-        # Fallback sur apt
         if apt-get install -y $missing >/dev/null 2>&1; then
             echo "  ↦ Dépendances Python installées via apt ✓"
             return 0
@@ -186,18 +177,15 @@ progress_per_widget=$((60 / TOTAL_WIDGETS))
 current_progress=30
 
 for widget in "${widgets[@]}"; do
-    # Installer le widget
     if widget_standard_install "$widget"; then
         ((INSTALLED_WIDGETS++))
     else
         ((FAILED_WIDGETS++))
     fi
     
-    # Mettre à jour la progression
     current_progress=$((current_progress + progress_per_widget))
     send_progress $current_progress "Widget $widget traité"
     
-    # Petite pause entre les widgets
     sleep 2
 done
 
@@ -212,7 +200,6 @@ echo ""
 
 echo "◦ État des services :"
 for widget in "${widgets[@]}"; do
-    # Récupérer le nom du service depuis le tracking
     if [ "$(widget_is_installed "$widget")" = "yes" ]; then
         service_name=$(widget_get_value "$WIDGETS_TRACKING_FILE" "$widget.service_name")
         if [ -n "$service_name" ] && systemctl is-active --quiet "$service_name"; then
@@ -256,26 +243,26 @@ else
 fi
 
 echo ""
+echo "◦ IMPORTANT : L'orchestrateur doit être installé pour gérer le démarrage ordonné"
+echo ""
 echo "Commandes utiles :"
 echo "  • Voir tous les logs    : journalctl -u 'maxlink-widget-*' -f"
 echo "  • Voir tous les topics  : mosquitto_sub -h localhost -u $MQTT_USER -P $MQTT_PASS -t '#' -v"
 echo "  • État des services     : systemctl status 'maxlink-widget-*'"
-echo "  • Fichier de tracking   : cat $WIDGETS_TRACKING_FILE"
 echo ""
 
 log_info "Installation terminée - Installés: $INSTALLED_WIDGETS/$TOTAL_WIDGETS"
 
-exit $FAILED_WIDGETS
+if [ $FAILED_WIDGETS -ne 0 ]; then
+    exit $FAILED_WIDGETS
+fi
 
 echo ""
 echo "  ↦ Redémarrage du système prévu dans 15 secondes..."
 echo ""
 
 log_info "Redémarrage du système prévu dans 15 secondes"
-
-# Pause de 30 secondes
 sleep 15
 
-# Redémarrer
 log_info "Redémarrage du système"
 reboot

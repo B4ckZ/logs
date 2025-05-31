@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION DU MODE ACCESS POINT (VERSION HYBRIDE)
-# Utilise le nouveau système wifi_helper pour installation flexible
+# MAXLINK - INSTALLATION DU MODE ACCESS POINT (VERSION NETTOYÉE)
+# Installation sans delays - nécessite l'orchestrateur
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -20,7 +20,7 @@ source "$SCRIPT_DIR/../common/wifi_helper.sh"
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Installation du mode Access Point (hybride)" "install"
+init_logging "Installation du mode Access Point" "install"
 
 # Configuration AP par défaut
 AP_CHANNEL="6"        # Canal 2.4GHz stable
@@ -35,6 +35,11 @@ AP_INTERFACE="wlan0"  # Interface WiFi
 send_progress() {
     echo "PROGRESS:$1:$2"
     log_info "Progression: $1% - $2" false
+}
+
+# Attente simple
+wait_silently() {
+    sleep "$1"
 }
 
 # ===============================================================================
@@ -139,14 +144,12 @@ echo ""
 echo "◦ Nettoyage des services DNS conflictuels..."
 log_info "Désactivation des services DNS conflictuels"
 
-# Désactiver systemd-resolved s'il existe
 if systemctl is-active --quiet systemd-resolved; then
     log_command "systemctl stop systemd-resolved" "Arrêt systemd-resolved"
     log_command "systemctl disable systemd-resolved" "Désactivation systemd-resolved"
     echo "  ↦ systemd-resolved désactivé ✓"
 fi
 
-# Désactiver dnsmasq système
 if systemctl is-active --quiet dnsmasq; then
     log_command "systemctl stop dnsmasq" "Arrêt dnsmasq système"
     log_command "systemctl disable dnsmasq" "Désactivation dnsmasq système"
@@ -167,12 +170,10 @@ echo ""
 echo "◦ Configuration de NetworkManager..."
 log_info "Configuration de NetworkManager pour dnsmasq"
 
-# Sauvegarder la configuration originale
 if [ ! -f "/etc/NetworkManager/NetworkManager.conf.original" ]; then
     log_command "cp /etc/NetworkManager/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf.original" "Sauvegarde config NetworkManager"
 fi
 
-# Créer la nouvelle configuration
 cat > /etc/NetworkManager/NetworkManager.conf << EOF
 [main]
 plugins=ifupdown,keyfile
@@ -238,7 +239,6 @@ echo ""
 echo "◦ Configuration DHCP et DNS..."
 log_info "Configuration DHCP/DNS pour l'AP"
 
-# Créer les répertoires nécessaires
 mkdir -p /etc/NetworkManager/dnsmasq-shared.d/
 mkdir -p /etc/NetworkManager/dnsmasq.d/
 
@@ -321,21 +321,17 @@ send_progress 70 "Configuration du pare-feu"
 echo "◦ Configuration des règles de pare-feu..."
 log_info "Configuration des règles iptables"
 
-# Autoriser le DNS (port 53)
 if command -v iptables >/dev/null 2>&1; then
     log_command "iptables -A INPUT -i $AP_INTERFACE -p udp --dport 53 -j ACCEPT 2>/dev/null || true" "Règle DNS UDP"
     log_command "iptables -A INPUT -i $AP_INTERFACE -p tcp --dport 53 -j ACCEPT 2>/dev/null || true" "Règle DNS TCP"
     echo "  ↦ Port DNS (53) ouvert ✓"
     
-    # Autoriser le DHCP (ports 67-68)
     log_command "iptables -A INPUT -i $AP_INTERFACE -p udp --dport 67:68 -j ACCEPT 2>/dev/null || true" "Règle DHCP"
     echo "  ↦ Ports DHCP (67-68) ouverts ✓"
     
-    # Autoriser HTTP (port 80)
     log_command "iptables -A INPUT -i $AP_INTERFACE -p tcp --dport 80 -j ACCEPT 2>/dev/null || true" "Règle HTTP"
     echo "  ↦ Port HTTP (80) ouvert ✓"
     
-    # Autoriser MQTT (ports 1883 et 9001)
     log_command "iptables -A INPUT -i $AP_INTERFACE -p tcp --dport 1883 -j ACCEPT 2>/dev/null || true" "Règle MQTT"
     log_command "iptables -A INPUT -i $AP_INTERFACE -p tcp --dport 9001 -j ACCEPT 2>/dev/null || true" "Règle MQTT WebSocket"
     echo "  ↦ Ports MQTT (1883, 9001) ouverts ✓"
@@ -343,7 +339,6 @@ if command -v iptables >/dev/null 2>&1; then
     log_info "Règles iptables configurées avec succès"
 fi
 
-# Sauvegarder les règles (si iptables-persistent est installé)
 if command -v netfilter-persistent >/dev/null 2>&1; then
     log_command "netfilter-persistent save >/dev/null 2>&1 || true" "Sauvegarde règles iptables"
 fi
@@ -389,7 +384,6 @@ if nmcli connection show --active | grep -q "$AP_SSID"; then
     echo "  ↦ Point d'accès opérationnel ✓"
     log_success "Point d'accès opérationnel"
     
-    # Vérifier que dnsmasq est actif
     if pgrep -f "dnsmasq.*NetworkManager" > /dev/null; then
         echo "  ↦ Service DNS actif ✓"
         log_info "Service dnsmasq actif"
@@ -431,7 +425,6 @@ echo ""
 echo "◦ Accès au dashboard :"
 echo "  ↦ http://$AP_IP"
 echo "  ↦ http://$NGINX_DASHBOARD_DOMAIN"
-echo "  ↦ http://maxlink-dashboard.local"
 echo "  ↦ http://dashboard.local"
 
 log_info "Configuration finale:"
@@ -443,6 +436,8 @@ send_progress 100 "Installation terminée"
 
 echo ""
 echo "◦ Installation terminée avec succès !"
+echo ""
+echo "◦ IMPORTANT : L'orchestrateur doit être installé pour gérer le démarrage ordonné"
 echo ""
 
 # Test final rapide
@@ -460,10 +455,7 @@ echo "  ↦ Redémarrage du système prévu dans 15 secondes..."
 echo ""
 
 log_info "Redémarrage du système prévu dans 15 secondes"
-
-# Pause de 30 secondes
 sleep 15
 
-# Redémarrer
 log_info "Redémarrage du système"
 reboot

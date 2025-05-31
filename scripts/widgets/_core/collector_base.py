@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Template de base pour les collecteurs de widgets MaxLink
-Version améliorée avec mécanisme de retry robuste pour le démarrage au boot
+Version nettoyée - Garde le retry MQTT mais sans delays système
 """
 
 import os
@@ -31,7 +31,7 @@ class BaseCollector(ABC):
     """Classe de base pour tous les collecteurs de widgets"""
     
     def __init__(self, config_file, logger_name):
-        """Initialise le collecteur avec gestion de retry améliorée"""
+        """Initialise le collecteur avec gestion de retry MQTT"""
         self.logger = logging.getLogger(logger_name)
         self.config = self.load_config(config_file)
         self.mqtt_client = None
@@ -40,7 +40,7 @@ class BaseCollector(ABC):
         # Configuration MQTT
         self.mqtt_config = self.config['mqtt']['broker']
         
-        # Configuration retry depuis l'environnement
+        # Configuration retry MQTT uniquement
         self.retry_enabled = os.environ.get('MQTT_RETRY_ENABLED', 'true').lower() == 'true'
         self.retry_delay = int(os.environ.get('MQTT_RETRY_DELAY', '10'))
         self.max_retries = int(os.environ.get('MQTT_MAX_RETRIES', '0'))  # 0 = infini
@@ -58,7 +58,7 @@ class BaseCollector(ABC):
         }
         
         self.logger.info(f"Collecteur initialisé - Version {self.config['widget']['version']}")
-        self.logger.info(f"Retry: {self.retry_enabled}, Delay: {self.retry_delay}s, Max: {self.max_retries}")
+        self.logger.info(f"Retry MQTT: {self.retry_enabled}, Delay: {self.retry_delay}s, Max: {self.max_retries}")
     
     def load_config(self, config_file):
         """Charge la configuration depuis le fichier JSON"""
@@ -152,10 +152,7 @@ class BaseCollector(ABC):
         self.logger.warning(f"Déconnecté du broker MQTT (code: {rc})")
         self.connected = False
         
-        # Tentative de reconnexion automatique
-        if self.retry_enabled and rc != 0:
-            self.logger.info("Reconnexion automatique activée")
-            # Le client Paho gère la reconnexion automatiquement
+        # Le client Paho gère la reconnexion automatiquement si rc != 0
     
     def publish_metric(self, topic, value, unit=None):
         """Publie une métrique sur MQTT"""
@@ -217,14 +214,8 @@ class BaseCollector(ABC):
         )
     
     def run(self):
-        """Boucle principale du collecteur avec gestion d'erreurs robuste"""
+        """Boucle principale du collecteur"""
         self.logger.info("Démarrage du collecteur")
-        
-        # Attendre un peu au démarrage pour laisser le système se stabiliser
-        startup_delay = int(os.environ.get('STARTUP_DELAY', '5'))
-        if startup_delay > 0:
-            self.logger.info(f"Pause de {startup_delay}s au démarrage...")
-            time.sleep(startup_delay)
         
         # Se connecter au broker MQTT
         if not self.connect_mqtt():

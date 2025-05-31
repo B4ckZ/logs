@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Collecteur de métriques système pour le widget Server Monitoring
-Version améliorée avec mécanisme de retry robuste pour le démarrage au boot
+Version nettoyée sans delays système
 """
 
 import os
@@ -45,7 +45,7 @@ class SystemMetricsCollector:
         # Configuration MQTT
         self.mqtt_config = self.config['mqtt']['broker']
         
-        # Configuration retry depuis l'environnement
+        # Configuration retry MQTT uniquement
         self.retry_enabled = os.environ.get('MQTT_RETRY_ENABLED', 'true').lower() == 'true'
         self.retry_delay = int(os.environ.get('MQTT_RETRY_DELAY', '10'))
         self.max_retries = int(os.environ.get('MQTT_MAX_RETRIES', '0'))  # 0 = infini
@@ -319,14 +319,8 @@ class SystemMetricsCollector:
         )
     
     def run(self):
-        """Boucle principale du collecteur avec gestion d'erreurs robuste"""
+        """Boucle principale du collecteur"""
         logger.info("Démarrage du collecteur")
-        
-        # Attendre un peu au démarrage pour laisser le système se stabiliser
-        startup_delay = int(os.environ.get('STARTUP_DELAY', '5'))
-        if startup_delay > 0:
-            logger.info(f"Pause de {startup_delay}s au démarrage...")
-            time.sleep(startup_delay)
         
         # Se connecter au broker MQTT avec retry
         if not self.connect_mqtt():

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - CORE COMMUN DES WIDGETS
-# Version améliorée avec gestion robuste du démarrage au boot
+# MAXLINK - CORE COMMUN DES WIDGETS (VERSION NETTOYÉE)
+# Version sans delays de démarrage - nécessite l'orchestrateur
 # ===============================================================================
 
 # Vérifier les dépendances
@@ -36,7 +36,6 @@ widget_load_config() {
         return 1
     fi
     
-    # Retourner le chemin pour utilisation
     echo "$config_file"
 }
 
@@ -50,7 +49,6 @@ import json
 try:
     with open('$json_file', 'r') as f:
         data = json.load(f)
-    # Naviguer dans le JSON avec le chemin de clés
     keys = '$key_path'.split('.')
     value = data
     for key in keys:
@@ -86,19 +84,16 @@ widget_register() {
     local service_name=$2
     local version=$3
     
-    # Créer ou mettre à jour le fichier de tracking
     python3 -c "
 import json
 from datetime import datetime
 
-# Charger ou créer
 try:
     with open('$WIDGETS_TRACKING_FILE', 'r') as f:
         data = json.load(f)
 except:
     data = {}
 
-# Ajouter/mettre à jour
 data['$widget_name'] = {
     'installed_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
     'service_name': '$service_name',
@@ -106,7 +101,6 @@ data['$widget_name'] = {
     'status': 'active'
 }
 
-# Sauvegarder
 with open('$WIDGETS_TRACKING_FILE', 'w') as f:
     json.dump(data, f, indent=2)
 "
@@ -125,7 +119,6 @@ widget_install_python_deps() {
     
     log_info "Vérification des dépendances Python pour $widget_name"
     
-    # Extraire les dépendances
     local python_deps=$(widget_get_value "$config_file" "dependencies.python_packages")
     
     if [ -z "$python_deps" ] || [ "$python_deps" = "[]" ]; then
@@ -133,23 +126,20 @@ widget_install_python_deps() {
         return 0
     fi
     
-    # Pour l'instant, on assume que les dépendances sont déjà installées
-    # par update_install.sh et mqtt_wgs_install.sh
     log_info "Dépendances Python vérifiées (installées via le cache)"
     return 0
 }
 
 # ===============================================================================
-# SERVICE SYSTEMD AMÉLIORÉ
+# SERVICE SYSTEMD SIMPLIFIÉ
 # ===============================================================================
 
-# Créer et installer un service systemd pour un widget avec démarrage robuste
+# Créer et installer un service systemd pour un widget
 widget_create_service() {
     local widget_name=$1
     local config_file=$2
     local collector_script=$3
     
-    # Extraire les infos
     local service_name=$(widget_get_value "$config_file" "collector.service_name")
     local service_desc=$(widget_get_value "$config_file" "collector.service_description")
     
@@ -163,30 +153,25 @@ widget_create_service() {
     
     log_info "Création du service $service_name"
     
-    # Créer le fichier service avec configuration améliorée et DELAY
+    # Créer le fichier service simplifié
     cat > "/etc/systemd/system/${service_name}.service" << EOF
 [Unit]
 Description=$service_desc
-# Dépendances strictes pour assurer l'ordre de démarrage
 After=network-online.target mosquitto.service
 Wants=network-online.target
 Requires=mosquitto.service
 
-# Conditions de démarrage
 ConditionPathExists=$collector_script
 ConditionPathExists=$config_file
 
 [Service]
 Type=simple
-# DELAY DE DÉMARRAGE CONFIGURABLE
-ExecStartPre=/bin/sleep ${STARTUP_DELAY_WIDGETS:-20}
 ExecStart=/usr/bin/python3 $collector_script
 Restart=always
 RestartSec=30
 StartLimitInterval=600
 StartLimitBurst=5
 
-# Utilisateur et groupe
 User=root
 StandardOutput=journal
 StandardError=journal
@@ -203,45 +188,18 @@ Environment="MQTT_MAX_RETRIES=0"
 PrivateTmp=true
 NoNewPrivileges=true
 
-# Timeout généreux pour le démarrage
-TimeoutStartSec=300
+TimeoutStartSec=90
 
 [Install]
 WantedBy=multi-user.target
 EOF
     
-    # Créer aussi un override pour pouvoir ajuster le delay sans recréer le service
-    mkdir -p "/etc/systemd/system/${service_name}.service.d/"
-    cat > "/etc/systemd/system/${service_name}.service.d/startup-delay.conf" << EOF
-[Service]
-# Delay de démarrage configurable
-ExecStartPre=/bin/sleep ${STARTUP_DELAY_WIDGETS:-20}
-EOF
-    
-    log_info "Service créé avec delay de démarrage: ${STARTUP_DELAY_WIDGETS:-20}s"
-    
-    # Créer aussi un service de vérification pour s'assurer que mosquitto est vraiment prêt
-    cat > "/etc/systemd/system/${service_name}-checker.service" << EOF
-[Unit]
-Description=Checker for $service_desc
-Before=${service_name}.service
-
-[Service]
-Type=oneshot
-ExecStart=/bin/bash -c 'until mosquitto_pub -h localhost -p 1883 -u mosquitto -P mqtt -t test/boot -m "test" 2>/dev/null; do echo "Waiting for MQTT..."; sleep 2; done'
-RemainAfterExit=yes
-
-[Install]
-WantedBy=${service_name}.service
-EOF
+    log_info "Service créé : ${service_name}.service"
     
     # Recharger systemd
     systemctl daemon-reload
     
-    # Activer le checker
-    systemctl enable "${service_name}-checker.service" >/dev/null 2>&1
-    
-    # Activer et démarrer le service principal
+    # Activer et démarrer le service
     if systemctl enable "$service_name" >/dev/null 2>&1; then
         log_success "Service activé: $service_name"
         
@@ -267,31 +225,25 @@ widget_validate() {
     local widget_name=$1
     local widget_dir="$WIDGETS_DIR/$widget_name"
     
-    # Charger la config pour vérifier si le collector est requis
     local config_file="$widget_dir/${widget_name}_widget.json"
     
-    # Vérifier que le fichier de config existe
     if [ ! -f "$config_file" ]; then
         log_error "Configuration manquante: $config_file"
         return 1
     fi
     
-    # Valider le JSON
     if ! python3 -m json.tool "$config_file" >/dev/null 2>&1; then
         log_error "JSON invalide: ${widget_name}_widget.json"
         return 1
     fi
     
-    # Vérifier si le widget a un collector
     local collector_enabled=$(widget_get_value "$config_file" "collector.enabled")
     
-    # Fichiers requis de base
     local required_files=(
         "${widget_name}_widget.json"
         "${widget_name}_install.sh"
     )
     
-    # Ajouter le collector seulement si nécessaire
     if [ "$collector_enabled" = "true" ] || [ "$collector_enabled" = "True" ]; then
         required_files+=("${widget_name}_collector.py")
     fi
@@ -319,45 +271,35 @@ widget_standard_install() {
     echo "Installation du widget: $widget_name"
     echo "------------------------------------"
     
-    # Valider
     if ! widget_validate "$widget_name"; then
         echo "  ↦ Widget invalide ✗"
         return 1
     fi
     
-    # Charger la config
     local config_file=$(widget_load_config "$widget_name")
     local widget_dir="$WIDGETS_DIR/$widget_name"
     local collector_script="$widget_dir/${widget_name}_collector.py"
     
-    # Vérifier si déjà installé
     if [ "$(widget_is_installed "$widget_name")" = "yes" ]; then
         echo "  ↦ Widget déjà installé, mise à jour..."
         
-        # Arrêter l'ancien service
         local old_service=$(widget_get_value "$WIDGETS_TRACKING_FILE" "$widget_name.service_name")
         if [ -n "$old_service" ] && [ "$old_service" != "none" ]; then
             systemctl stop "$old_service" 2>/dev/null || true
-            systemctl stop "${old_service}-checker" 2>/dev/null || true
         fi
     fi
     
-    # Installer les dépendances Python si nécessaire
     if ! widget_install_python_deps "$widget_name" "$config_file"; then
         echo "  ↦ Dépendances Python manquantes ✗"
         return 1
     fi
     
-    # Vérifier si le widget a un collector actif
     local collector_enabled=$(widget_get_value "$config_file" "collector.enabled")
     
     if [ "$collector_enabled" = "true" ] || [ "$collector_enabled" = "True" ]; then
-        # Rendre le collector exécutable
         chmod +x "$collector_script"
         
-        # Créer et démarrer le service
         if widget_create_service "$widget_name" "$config_file" "$collector_script"; then
-            # Enregistrer l'installation
             local version=$(widget_get_value "$config_file" "widget.version")
             local service_name=$(widget_get_value "$config_file" "collector.service_name")
             [ -z "$service_name" ] && service_name="maxlink-widget-$widget_name"
@@ -365,17 +307,15 @@ widget_standard_install() {
             widget_register "$widget_name" "$service_name" "$version"
             
             echo "  ↦ Widget $widget_name installé ✓"
-            echo "  ↦ Délai de démarrage : ${STARTUP_DELAY_WIDGETS:-20}s"
+            echo "  ↦ Note : L'orchestrateur gère le démarrage ordonné"
             return 0
         else
             echo "  ↦ Erreur lors de l'installation ✗"
             return 1
         fi
     else
-        # Widget passif sans collector
         echo "  ↦ Widget passif (pas de collector)"
         
-        # Enregistrer l'installation sans service
         local version=$(widget_get_value "$config_file" "widget.version")
         widget_register "$widget_name" "none" "$version"
         
@@ -385,7 +325,7 @@ widget_standard_install() {
 }
 
 # ===============================================================================
-# NOUVELLES FONCTIONS UTILITAIRES
+# FONCTIONS UTILITAIRES
 # ===============================================================================
 
 # Vérifier l'état de tous les widgets

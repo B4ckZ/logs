@@ -1,0 +1,11 @@
+
+================================================================================
+DÉMARRAGE: orchestrator_install
+Description: Installation de l'orchestrateur MaxLink
+Date: Sun  1 Jun 00:14:02 CEST 2025
+Utilisateur: root
+Répertoire: /media/prod/MAXLINK
+================================================================================
+
+[2025-06-01 00:14:02] [INFO] [orchestrator_install] Script orchestrator_install initialisé
+[2025-06-01 00:14:03] [SUCCESS] [orchestrator_install] Orchestrateur MaxLink installé avec succès

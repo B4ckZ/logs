@@ -1,9 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION NGINX ET DASHBOARD (VERSION HYBRIDE)
-# Installation flexible avec cache local ou téléchargement automatique
-# Version avec permissions optimisées pour édition FileZilla
+# MAXLINK - INSTALLATION NGINX ET DASHBOARD (VERSION NETTOYÉE)
+# Installation sans delays - nécessite l'orchestrateur
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -21,7 +20,7 @@ source "$SCRIPT_DIR/../common/wifi_helper.sh"
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Installation Nginx et Dashboard (hybride)" "install"
+init_logging "Installation Nginx et Dashboard" "install"
 
 # Variables du cache dashboard
 DASHBOARD_CACHE_DIR="/var/cache/maxlink/dashboard"
@@ -46,7 +45,6 @@ wait_silently() {
 download_dashboard_if_needed() {
     log_info "Vérification du cache dashboard"
     
-    # Si l'archive existe et est valide
     if [ -f "$DASHBOARD_ARCHIVE" ] && tar -tzf "$DASHBOARD_ARCHIVE" >/dev/null 2>&1; then
         echo "  ↦ Dashboard déjà en cache ✓"
         log_info "Dashboard trouvé dans le cache"
@@ -56,17 +54,14 @@ download_dashboard_if_needed() {
     echo "  ↦ Dashboard manquant, téléchargement nécessaire..."
     log_info "Dashboard non trouvé dans le cache, téléchargement nécessaire"
     
-    # S'assurer d'avoir internet
     if ! ensure_internet_connection; then
         echo "  ↦ Impossible d'établir la connexion ✗"
         log_error "Pas de connexion pour télécharger le dashboard"
         return 1
     fi
     
-    # Créer le répertoire
     mkdir -p "$DASHBOARD_CACHE_DIR"
     
-    # Télécharger
     echo "  ↦ Téléchargement depuis GitHub..."
     GITHUB_ARCHIVE_URL="${GITHUB_REPO_URL}/archive/refs/heads/${GITHUB_BRANCH}.tar.gz"
     
@@ -97,12 +92,10 @@ download_dashboard_if_needed() {
         return 1
     fi
     
-    # Vérifier l'archive
     if tar -tzf "$DASHBOARD_ARCHIVE" >/dev/null 2>&1; then
         echo "  ↦ Archive valide ✓"
         log_success "Archive dashboard valide"
         
-        # Créer les métadonnées
         cat > "$DASHBOARD_CACHE_DIR/metadata.json" << EOF
 {
     "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
@@ -160,7 +153,7 @@ update_dns_if_ap_exists() {
 # PROGRAMME PRINCIPAL
 # ===============================================================================
 
-log_info "========== DÉBUT DE L'INSTALLATION NGINX ET DASHBOARD (HYBRIDE) =========="
+log_info "========== DÉBUT DE L'INSTALLATION NGINX ET DASHBOARD =========="
 
 echo "========================================================================"
 echo "ÉTAPE 1 : VÉRIFICATIONS"
@@ -262,7 +255,6 @@ if log_command "tar -xzf '$DASHBOARD_ARCHIVE' -C '$TEMP_DIR'" "Extraction archiv
     echo "  ↦ Archive extraite ✓"
     log_success "Archive extraite avec succès"
     
-    # GitHub crée une archive avec un dossier racine, le trouver
     EXTRACTED_DIR=$(find "$TEMP_DIR" -maxdepth 1 -type d ! -path "$TEMP_DIR" | head -1)
     
     if [ -z "$EXTRACTED_DIR" ]; then
@@ -272,10 +264,8 @@ if log_command "tar -xzf '$DASHBOARD_ARCHIVE' -C '$TEMP_DIR'" "Extraction archiv
         exit 1
     fi
     
-    # Log pour debug
     log_info "Dossier racine de l'archive: $EXTRACTED_DIR"
     
-    # Chercher DashBoardV1 dans le dossier extrait
     DASHBOARD_PATH="$EXTRACTED_DIR/$GITHUB_DASHBOARD_DIR"
     log_info "Recherche du dashboard dans: $DASHBOARD_PATH"
     
@@ -283,10 +273,8 @@ if log_command "tar -xzf '$DASHBOARD_ARCHIVE' -C '$TEMP_DIR'" "Extraction archiv
         echo "  ↦ Dossier dashboard trouvé ✓"
         log_info "Dossier dashboard trouvé: $DASHBOARD_PATH"
         
-        # Créer le répertoire parent si nécessaire
         mkdir -p "$(dirname "$NGINX_DASHBOARD_DIR")"
         
-        # Copier le dashboard
         log_command "cp -r '$DASHBOARD_PATH' '$NGINX_DASHBOARD_DIR'" "Copie dashboard"
         echo "  ↦ Dashboard installé ✓"
         log_success "Dashboard installé avec succès"
@@ -303,7 +291,6 @@ else
     exit 1
 fi
 
-# Nettoyer
 rm -rf "$TEMP_DIR"
 log_info "Nettoyage du répertoire temporaire"
 
@@ -311,10 +298,8 @@ log_info "Nettoyage du répertoire temporaire"
 echo ""
 echo "◦ Configuration des permissions pour édition collaborative..."
 
-# S'assurer que le groupe www-data existe
 groupadd -f www-data 2>/dev/null || true
 
-# Permissions : propriétaire www-data, groupe www-data, 775 pour édition
 log_command "chown -R www-data:www-data '$NGINX_DASHBOARD_DIR'" "Application propriétaire et groupe"
 log_command "chmod -R 775 '$NGINX_DASHBOARD_DIR'" "Permissions 775 (lecture/écriture groupe)"
 log_command "find '$NGINX_DASHBOARD_DIR' -type d -exec chmod g+s {} \;" "Sticky bit sur dossiers"
@@ -322,7 +307,6 @@ log_command "find '$NGINX_DASHBOARD_DIR' -type d -exec chmod g+s {} \;" "Sticky 
 echo "  ↦ Permissions configurées pour édition via FileZilla ✓"
 log_info "Dashboard accessible en écriture pour le groupe www-data"
 
-# Rappel pour les utilisateurs
 echo ""
 echo "◦ Note : Les utilisateurs suivants peuvent éditer le dashboard :"
 echo "  • $EFFECTIVE_USER (via FileZilla ou local)"
@@ -427,23 +411,6 @@ else
     exit 1
 fi
 
-# Créer un override systemd pour le delay de démarrage et dépendances
-echo ""
-echo "◦ Configuration du délai de démarrage..."
-mkdir -p /etc/systemd/system/nginx.service.d/
-cat > /etc/systemd/system/nginx.service.d/dependencies.conf << EOF
-[Unit]
-# S'assurer que mosquitto est démarré avant nginx (optionnel mais recommandé)
-After=mosquitto.service
-Wants=mosquitto.service
-
-[Service]
-# Delay de démarrage pour attendre Mosquitto
-ExecStartPre=/bin/sleep $STARTUP_DELAY_NGINX
-EOF
-echo "  ↦ Délai de démarrage configuré (${STARTUP_DELAY_NGINX}s) ✓"
-log_info "Delay de démarrage Nginx configuré: ${STARTUP_DELAY_NGINX}s"
-
 # Recharger systemd
 systemctl daemon-reload
 
@@ -478,7 +445,6 @@ send_progress 100 "Installation terminée !"
 echo ""
 echo "◦ Installation terminée avec succès !"
 echo "  ↦ Dashboard installé dans : $NGINX_DASHBOARD_DIR"
-echo "  ↦ Délai de démarrage : ${STARTUP_DELAY_NGINX}s"
 echo "  ↦ Accessible via :"
 echo "    • http://$AP_IP"
 if [ -f "/etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf" ] && grep -q "address=/$NGINX_DASHBOARD_DOMAIN/" /etc/NetworkManager/dnsmasq-shared.d/00-maxlink-ap.conf; then
@@ -489,12 +455,7 @@ else
     echo "    • http://$NGINX_DASHBOARD_DOMAIN (nécessite l'installation de l'AP)"
 fi
 echo ""
-
-# Rappel important sur les permissions
-echo "◦ IMPORTANT - Permissions FileZilla :"
-echo "  Si vous ne pouvez pas éditer les fichiers via FileZilla :"
-echo "  1. Déconnectez-vous de FileZilla"
-echo "  2. Reconnectez-vous pour appliquer les changements de groupe"
+echo "◦ IMPORTANT : L'orchestrateur doit être installé pour gérer le démarrage ordonné"
 echo ""
 
 log_info "Installation terminée avec succès"
@@ -505,10 +466,7 @@ echo "  ↦ Redémarrage du système prévu dans 15 secondes..."
 echo ""
 
 log_info "Redémarrage du système prévu dans 15 secondes"
-
-# Pause de 30 secondes
 sleep 15
 
-# Redémarrer
 log_info "Redémarrage du système"
 reboot

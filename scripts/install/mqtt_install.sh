@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - INSTALLATION MQTT BROKER (VERSION AVEC STATISTIQUES)
-# Installation avec configuration des topics système $SYS activés
+# MAXLINK - INSTALLATION MQTT BROKER (VERSION NETTOYÉE)
+# Installation sans delays - nécessite l'orchestrateur
 # ===============================================================================
 
 # Définir le répertoire de base
@@ -20,9 +20,9 @@ source "$SCRIPT_DIR/../common/wifi_helper.sh"
 # ===============================================================================
 
 # Initialiser le logging
-init_logging "Installation MQTT Broker avec statistiques" "install"
+init_logging "Installation MQTT Broker" "install"
 
-# Variables MQTT - Utiliser les valeurs de variables.sh ou les valeurs par défaut
+# Variables MQTT
 MQTT_USER="${MQTT_USER:-mosquitto}"
 MQTT_PASS="${MQTT_PASS:-mqtt}"
 MQTT_PORT="${MQTT_PORT:-1883}"
@@ -68,7 +68,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 log_info "Privilèges root confirmés"
 
-# ÉTAPE 1 : Nettoyage et préparation
+# ÉTAPE 1 : Préparation
 echo "ÉTAPE 1 : PRÉPARATION DU SYSTÈME"
 echo "========================================================================"
 echo ""
@@ -102,7 +102,7 @@ echo ""
 
 send_progress 30 "Installation de Mosquitto..."
 
-# Utiliser la fonction hybride pour installer tous les paquets nécessaires
+# Utiliser la fonction hybride pour installer
 if hybrid_package_install "Mosquitto et dépendances" "libmosquitto1 libdlt2 mosquitto mosquitto-clients"; then
     echo ""
     log_success "Tous les paquets installés avec succès"
@@ -111,7 +111,6 @@ else
     echo "  ↦ Certains paquets n'ont pas pu être installés ✗"
     log_error "Installation incomplète des paquets"
     
-    # Essayer de corriger
     echo ""
     echo "◦ Tentative de correction des dépendances..."
     apt-get install -f -y >/dev/null 2>&1
@@ -188,19 +187,18 @@ chown mosquitto:mosquitto "$MQTT_CONFIG_DIR/passwords"
 echo "  ↦ Utilisateur '$MQTT_USER' créé ✓"
 log_info "Utilisateur MQTT créé: $MQTT_USER"
 
-# IMPORTANT : Créer la configuration avec topics système activés
+# Créer la configuration avec topics système activés
 echo ""
 echo "◦ Création du fichier de configuration avec statistiques..."
 
-# Sauvegarder l'ancienne configuration si elle existe
 if [ -f "$MQTT_CONFIG_DIR/mosquitto.conf" ]; then
     cp "$MQTT_CONFIG_DIR/mosquitto.conf" "$MQTT_CONFIG_DIR/mosquitto.conf.backup_$(date +%Y%m%d_%H%M%S)"
     log_info "Ancienne configuration sauvegardée"
 fi
 
-# Créer la configuration avec topics système $SYS activés
+# Configuration simplifiée
 cat > "$MQTT_CONFIG_DIR/mosquitto.conf" << EOF
-# Configuration Mosquitto MaxLink - Avec statistiques système
+# Configuration Mosquitto MaxLink
 allow_anonymous false
 password_file /etc/mosquitto/passwords
 
@@ -211,21 +209,13 @@ listener $MQTT_PORT
 listener $MQTT_WEBSOCKET_PORT
 protocol websockets
 
-# =======================================
-# CONFIGURATION DES TOPICS SYSTÈME ($SYS)
-# =======================================
-
-# Activer les topics système
+# Configuration des topics système
 sys_interval 10
 
-# Autoriser l'accès aux topics système pour l'utilisateur authentifié
-# Les topics $SYS sont en lecture seule par défaut
-
-# Configuration ACL pour permettre la lecture des topics système
-# L'utilisateur mosquitto peut lire tous les topics système et publier/lire sur tous les autres
+# Configuration ACL
 acl_file /etc/mosquitto/acl
 
-# Logging pour debug (optionnel)
+# Logging
 log_dest file /var/log/mosquitto/mosquitto.log
 log_type error
 log_type warning
@@ -236,33 +226,22 @@ EOF
 echo "  ↦ Configuration créée avec statistiques activées ✓"
 log_success "Configuration Mosquitto créée avec topics système"
 
-# Créer le fichier ACL pour autoriser la lecture des topics $SYS
+# Créer le fichier ACL
 echo ""
 echo "◦ Configuration des permissions ACL..."
 cat > "$MQTT_CONFIG_DIR/acl" << EOF
 # ACL pour MaxLink MQTT
-# Format: user username
-#         topic [read|write|readwrite] topic
-
-# L'utilisateur mosquitto a accès complet
 user $MQTT_USER
 topic readwrite #
 
-# Tous les utilisateurs authentifiés peuvent lire les topics système
+# Lecture des topics système pour tous
 pattern read \$SYS/#
 EOF
 
 chmod 644 "$MQTT_CONFIG_DIR/acl"
 chown mosquitto:mosquitto "$MQTT_CONFIG_DIR/acl"
 echo "  ↦ Permissions ACL configurées ✓"
-log_info "Fichier ACL créé pour autoriser la lecture des topics système"
-
-# Afficher la configuration pour vérification
-echo ""
-echo "◦ Configuration appliquée :"
-echo "  ----------------------------------------"
-cat "$MQTT_CONFIG_DIR/mosquitto.conf" | sed 's/^/  | /'
-echo "  ----------------------------------------"
+log_info "Fichier ACL créé"
 
 # Permissions sur le fichier de configuration
 chmod 644 "$MQTT_CONFIG_DIR/mosquitto.conf"
@@ -280,22 +259,10 @@ echo ""
 
 send_progress 90 "Démarrage du service..."
 
-# Créer un override systemd pour le delay de démarrage
-echo "◦ Configuration du délai de démarrage..."
-mkdir -p /etc/systemd/system/mosquitto.service.d/
-cat > /etc/systemd/system/mosquitto.service.d/startup-delay.conf << EOF
-[Service]
-# Delay de démarrage pour attendre la stabilisation du réseau
-ExecStartPre=/bin/sleep $STARTUP_DELAY_MOSQUITTO
-EOF
-echo "  ↦ Délai de démarrage configuré (${STARTUP_DELAY_MOSQUITTO}s) ✓"
-log_info "Delay de démarrage Mosquitto configuré: ${STARTUP_DELAY_MOSQUITTO}s"
-
-# Recharger systemd pour prendre en compte l'override
+# Recharger systemd
 systemctl daemon-reload
 
 # Activer le service au démarrage
-echo ""
 echo "◦ Activation du service au démarrage..."
 log_command "systemctl enable mosquitto >/dev/null 2>&1" "Activation au démarrage"
 echo "  ↦ Service activé ✓"
@@ -307,10 +274,8 @@ if log_command "systemctl start mosquitto" "Démarrage Mosquitto"; then
     echo "  ↦ Mosquitto démarré ✓"
     log_success "Mosquitto démarré avec succès"
     
-    # Attendre que le service soit complètement démarré
     wait_silently 3
     
-    # Vérifier que le service est actif
     if systemctl is-active --quiet mosquitto; then
         echo "  ↦ Service actif et fonctionnel ✓"
         log_info "Service Mosquitto actif"
@@ -363,31 +328,18 @@ if nc -z localhost $MQTT_WEBSOCKET_PORT 2>/dev/null; then
 else
     echo "  ↦ Port WebSocket non accessible ⚠"
     log_warn "Port WebSocket non accessible immédiatement"
-    echo "  ↦ Le port peut prendre quelques secondes pour s'ouvrir"
 fi
 
 # Test des topics système
 echo ""
 echo "◦ Test des topics système ($SYS)..."
-# Essayer de lire un topic système
 if timeout 2 mosquitto_sub -h localhost -p $MQTT_PORT -u "$MQTT_USER" -P "$MQTT_PASS" -t '$SYS/broker/version' -C 1 2>/dev/null; then
     echo "  ↦ Topics système accessibles ✓"
     log_success "Topics système $SYS accessibles"
-    
-    # Afficher quelques statistiques système
-    echo ""
-    echo "◦ Aperçu des statistiques système disponibles :"
-    echo "  ↦ Version : $(mosquitto_sub -h localhost -p $MQTT_PORT -u "$MQTT_USER" -P "$MQTT_PASS" -t '$SYS/broker/version' -C 1 2>/dev/null || echo 'N/A')"
-    echo "  ↦ Uptime : $(mosquitto_sub -h localhost -p $MQTT_PORT -u "$MQTT_USER" -P "$MQTT_PASS" -t '$SYS/broker/uptime' -C 1 2>/dev/null || echo 'N/A')"
 else
     echo "  ↦ Topics système non accessibles ⚠"
-    log_warn "Topics système non accessibles - vérifier la configuration"
+    log_warn "Topics système non accessibles"
 fi
-
-# Afficher les ports en écoute
-echo ""
-echo "◦ Ports en écoute :"
-netstat -tlnp 2>/dev/null | grep mosquitto || ss -tlnp 2>/dev/null | grep mosquitto || echo "  ↦ Impossible de vérifier les ports (outils non disponibles)"
 
 send_progress 100 "Installation terminée"
 echo ""
@@ -400,7 +352,6 @@ echo "========================================================================"
 echo ""
 echo "◦ Broker MQTT Mosquitto installé et configuré"
 echo "◦ Topics système ($SYS) activés pour les statistiques"
-echo "◦ Délai de démarrage : ${STARTUP_DELAY_MOSQUITTO}s"
 echo ""
 echo "◦ Informations de connexion :"
 echo "  • Serveur      : localhost (ou IP du Raspberry Pi)"
@@ -409,23 +360,15 @@ echo "  • Port WebSocket : $MQTT_WEBSOCKET_PORT"
 echo "  • Utilisateur  : $MQTT_USER"
 echo "  • Mot de passe : $MQTT_PASS"
 echo ""
-echo "◦ Topics système disponibles :"
-echo "  • \$SYS/broker/clients/connected    : Clients connectés"
-echo "  • \$SYS/broker/messages/received   : Messages reçus"
-echo "  • \$SYS/broker/messages/sent       : Messages envoyés"
-echo "  • \$SYS/broker/uptime             : Temps de fonctionnement"
-echo "  • \$SYS/broker/load/+             : Charge du broker"
-echo ""
 echo "◦ Commandes utiles :"
 echo "  • État : systemctl status mosquitto"
 echo "  • Logs : journalctl -u mosquitto -f"
 echo "  • Test : mosquitto_sub -h localhost -u $MQTT_USER -P $MQTT_PASS -t '#' -v"
-echo "  • Stats: mosquitto_sub -h localhost -u $MQTT_USER -P $MQTT_PASS -t '\$SYS/#' -v"
 echo ""
-echo "◦ Prochaine étape : Installer les widgets avec mqtt_wgs_install.sh"
+echo "◦ IMPORTANT : L'orchestrateur doit être installé pour gérer le démarrage"
 echo ""
 
-log_success "Installation MQTT Broker terminée avec statistiques système activées"
+log_success "Installation MQTT Broker terminée"
 log_info "Configuration: $MQTT_USER/$MQTT_PASS sur ports $MQTT_PORT et $MQTT_WEBSOCKET_PORT"
 
 echo ""
@@ -433,10 +376,7 @@ echo "  ↦ Redémarrage du système prévu dans 15 secondes..."
 echo ""
 
 log_info "Redémarrage du système prévu dans 15 secondes"
-
-# Pause de 30 secondes
 sleep 15
 
-# Redémarrer
 log_info "Redémarrage du système"
 reboot

@@ -1,10 +1,8 @@
 #!/bin/bash
 
 # ===============================================================================
-# MAXLINK - CONFIGURATION CENTRALE
-# ===============================================================================
-# Ce fichier contient toutes les variables configurables du projet MaxLink.
-# Modifiez ces valeurs selon vos besoins, elles seront utilisées partout.
+# MAXLINK - CONFIGURATION CENTRALE (VERSION NETTOYÉE)
+# Toutes les variables sans les delays de démarrage
 # ===============================================================================
 
 # ===============================================================================
@@ -34,7 +32,7 @@ VERSION_OVERLAY_PREFIX="MaxLink "            # Préfixe avant la version
 # CONFIGURATION UTILISATEUR SYSTÈME
 # ===============================================================================
 
-# Utilisateur principal du Raspberry Pi (créé lors du flash avec Pi Imager)
+# Utilisateur principal du Raspberry Pi
 SYSTEM_USER="prod"
 SYSTEM_USER_HOME="/home/$SYSTEM_USER"
 
@@ -53,13 +51,9 @@ SFTP_DATA_PASS="franck"
 SFTP_DATA_DIR="/home/franck/downloads"
 SFTP_DATA_DESC="Utilisateur limité - Téléchargement uniquement"
 
-# Liste extensible d'utilisateurs limités pour évolutions futures
-# Format: "username:password:directory:description"
+# Liste extensible d'utilisateurs limités
 SFTP_LIMITED_USERS=(
     "franck:franck:/home/franck/downloads:Utilisateur limité - Téléchargement uniquement"
-    # Ajouter d'autres utilisateurs ici si besoin
-    # "client1:Pass123:/home/client1/data:Client 1 - Accès données"
-    # "client2:Pass456:/home/client2/exports:Client 2 - Export only"
 )
 
 # ===============================================================================
@@ -86,7 +80,6 @@ AP_DHCP_END="192.168.4.100"
 GITHUB_REPO_URL="https://github.com/B4ckZ/MaxLink"
 GITHUB_BRANCH="main"
 GITHUB_DASHBOARD_DIR="DashBoardV1"
-# Token GitHub (laisser vide si dépôt public)
 GITHUB_TOKEN=""
 
 # ===============================================================================
@@ -104,20 +97,12 @@ MQTT_WEBSOCKET_PORT="9001"
 # ===============================================================================
 
 # Topics MQTT à ignorer dans les statistiques
-# Utilisez des patterns avec wildcards (* et +) si nécessaire
 MQTT_IGNORED_TOPICS=(
-    # Topics de test et latence
     "test/#"
     "test/latency/+"
     "test/widget/+"
-    
-    # Topics internes des widgets qui génèrent du bruit
     "rpi/network/mqtt/stats"
     "rpi/network/mqtt/topics"
-    
-    # Ajoutez vos propres topics à ignorer ici
-    # "device/telemetry/frequent"
-    # "sensor/noisy/+"
 )
 
 # Convertir en string pour l'export (séparateur |)
@@ -155,7 +140,6 @@ DESKTOP_FG_COLOR="#ECEFF4"
 DESKTOP_SHADOW_COLOR="#000000"
 
 # Services disponibles dans l'interface
-# Format: "id:nom:statut_initial"
 SERVICES_LIST=(
     "update:Update RPI:active"
     "ap:Network AP:active" 
@@ -195,16 +179,6 @@ FAN_TEMP_ACTIVATE=60
 FAN_TEMP_MAX=60
 
 # ===============================================================================
-# CONFIGURATION DES DELAYS DE DÉMARRAGE
-# ===============================================================================
-
-# Delays de démarrage des services
-STARTUP_DELAY_MOSQUITTO=10
-STARTUP_DELAY_NGINX=20
-STARTUP_DELAY_WIDGETS=40
-
-
-# ===============================================================================
 # FONCTIONS UTILITAIRES
 # ===============================================================================
 
@@ -242,14 +216,12 @@ get_bg_image_dest() {
 validate_config() {
     local errors=0
     
-    # Vérifier les variables essentielles
     [ -z "$WIFI_SSID" ] && echo "ERREUR: WIFI_SSID non défini" && ((errors++))
     [ -z "$AP_SSID" ] && echo "ERREUR: AP_SSID non défini" && ((errors++))
     [ -z "$SYSTEM_USER" ] && echo "ERREUR: SYSTEM_USER non défini" && ((errors++))
     [ -z "$SFTP_ADMIN_USER" ] && echo "ERREUR: SFTP_ADMIN_USER non défini" && ((errors++))
     [ -z "$SFTP_DATA_USER" ] && echo "ERREUR: SFTP_DATA_USER non défini" && ((errors++))
     
-    # Vérifier la validité de l'IP
     if [[ ! "$AP_IP" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
         echo "ERREUR: AP_IP ($AP_IP) n'est pas une adresse IP valide"
         ((errors++))
@@ -296,7 +268,6 @@ export NETWORK_TIMEOUT PING_COUNT APT_RETRY_MAX_ATTEMPTS APT_RETRY_DELAY
 export DISPLAY_DELAY_STARTUP DISPLAY_DELAY_BETWEEN_STEPS
 export FAN_TEMP_MIN FAN_TEMP_ACTIVATE FAN_TEMP_MAX
 export MQTT_USER MQTT_PASS MQTT_PORT MQTT_WEBSOCKET_PORT
-export STARTUP_DELAY_MOSQUITTO STARTUP_DELAY_NGINX STARTUP_DELAY_WIDGETS
 export MQTT_IGNORED_TOPICS_STRING
 
 # Valider la configuration
